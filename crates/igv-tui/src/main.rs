@@ -1,4 +1,9 @@
+mod cli;
+
+use clap::Parser;
+
 fn main() -> anyhow::Result<()> {
-    println!("igv-rs scaffold — implementation in progress.");
+    let args = cli::Cli::parse();
+    println!("{:#?}", args);
     Ok(())
 }
