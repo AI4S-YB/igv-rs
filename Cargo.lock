@@ -924,6 +924,7 @@ dependencies = [
  "noodles-bam",
  "noodles-bcf",
  "noodles-bgzf",
+ "noodles-core",
  "noodles-cram",
  "noodles-csi",
  "noodles-fasta",
