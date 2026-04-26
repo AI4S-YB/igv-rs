@@ -11,5 +11,4 @@ pub mod render;
 pub mod source;
 
 pub use error::{IgvError, Result};
-// TODO: re-enable once underlying types are introduced in later tasks.
-// pub use region::Region;
+pub use region::Region;
