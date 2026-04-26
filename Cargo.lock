@@ -636,6 +636,7 @@ name = "igv-core"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "flate2",
  "futures",
  "noodles",
  "serde",
@@ -923,6 +924,7 @@ checksum = "05ecd3b4ddb5792b0358e035fbd41543613e4234dc2d0f13c814e3d5e705d8c8"
 dependencies = [
  "noodles-bam",
  "noodles-bcf",
+ "noodles-bed",
  "noodles-bgzf",
  "noodles-core",
  "noodles-cram",
@@ -968,6 +970,18 @@ dependencies = [
  "noodles-csi",
  "noodles-vcf",
  "tokio",
+]
+
+[[package]]
+name = "noodles-bed"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd88355e74ac87a21d38156c52e5a17db97230ede8798356b2ebf12cfcd4cfed"
+dependencies = [
+ "bstr",
+ "lexical-core",
+ "memchr",
+ "noodles-core",
 ]
 
 [[package]]
