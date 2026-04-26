@@ -7,7 +7,7 @@ mod ui;
 
 use std::io;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use anyhow::{anyhow, Context};
 use clap::Parser;
@@ -160,7 +160,6 @@ async fn run_loop(
     input_state: &mut InputState,
     palette: &mut CommandPalette,
 ) -> anyhow::Result<()> {
-    let mut last_status_clear = Instant::now();
     while !state.should_quit {
         terminal.draw(|f| draw(f, state))?;
 
@@ -196,11 +195,12 @@ async fn run_loop(
                 }
             }
             _ = tokio::time::sleep(Duration::from_millis(150)) => {
-                if state.status.is_some()
-                    && last_status_clear.elapsed() > Duration::from_secs(3)
-                {
+                let stale = state
+                    .status
+                    .as_ref()
+                    .is_some_and(|s| s.set_at.elapsed() > Duration::from_secs(3));
+                if stale {
                     state.status = None;
-                    last_status_clear = Instant::now();
                 }
             }
         }

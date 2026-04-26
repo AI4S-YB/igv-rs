@@ -72,16 +72,27 @@ impl AppState {
         ((w as f64) * 0.5) as u64
     }
 
-    /// Compute new region for forward/backward navigation.
+    /// Length of the current chromosome from the loaded references.
+    fn current_chrom_len(&self) -> Option<u64> {
+        self.references
+            .iter()
+            .find(|r| r.name == self.region.chrom)
+            .map(|r| r.length)
+    }
+
+    /// Compute new region for forward/backward navigation, clamped to the
+    /// chromosome bounds so the user cannot scroll past either end.
     pub fn next_navigation(&self, forward: bool) -> Region {
         let step = self.nav_step().max(1);
         let width = self.region.width();
+        let chrom_len = self.current_chrom_len().unwrap_or(u64::MAX);
+        let max_start = chrom_len.saturating_sub(width).max(1);
         let new_start = if forward {
-            self.region.start.saturating_add(step).max(1)
+            self.region.start.saturating_add(step).min(max_start).max(1)
         } else {
             self.region.start.saturating_sub(step).max(1)
         };
-        let new_end = new_start + width - 1;
+        let new_end = (new_start + width - 1).min(chrom_len.max(1));
         Region {
             chrom: self.region.chrom.clone(),
             start: new_start,
@@ -89,7 +100,8 @@ impl AppState {
         }
     }
 
-    /// Compute new region for zoom in/out around the current center.
+    /// Compute new region for zoom in/out around the current center, clamped
+    /// to chromosome bounds.
     pub fn next_zoom(&self, zoom_in: bool, factor: f64) -> Region {
         let width = self.region.width();
         let new_width: u64 = if zoom_in {
@@ -99,8 +111,9 @@ impl AppState {
         };
         let new_width = new_width.clamp(10, MAX_REGION_WIDTH);
         let center = self.region.start + width / 2;
+        let chrom_len = self.current_chrom_len().unwrap_or(u64::MAX);
         let new_start = center.saturating_sub(new_width / 2).max(1);
-        let new_end = new_start + new_width - 1;
+        let new_end = (new_start + new_width - 1).min(chrom_len.max(1));
         Region {
             chrom: self.region.chrom.clone(),
             start: new_start,
@@ -177,6 +190,14 @@ impl AppState {
         self.region = region;
         self.generation = self.generation.wrapping_add(1);
         self.loading = true;
+        // Clear stale data so widgets don't render new reads against the old
+        // reference window (causing transient phantom mismatches) until the
+        // new fetches land.
+        self.reference_seq.clear();
+        for rows in &mut self.bam_rows {
+            rows.clear();
+        }
+        self.variants.clear();
         Some(LoadRequest {
             generation: self.generation,
             region: self.region.clone(),

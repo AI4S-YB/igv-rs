@@ -37,9 +37,22 @@ igv-rs reference.fa -b sample1.bam -b sample2.bam -r chr1:1000-2000
 
 ## Configuration
 
-Optional `~/.config/igv-rs/config.toml` overrides the theme and rendering
-thresholds — see `docs/superpowers/specs/2026-04-26-igv-rs-rust-rewrite-design.md`
-for the full schema.
+Optional `~/.config/igv-rs/config.toml` is read at startup. Today only the
+`[theme]` section is honored:
+
+```toml
+[theme]
+preset = "dark"  # "dark" | "light"
+
+[theme.custom]
+# Override individual style keys
+"A" = "bold green"
+"MISMATCH" = "bold white on red"
+```
+
+The full schema (with `[render]` and `[bookmarks]` tables) is described in
+`docs/superpowers/specs/2026-04-26-igv-rs-rust-rewrite-design.md`. See "Known
+limitations" below for which sections are wired up.
 
 ## Layout
 
@@ -48,3 +61,27 @@ for the full schema.
 - `crates/igv-tui` — `igv-rs` binary: clap CLI, ratatui custom widgets, tokio
   main loop.
 - `cligv/` — original Python implementation, kept as reference (git-ignored).
+
+## Known limitations
+
+The 0.1 release ships the architectural backbone described in the spec; some
+configuration knobs and refinements are tracked for follow-up:
+
+- **Held-key debounce** is not implemented. Holding `d` or `s` issues one
+  fetch per keystroke; cancellation reduces the load but does not eliminate
+  it. Workaround: tap rather than hold.
+- **`[render]` config keys** (`zoom_factor`, `nav_overlap`, threshold
+  overrides) are not read yet. Hardcoded defaults match the spec.
+- **`[bookmarks]` config table** is not loaded. In-session bookmarks via
+  `m<c>` / `'<c>` work fully.
+- **Coverage widget at very wide zoom** still renders full-resolution bars
+  rather than the heat-bar mode described in spec §6.
+- **BAM tag display** uses Rust's `Debug` formatting (e.g. `Int8(42)` instead
+  of `42`) when colored by tag.
+- **Snapshot tests** of full TUI frames are limited to a smoke test; widget
+  rendering is exercised manually.
+
+## Reference
+
+- Design spec: `docs/superpowers/specs/2026-04-26-igv-rs-rust-rewrite-design.md`
+- Implementation plan: `docs/superpowers/plans/2026-04-26-igv-rs-rust-rewrite.md`
