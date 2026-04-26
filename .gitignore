@@ -1,0 +1,17 @@
+# Reference-only
+/cligv
+
+# Rust
+/target
+**/*.rs.bk
+Cargo.lock.bak
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log

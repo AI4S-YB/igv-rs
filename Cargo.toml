@@ -1,0 +1,46 @@
+[workspace]
+resolver = "2"
+members = ["crates/igv-core", "crates/igv-tui"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["igv-rs contributors"]
+repository = "https://github.com/<owner>/igv-rs"
+rust-version = "1.75"
+
+[workspace.dependencies]
+# Genome formats
+noodles = { version = "0.85", default-features = false }
+
+# Async runtime
+tokio = { version = "1.40", default-features = false }
+async-trait = "0.1"
+futures = "0.3"
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+# Serialization & config
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+
+# CLI & TUI
+clap = { version = "4.5", features = ["derive"] }
+ratatui = "0.29"
+crossterm = { version = "0.28", features = ["event-stream"] }
+tui-input = "0.10"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-appender = "0.2"
+
+# Paths
+directories = "5"
+
+# Test helpers
+tempfile = "3"
+insta = { version = "1.40", features = ["yaml"] }
