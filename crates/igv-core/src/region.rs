@@ -109,6 +109,49 @@ fn is_chrom_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == '-'
 }
 
+/// Map a 0-based genomic position to a 0-based screen column.
+///
+/// Returns `None` if the position falls outside `[view_start, view_start +
+/// view_width)`. When `view_width > screen_width`, scaling is applied.
+pub fn genomic_to_screen(
+    genomic_pos: u64,
+    view_start: u64,
+    view_width: u64,
+    screen_width: u32,
+) -> Option<u32> {
+    if genomic_pos < view_start {
+        return None;
+    }
+    let rel = genomic_pos - view_start;
+    if rel >= view_width {
+        return None;
+    }
+    if view_width == 0 || screen_width == 0 {
+        return None;
+    }
+    if view_width as u64 > screen_width as u64 {
+        let scaled = (rel as u128 * screen_width as u128 / view_width as u128) as u32;
+        Some(scaled.min(screen_width.saturating_sub(1)))
+    } else {
+        Some(rel as u32)
+    }
+}
+
+/// Map a 0-based screen column back to a 0-based genomic position.
+pub fn screen_to_genomic(
+    screen_pos: u32,
+    view_start: u64,
+    view_width: u64,
+    screen_width: u32,
+) -> u64 {
+    if view_width as u64 > screen_width as u64 {
+        let g = screen_pos as u128 * view_width as u128 / screen_width as u128;
+        view_start + g as u64
+    } else {
+        view_start + screen_pos as u64
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,5 +226,41 @@ mod tests {
         assert!(Region::parse("not a region").is_err());
         assert!(Region::parse("chr1:abc-def").is_err());
         assert!(Region::parse("").is_err());
+    }
+
+    #[test]
+    fn genomic_to_screen_identity_when_smaller_than_screen() {
+        // 100bp region, 200-col screen → no scaling
+        let pos = genomic_to_screen(100, 100, 100, 200);
+        assert_eq!(pos, Some(0));
+        let pos = genomic_to_screen(150, 100, 100, 200);
+        assert_eq!(pos, Some(50));
+    }
+
+    #[test]
+    fn genomic_to_screen_scales_when_larger() {
+        // 1000bp region, 100-col screen → 10x compression
+        let pos = genomic_to_screen(1000, 1000, 1000, 100);
+        assert_eq!(pos, Some(0));
+        let pos = genomic_to_screen(1500, 1000, 1000, 100);
+        assert_eq!(pos, Some(50));
+    }
+
+    #[test]
+    fn genomic_to_screen_returns_none_when_outside() {
+        assert!(genomic_to_screen(50, 100, 100, 100).is_none());
+        assert!(genomic_to_screen(500, 100, 100, 100).is_none());
+    }
+
+    #[test]
+    fn screen_to_genomic_round_trips_when_unscaled() {
+        let g = screen_to_genomic(50, 100, 100, 200);
+        assert_eq!(g, 150);
+    }
+
+    #[test]
+    fn screen_to_genomic_round_trips_when_scaled() {
+        let g = screen_to_genomic(50, 1000, 1000, 100);
+        assert_eq!(g, 1500);
     }
 }
