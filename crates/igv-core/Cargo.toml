@@ -8,6 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 async-trait.workspace = true
+flate2 = "1"
 futures.workspace = true
 noodles = { workspace = true, features = [
     "async", "core", "fasta", "bam", "sam", "vcf", "csi", "tabix", "bgzf",
