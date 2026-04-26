@@ -30,6 +30,16 @@ pub struct Cli {
     #[arg(short = 't', long = "tag")]
     pub tag: Option<String>,
 
+    /// Path to a GFF3, GTF, or BED annotation file. Format auto-detected
+    /// by extension. May be repeated.
+    #[arg(short = 'g', long = "annotation")]
+    pub annotations: Vec<std::path::PathBuf>,
+
+    /// Override annotation format auto-detection
+    /// (`gff`, `gff3`, `gtf`, or `bed`). Applies to all `-g` files.
+    #[arg(long = "annotation-format")]
+    pub annotation_format: Option<String>,
+
     /// Use light theme (for light-background terminals).
     #[arg(long = "light-mode")]
     pub light_mode: bool,
