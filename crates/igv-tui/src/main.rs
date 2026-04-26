@@ -1,5 +1,6 @@
 mod app;
 mod cli;
+mod input;
 mod ui;
 
 use clap::Parser;
