@@ -1,10 +1,12 @@
 # igv-rs
 
-Interactive terminal genome viewer — Rust rewrite of [`cligv`](./cligv).
+Interactive terminal genome viewer for FASTA / VCF / BAM / GFF / BED, written in Rust.
+Inspired by [cligv](https://github.com/jonasfreudig/cligv) by Jonas Freudigmann.
 
-`igv-rs` displays FASTA reference, VCF variants, and BAM alignments in the
-terminal with async non-blocking IO, adaptive zoom-level rendering, multi-BAM
-tracks, a vim-style command palette and bookmarks.
+`igv-rs` renders the reference sequence, variants, read alignments, and gene /
+region annotations side-by-side in the terminal, with async non-blocking IO,
+adaptive zoom-level rendering, multi-track support, a vim-style command palette
+and bookmarks.
 
 ## Build
 
@@ -21,7 +23,15 @@ igv-rs reference.fa
 igv-rs reference.fa -v variants.vcf.gz
 igv-rs reference.fa -b alignments.bam
 igv-rs reference.fa -b sample1.bam -b sample2.bam -r chr1:1000-2000
+igv-rs reference.fa -g genes.gff3
+igv-rs reference.fa -g genes.gff3 -g peaks.bed -b sample.bam -r chr1:1000-2000
 ```
+
+Annotation tracks are auto-detected by extension:
+`.gff` / `.gff3` / `.gtf` (with optional `.gz`) and `.bed` / `.bed.gz` are all
+accepted via the repeatable `-g` / `--annotation` flag. Override the
+auto-detection with `--annotation-format gff|gtf|bed` when the extension is
+ambiguous or missing.
 
 ### Keybindings
 
@@ -60,7 +70,8 @@ limitations" below for which sections are wired up.
   expansion, coverage, render thresholds.
 - `crates/igv-tui` — `igv-rs` binary: clap CLI, ratatui custom widgets, tokio
   main loop.
-- `cligv/` — original Python implementation, kept as reference (git-ignored).
+- `cligv/` — the project that inspired this work; kept locally as a reference
+  and not part of this repository (git-ignored).
 
 ## Known limitations
 
@@ -83,5 +94,7 @@ configuration knobs and refinements are tracked for follow-up:
 
 ## Reference
 
-- Design spec: `docs/superpowers/specs/2026-04-26-igv-rs-rust-rewrite-design.md`
-- Implementation plan: `docs/superpowers/plans/2026-04-26-igv-rs-rust-rewrite.md`
+- Initial design spec: `docs/superpowers/specs/2026-04-26-igv-rs-rust-rewrite-design.md`
+- Initial implementation plan: `docs/superpowers/plans/2026-04-26-igv-rs-rust-rewrite.md`
+- Annotation track design: `docs/superpowers/specs/2026-04-26-annotations-design.md`
+- Annotation track plan: `docs/superpowers/plans/2026-04-26-annotations.md`
