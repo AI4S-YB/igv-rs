@@ -56,6 +56,11 @@ impl Theme {
         m.insert("WARNING".into(), Style::default().fg(Color::Yellow));
         m.insert("ERROR".into(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
         m.insert("SUCCESS".into(), Style::default().fg(Color::Green));
+        m.insert("ANNOTATION_EXON".into(), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
+        m.insert("ANNOTATION_UTR".into(), Style::default().fg(Color::Green));
+        m.insert("ANNOTATION_INTRON".into(), Style::default().fg(Color::DarkGray));
+        m.insert("ANNOTATION_NAME".into(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+        m.insert("ANNOTATION_STRAND".into(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
         Self { map: m }
     }
 
@@ -95,6 +100,11 @@ impl Theme {
         m.insert("WARNING".into(), Style::default().fg(Color::Rgb(180, 100, 0)));
         m.insert("ERROR".into(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
         m.insert("SUCCESS".into(), Style::default().fg(Color::Green));
+        m.insert("ANNOTATION_EXON".into(), Style::default().fg(Color::Rgb(0, 100, 0)).add_modifier(Modifier::BOLD));
+        m.insert("ANNOTATION_UTR".into(), Style::default().fg(Color::Rgb(0, 100, 0)));
+        m.insert("ANNOTATION_INTRON".into(), Style::default().fg(Color::Gray));
+        m.insert("ANNOTATION_NAME".into(), Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD));
+        m.insert("ANNOTATION_STRAND".into(), Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD));
         Self { map: m }
     }
 
