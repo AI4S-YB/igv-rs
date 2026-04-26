@@ -227,6 +227,13 @@ fn apply_load_result(state: &mut AppState, result: LoadResult) {
                 }
             }
         }
+        LoadResult::Annotation { generation, track_index, transcripts } => {
+            if generation == state.generation {
+                if let Some(slot) = state.annotation_rows.get_mut(track_index) {
+                    *slot = transcripts;
+                }
+            }
+        }
         LoadResult::Error { generation, message } => {
             if generation == state.generation {
                 state.set_status(StatusKind::Error, message);
