@@ -26,6 +26,9 @@ pub struct AppState {
     /// Per-BAM rows, parallel to `bams` indices.
     pub bam_rows: Vec<Vec<AlignmentRow>>,
 
+    pub annotations: Vec<AnnotationTrack>,
+    pub annotation_rows: Vec<Vec<igv_core::source::AnnotationTranscript>>,
+
     pub theme: Theme,
     pub light_mode: bool,
     pub thresholds: Thresholds,
@@ -49,6 +52,13 @@ pub struct BamTrack {
     pub display: String,
     pub source: Arc<dyn BamSource>,
     pub fetch_opts: FetchOpts,
+}
+
+#[derive(Clone)]
+pub struct AnnotationTrack {
+    pub path: std::path::PathBuf,
+    pub display: String,
+    pub source: std::sync::Arc<dyn igv_core::source::AnnotationSource>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -195,6 +205,9 @@ impl AppState {
         // new fetches land.
         self.reference_seq.clear();
         for rows in &mut self.bam_rows {
+            rows.clear();
+        }
+        for rows in &mut self.annotation_rows {
             rows.clear();
         }
         self.variants.clear();
