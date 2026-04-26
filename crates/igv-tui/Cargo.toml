@@ -1,0 +1,36 @@
+[package]
+name = "igv-tui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "igv-rs"
+path = "src/main.rs"
+
+[dependencies]
+igv-core = { path = "../igv-core" }
+
+anyhow.workspace = true
+async-trait.workspace = true
+clap.workspace = true
+crossterm.workspace = true
+directories.workspace = true
+futures.workspace = true
+ratatui.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = [
+    "fs", "io-util", "macros", "rt-multi-thread", "sync", "time", "signal",
+] }
+toml.workspace = true
+tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true
+tui-input.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+tempfile.workspace = true
