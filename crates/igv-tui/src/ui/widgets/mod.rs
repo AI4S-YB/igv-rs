@@ -6,3 +6,4 @@ pub mod overview;
 pub mod ruler;
 pub mod sequence;
 pub mod variants;
+pub mod annotations;
