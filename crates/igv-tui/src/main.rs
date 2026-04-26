@@ -269,6 +269,7 @@ fn draw(f: &mut ratatui::Frame<'_>, state: &AppState) {
     let spec = LayoutSpec {
         has_vcf: state.vcf.is_some(),
         bam_count: state.bams.len(),
+        annotation_tracks: state.annotations.len(),
         ..Default::default()
     };
     let areas = compute(f.area(), &spec);
@@ -276,6 +277,16 @@ fn draw(f: &mut ratatui::Frame<'_>, state: &AppState) {
     f.render_widget(widgets::overview::OverviewWidget { state, theme: &state.theme }, areas.overview);
     f.render_widget(widgets::ruler::RulerWidget { state, theme: &state.theme }, areas.ruler);
     f.render_widget(widgets::sequence::SequenceWidget { state, theme: &state.theme }, areas.sequence);
+    for (i, area) in areas.annotations.iter().enumerate() {
+        f.render_widget(
+            widgets::annotations::AnnotationsWidget {
+                state,
+                theme: &state.theme,
+                track_index: i,
+            },
+            *area,
+        );
+    }
     if let Some(va) = areas.variants {
         f.render_widget(widgets::variants::VariantsWidget { state, theme: &state.theme }, va);
     }
