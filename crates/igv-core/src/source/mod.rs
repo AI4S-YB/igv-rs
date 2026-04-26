@@ -1,5 +1,6 @@
 //! Async data-source traits and noodles-backed implementations.
 
+pub mod annotation;
 pub mod bam;
 pub mod fasta;
 pub mod vcf;
@@ -24,3 +25,7 @@ pub trait FastaSource: Send + Sync {
 pub use fasta::NoodlesFastaSource;
 pub use vcf::{NoodlesVcfSource, VariantRecord, VcfSource};
 pub use bam::{AlignmentRow, BamSource, FetchOpts, NoodlesBamSource};
+pub use annotation::{
+    AnnotationBlock, AnnotationFormat, AnnotationSource, AnnotationTranscript, BlockKind,
+    Strand, TranscriptKind, open_annotation,
+};
