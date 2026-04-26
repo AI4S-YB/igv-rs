@@ -1,0 +1,22 @@
+[package]
+name = "igv-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+futures.workspace = true
+noodles = { workspace = true, features = [
+    "async", "fasta", "bam", "sam", "vcf", "csi", "tabix", "bgzf",
+] }
+serde = { workspace = true, optional = true }
+thiserror.workspace = true
+tokio = { workspace = true, features = ["fs", "io-util", "sync"] }
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
