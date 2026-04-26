@@ -31,6 +31,11 @@ pub enum LoadResult {
         bam_index: usize,
         rows: Vec<AlignmentRow>,
     },
+    Annotation {
+        generation: u64,
+        track_index: usize,
+        transcripts: Vec<igv_core::source::AnnotationTranscript>,
+    },
     Error {
         generation: u64,
         message: String,
@@ -41,21 +46,24 @@ pub struct Loader {
     pub fasta: Arc<dyn FastaSource>,
     pub vcf: Option<Arc<dyn VcfSource>>,
     pub bams: Vec<Arc<dyn BamSource>>,
+    pub annotations: Vec<std::sync::Arc<dyn igv_core::source::AnnotationSource>>,
     pub tx: mpsc::Sender<LoadResult>,
     pub current: Vec<JoinHandle<()>>,
 }
 
 impl Loader {
     pub fn new(
-        fasta: Arc<dyn FastaSource>,
-        vcf: Option<Arc<dyn VcfSource>>,
-        bams: Vec<Arc<dyn BamSource>>,
-        tx: mpsc::Sender<LoadResult>,
+        fasta: std::sync::Arc<dyn igv_core::source::FastaSource>,
+        vcf: Option<std::sync::Arc<dyn igv_core::source::VcfSource>>,
+        bams: Vec<std::sync::Arc<dyn igv_core::source::BamSource>>,
+        annotations: Vec<std::sync::Arc<dyn igv_core::source::AnnotationSource>>,
+        tx: tokio::sync::mpsc::Sender<LoadResult>,
     ) -> Self {
         Self {
             fasta,
             vcf,
             bams,
+            annotations,
             tx,
             current: Vec::new(),
         }
@@ -144,6 +152,35 @@ impl Loader {
                                 generation: r.generation,
                                 bam_index: idx,
                                 rows: Vec::new(),
+                            })
+                            .await;
+                    }
+                }
+            }));
+        }
+
+        for (idx, ann) in self.annotations.iter().enumerate() {
+            let ann = std::sync::Arc::clone(ann);
+            let tx = self.tx.clone();
+            let r = req.clone();
+            self.current.push(tokio::spawn(async move {
+                match ann.fetch(&r.region).await {
+                    Ok(transcripts) => {
+                        let _ = tx
+                            .send(LoadResult::Annotation {
+                                generation: r.generation,
+                                track_index: idx,
+                                transcripts,
+                            })
+                            .await;
+                    }
+                    Err(e) => {
+                        tracing::warn!("annotation fetch failed: {e}");
+                        let _ = tx
+                            .send(LoadResult::Annotation {
+                                generation: r.generation,
+                                track_index: idx,
+                                transcripts: Vec::new(),
                             })
                             .await;
                     }
