@@ -11,6 +11,7 @@ async-trait.workspace = true
 futures.workspace = true
 noodles = { workspace = true, features = [
     "async", "core", "fasta", "bam", "sam", "vcf", "csi", "tabix", "bgzf",
+    "gff", "bed",
 ] }
 serde = { workspace = true, optional = true }
 thiserror.workspace = true
