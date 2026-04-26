@@ -70,6 +70,27 @@ async fn main() -> anyhow::Result<()> {
         bam_sources.push(source);
     }
 
+    let mut annotations: Vec<crate::app::state::AnnotationTrack> = Vec::new();
+    let mut annotation_sources: Vec<std::sync::Arc<dyn igv_core::source::AnnotationSource>> =
+        Vec::new();
+    let format_override = args
+        .annotation_format
+        .as_deref()
+        .and_then(igv_core::source::AnnotationFormat::parse);
+    for path in &args.annotations {
+        let src = igv_core::source::open_annotation(path, format_override).await?;
+        annotations.push(crate::app::state::AnnotationTrack {
+            path: path.clone(),
+            display: path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("annotation")
+                .to_string(),
+            source: std::sync::Arc::clone(&src),
+        });
+        annotation_sources.push(src);
+    }
+
     let initial = match args.region.as_deref() {
         Some(s) => Region::parse(s)
             .with_context(|| format!("invalid -r region: {s}"))?,
@@ -93,6 +114,8 @@ async fn main() -> anyhow::Result<()> {
         reference_seq: Vec::new(),
         variants: Vec::new(),
         bam_rows: vec![Vec::new(); bam_count],
+        annotations,
+        annotation_rows: vec![Vec::new(); annotation_sources.len()],
         theme: theme.clone(),
         light_mode: args.light_mode,
         thresholds: Thresholds::default(),
@@ -106,7 +129,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let (tx, mut rx) = mpsc::channel::<LoadResult>(64);
-    let mut loader = Loader::new(fasta, vcf, bam_sources, tx);
+    let mut loader = Loader::new(fasta, vcf, bam_sources, annotation_sources, tx);
     if let Some(req) = state.apply(Action::Goto(state.region.clone())) {
         loader.dispatch(req);
     }
