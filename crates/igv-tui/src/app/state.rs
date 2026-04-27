@@ -279,6 +279,28 @@ impl AppState {
                     None
                 }
             },
+            Action::ToggleSignalSharedScale => {
+                self.signal_shared_scale = !self.signal_shared_scale;
+                let mode = if self.signal_shared_scale { "shared" } else { "per-track" };
+                self.set_status(StatusKind::Info, format!("signal scale: {mode}"));
+                None
+            }
+            Action::ResizeSignal(delta) => {
+                self.signal_track_height = if delta > 0 {
+                    self.signal_track_height
+                        .saturating_add(delta as u16)
+                        .min(SIGNAL_MAX_HEIGHT)
+                } else {
+                    self.signal_track_height
+                        .saturating_sub((-delta) as u16)
+                        .max(SIGNAL_MIN_HEIGHT)
+                };
+                self.set_status(
+                    StatusKind::Info,
+                    format!("signal height: {}", self.signal_track_height),
+                );
+                None
+            }
             Action::None => None,
         }
     }

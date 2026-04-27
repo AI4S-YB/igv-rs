@@ -63,6 +63,9 @@ impl InputState {
                 KeyCode::Char('-') | KeyCode::Char('_') => Action::ResizeAlignments(-1),
                 KeyCode::Char(']') => Action::ResizeCoverage(1),
                 KeyCode::Char('[') => Action::ResizeCoverage(-1),
+                KeyCode::Char('\\') => Action::ToggleSignalSharedScale,
+                KeyCode::Char('}') => Action::ResizeSignal(1),
+                KeyCode::Char('{') => Action::ResizeSignal(-1),
                 KeyCode::Char('t') => Action::ToggleTheme,
                 KeyCode::Char(':') | KeyCode::Char('g') => Action::OpenCommand,
                 KeyCode::Char('m') => {
@@ -146,5 +149,26 @@ mod tests {
         let mut s = InputState::default();
         assert!(matches!(s.map(&key('\''), false), Action::None));
         assert!(matches!(s.map(&key('a'), false), Action::JumpBookmark('a')));
+    }
+
+    #[test]
+    fn backslash_toggles_signal_shared_scale() {
+        let mut s = InputState::default();
+        assert!(matches!(
+            s.map(&key('\\'), false),
+            Action::ToggleSignalSharedScale
+        ));
+    }
+
+    #[test]
+    fn close_brace_grows_signal_track() {
+        let mut s = InputState::default();
+        assert!(matches!(s.map(&key('}'), false), Action::ResizeSignal(1)));
+    }
+
+    #[test]
+    fn open_brace_shrinks_signal_track() {
+        let mut s = InputState::default();
+        assert!(matches!(s.map(&key('{'), false), Action::ResizeSignal(-1)));
     }
 }
