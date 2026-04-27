@@ -1,10 +1,3 @@
-mod app;
-mod cli;
-mod command;
-mod input;
-mod logging;
-mod ui;
-
 use std::io;
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,6 +5,9 @@ use std::time::Duration;
 use anyhow::{anyhow, Context};
 use clap::Parser;
 use crossterm::event::{Event, EventStream, KeyEventKind};
+
+use igv_tui::cli;
+use igv_tui::logging;
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -29,17 +25,17 @@ use igv_core::source::fasta::NoodlesFastaSource;
 use igv_core::source::vcf::NoodlesVcfSource;
 use igv_core::source::{open_signal, SignalFormat};
 
-use crate::app::action::Action;
-use crate::app::loader::{LoadResult, Loader};
-use crate::app::state::{
+use igv_tui::app::action::Action;
+use igv_tui::app::loader::{LoadResult, Loader};
+use igv_tui::app::state::{
     AppState, BamTrack, SignalTrack, StatusKind,
     ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT, SIGNAL_DEFAULT_HEIGHT,
 };
-use crate::command::CommandPalette;
-use crate::input::InputState;
-use crate::ui::layout::{compute, LayoutSpec};
-use crate::ui::theme;
-use crate::ui::widgets;
+use igv_tui::command::CommandPalette;
+use igv_tui::input::InputState;
+use igv_tui::ui::layout::{compute, LayoutSpec};
+use igv_tui::ui::theme;
+use igv_tui::ui::widgets;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -74,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
         bam_sources.push(source);
     }
 
-    let mut annotations: Vec<crate::app::state::AnnotationTrack> = Vec::new();
+    let mut annotations: Vec<igv_tui::app::state::AnnotationTrack> = Vec::new();
     let mut annotation_sources: Vec<std::sync::Arc<dyn igv_core::source::AnnotationSource>> =
         Vec::new();
     let format_override = args
@@ -83,7 +79,7 @@ async fn main() -> anyhow::Result<()> {
         .and_then(igv_core::source::AnnotationFormat::parse);
     for path in &args.annotations {
         let src = igv_core::source::open_annotation(path, format_override).await?;
-        annotations.push(crate::app::state::AnnotationTrack {
+        annotations.push(igv_tui::app::state::AnnotationTrack {
             path: path.clone(),
             display: path
                 .file_name()
