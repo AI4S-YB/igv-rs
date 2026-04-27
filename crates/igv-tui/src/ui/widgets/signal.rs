@@ -54,10 +54,8 @@ impl Widget for SignalWidget<'_> {
                 + ((col + 1) as u64 * region.width()) / cols.max(1) as u64;
             let mut col_max = 0.0_f32;
             for b in self.bins {
-                if b.end >= col_start && b.start < col_end {
-                    if b.value > col_max {
-                        col_max = b.value;
-                    }
+                if b.end >= col_start && b.start < col_end && b.value > col_max {
+                    col_max = b.value;
                 }
             }
             if col_max <= 0.0 {

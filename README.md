@@ -115,6 +115,11 @@ configuration knobs and refinements are tracked for follow-up:
 - **No signal-track caching** — every region change re-fetches bigwig.
   In practice bigtools' R-tree lookup is fast enough; revisit if it's
   ever observed to lag.
+- **Signal `max_bins` is fixed at 200** (regardless of terminal width).
+  At wide zoom this picks a coarser zoom-summary level than necessary on
+  terminals wider than 200 cols. Visual impact is mild; widget aggregation
+  papers over it. Threading terminal width through to the loader is
+  tracked as a follow-up.
 - **Single signal colormap** — all bigwig tracks share the `SIGNAL`
   theme key. Per-track colormap is not yet supported.
 - **Signal summary statistic** is fixed at `Max`. `--signal-summary` is

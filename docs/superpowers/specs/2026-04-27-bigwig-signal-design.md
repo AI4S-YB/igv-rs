@@ -316,13 +316,18 @@ ResizeSignal(i16),
 
 | Key | Action |
 |---|---|
-| `=` | `ToggleSignalSharedScale` |
+| `\` | `ToggleSignalSharedScale` |
 | `}` | `ResizeSignal(+1)` |
 | `{` | `ResizeSignal(-1)` |
 
 `+`/`-` and `]`/`[` are already bound to alignment / coverage resize, so
-signal uses the next visually adjacent pair `}`/`{`. `=` is a single-press
+signal uses the next visually adjacent pair `}`/`{`. `\` is a single-press
 toggle, intentionally not paired.
+
+> **Note on `\` instead of `=`:** the original draft of this design suggested
+> `=`, but `=` is already aliased to `+` for `ResizeAlignments` in
+> `crates/igv-tui/src/input.rs`. `\` is single-key, ergonomic, and groups
+> visually with `}` / `{`.
 
 `ResizeSignal` clamps `signal_track_height` to `[2, 12]`.
 
