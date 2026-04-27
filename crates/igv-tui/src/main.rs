@@ -321,6 +321,8 @@ fn draw(f: &mut ratatui::Frame<'_>, state: &AppState) {
         annotation_tracks: state.annotations.len(),
         coverage_height: state.coverage_height,
         alignments_min_per_track: state.alignment_height,
+        signal_count: state.signals.len(),
+        signal_height_per_track: state.signal_track_height,
         ..Default::default()
     };
     let areas = compute(f.area(), &spec);
@@ -343,6 +345,35 @@ fn draw(f: &mut ratatui::Frame<'_>, state: &AppState) {
     }
     if let Some(ca) = areas.coverage {
         f.render_widget(widgets::coverage::CoverageWidget { state, theme: &state.theme }, ca);
+    }
+    let global_signal_max = if state.signal_shared_scale {
+        state
+            .signal_bins
+            .iter()
+            .flatten()
+            .map(|b| b.value)
+            .fold(0.0_f32, f32::max)
+    } else {
+        0.0
+    };
+    for (i, area) in areas.signals.iter().enumerate() {
+        let track = &state.signals[i];
+        let bins: &[igv_core::source::SignalBin] =
+            state.signal_bins.get(i).map(|v| v.as_slice()).unwrap_or(&[]);
+        f.render_widget(
+            widgets::signal::SignalWidget {
+                display_name: &track.display,
+                bins,
+                region: &state.region,
+                theme: &state.theme,
+                shared_max: if state.signal_shared_scale {
+                    Some(global_signal_max)
+                } else {
+                    None
+                },
+            },
+            *area,
+        );
     }
     for (i, area) in areas.alignments.iter().enumerate() {
         f.render_widget(
