@@ -64,6 +64,22 @@ impl AnnotationSource for NoodlesBedSource {
     fn display_name(&self) -> &str {
         &self.display
     }
+
+    fn find_by_name(&self, query: &str) -> Vec<(String, AnnotationTranscript)> {
+        let q = query.trim();
+        if q.is_empty() {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        for (chrom, bucket) in &self.by_chrom {
+            for tx in bucket {
+                if tx.name.eq_ignore_ascii_case(q) || tx.id.eq_ignore_ascii_case(q) {
+                    out.push((chrom.clone(), tx.clone()));
+                }
+            }
+        }
+        out
+    }
 }
 
 fn load(path: &Path) -> Result<HashMap<String, Vec<AnnotationTranscript>>> {
@@ -180,6 +196,7 @@ fn parse_bed_line(line: &str, lineno: usize) -> Result<Option<(String, Annotatio
         AnnotationTranscript {
             name,
             id,
+            gene_id: None,
             strand,
             blocks,
             kind: TranscriptKind::BedFeature,

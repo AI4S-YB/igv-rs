@@ -29,6 +29,13 @@ igv-rs reference.fa -s chip.bw -s input.bw -r chr1:1-10000000
 igv-rs reference.fa -b sample.bam -s rna.bw -g genes.gff3 -r chr1:1000-2000
 ```
 
+The command palette (`:` or `g`) accepts coordinate input
+(`chr1:1000-2000`, `chr1`) **and** gene names — type a `gene_name`,
+`gene_id`, or `transcript_id` from any loaded GFF/GTF/BED track and the
+view jumps to the union span of all matching transcripts (case-insensitive).
+For multi-isoform genes the window covers every isoform on the same
+chromosome at once.
+
 Annotation tracks are auto-detected by extension:
 `.gff` / `.gff3` / `.gtf` (with optional `.gz`), `.bed` / `.bed.gz`, and
 MACS2-style `.narrowPeak` / `.broadPeak` (with optional `.gz`) are all
@@ -58,7 +65,9 @@ fetched. Override extension auto-detection with
 - `]` / `[` — grow / shrink coverage-track height
 - `\` — toggle signal shared / per-track Y-scale
 - `}` / `{` — grow / shrink signal-track height
-- `:` or `g` — open command palette (type `chr:start-end`, `Enter` to jump)
+- `:` or `g` — open command palette (type `chr:start-end`, a chromosome
+  name, or a `gene_name` / `gene_id` / `transcript_id` from a loaded
+  annotation; `Enter` to jump)
 - `m<c>` — set bookmark to letter `c`
 - `'<c>` — jump to bookmark `c`
 - `t` — toggle dark / light theme

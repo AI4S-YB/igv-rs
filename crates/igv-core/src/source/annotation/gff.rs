@@ -87,6 +87,29 @@ impl AnnotationSource for NoodlesGffSource {
     fn display_name(&self) -> &str {
         &self.display
     }
+
+    fn find_by_name(&self, query: &str) -> Vec<(String, AnnotationTranscript)> {
+        let q = query.trim();
+        if q.is_empty() {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        for (chrom, bucket) in &self.by_chrom {
+            for tx in bucket {
+                let gene_match = tx
+                    .gene_id
+                    .as_deref()
+                    .is_some_and(|g| g.eq_ignore_ascii_case(q));
+                if tx.name.eq_ignore_ascii_case(q)
+                    || tx.id.eq_ignore_ascii_case(q)
+                    || gene_match
+                {
+                    out.push((chrom.clone(), tx.clone()));
+                }
+            }
+        }
+        out
+    }
 }
 
 fn load_all(
@@ -260,16 +283,17 @@ fn load_all(
             // No exon and no CDS — nothing to render. Skip.
             continue;
         }
+        let parent_gene = gene_id_by_tx.get(&p.transcript_id).cloned();
         // Improve label using gene_name lookup (GFF3 Parent → gene name).
-        let label = if let Some(g) = gene_id_by_tx.get(&p.transcript_id) {
-            gene_name_by_id.get(g).cloned().unwrap_or(p.gene_name)
-        } else {
-            p.gene_name
+        let label = match &parent_gene {
+            Some(g) => gene_name_by_id.get(g).cloned().unwrap_or(p.gene_name),
+            None => p.gene_name,
         };
         p.blocks.sort_by_key(|b| b.start);
         let tx = AnnotationTranscript {
             name: label,
             id: p.transcript_id,
+            gene_id: parent_gene,
             strand: p.strand,
             blocks: p.blocks,
             kind: TranscriptKind::Mrna,

@@ -83,3 +83,77 @@ async fn gff3_returns_empty_outside_chrom() {
     let txs = src.fetch(&region).await.unwrap();
     assert!(txs.is_empty());
 }
+
+#[tokio::test]
+async fn gff3_find_by_gene_name_matches_all_isoforms() {
+    let src = NoodlesGffSource::open(
+        Path::new("tests/data/sample.gff3"),
+        AnnotationFormat::Gff3,
+    )
+    .await
+    .unwrap();
+    let hits = src.find_by_name("GENE1");
+    assert_eq!(hits.len(), 2, "expected both tx1 and tx2");
+    assert!(hits.iter().all(|(c, _)| c == "chr1"));
+    let mut ids: Vec<&str> = hits.iter().map(|(_, t)| t.id.as_str()).collect();
+    ids.sort();
+    assert_eq!(ids, vec!["tx1", "tx2"]);
+}
+
+#[tokio::test]
+async fn gff3_find_by_name_is_case_insensitive() {
+    let src = NoodlesGffSource::open(
+        Path::new("tests/data/sample.gff3"),
+        AnnotationFormat::Gff3,
+    )
+    .await
+    .unwrap();
+    assert_eq!(src.find_by_name("gene1").len(), 2);
+    assert_eq!(src.find_by_name("Gene1").len(), 2);
+}
+
+#[tokio::test]
+async fn gff3_find_by_transcript_id_matches_one() {
+    let src = NoodlesGffSource::open(
+        Path::new("tests/data/sample.gff3"),
+        AnnotationFormat::Gff3,
+    )
+    .await
+    .unwrap();
+    let hits = src.find_by_name("tx1");
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].1.id, "tx1");
+}
+
+#[tokio::test]
+async fn gff3_find_by_unknown_returns_empty() {
+    let src = NoodlesGffSource::open(
+        Path::new("tests/data/sample.gff3"),
+        AnnotationFormat::Gff3,
+    )
+    .await
+    .unwrap();
+    assert!(src.find_by_name("BRCA1").is_empty());
+    assert!(src.find_by_name("").is_empty());
+    assert!(src.find_by_name("   ").is_empty());
+}
+
+#[tokio::test]
+async fn gtf_find_by_gene_id_matches() {
+    let src = NoodlesGffSource::open(
+        Path::new("tests/data/sample.gtf"),
+        AnnotationFormat::Gtf,
+    )
+    .await
+    .unwrap();
+    // sample.gtf has gene_id="gene1", gene_name="GENE1", transcript_id="tx1".
+    // Both gene_id and gene_name should resolve.
+    let by_gene_id = src.find_by_name("gene1");
+    assert_eq!(by_gene_id.len(), 1);
+    assert_eq!(by_gene_id[0].1.id, "tx1");
+    assert_eq!(by_gene_id[0].1.gene_id.as_deref(), Some("gene1"));
+
+    let by_gene_name = src.find_by_name("GENE1");
+    assert_eq!(by_gene_name.len(), 1);
+    assert_eq!(by_gene_name[0].1.name, "GENE1");
+}
