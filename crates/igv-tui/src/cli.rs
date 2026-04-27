@@ -41,6 +41,15 @@ pub struct Cli {
     #[arg(long = "annotation-format")]
     pub annotation_format: Option<String>,
 
+    /// Path to a bigWig signal file (.bw / .bigwig). May be repeated.
+    #[arg(short = 's', long = "signal")]
+    pub signals: Vec<PathBuf>,
+
+    /// Override signal format auto-detection (currently only `bigwig`).
+    /// Applies to all `-s` files.
+    #[arg(long = "signal-format")]
+    pub signal_format: Option<String>,
+
     /// Use light theme (for light-background terminals).
     #[arg(long = "light-mode")]
     pub light_mode: bool,
