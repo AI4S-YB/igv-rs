@@ -4,6 +4,7 @@ use igv_core::region::Region;
 use igv_core::source::bam::AlignmentRow;
 use igv_core::source::vcf::VariantRecord;
 use igv_core::source::{BamSource, FastaSource, FetchOpts, VcfSource};
+use igv_core::source::{FetchSignalOpts, SignalBin, SignalSource};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::warn;
@@ -36,6 +37,11 @@ pub enum LoadResult {
         track_index: usize,
         transcripts: Vec<igv_core::source::AnnotationTranscript>,
     },
+    Signal {
+        generation: u64,
+        track_index: usize,
+        bins: Vec<SignalBin>,
+    },
     Error {
         generation: u64,
         message: String,
@@ -47,16 +53,18 @@ pub struct Loader {
     pub vcf: Option<Arc<dyn VcfSource>>,
     pub bams: Vec<Arc<dyn BamSource>>,
     pub annotations: Vec<std::sync::Arc<dyn igv_core::source::AnnotationSource>>,
+    pub signals: Vec<Arc<dyn SignalSource>>,
     pub tx: mpsc::Sender<LoadResult>,
     pub current: Vec<JoinHandle<()>>,
 }
 
 impl Loader {
     pub fn new(
-        fasta: std::sync::Arc<dyn igv_core::source::FastaSource>,
-        vcf: Option<std::sync::Arc<dyn igv_core::source::VcfSource>>,
-        bams: Vec<std::sync::Arc<dyn igv_core::source::BamSource>>,
-        annotations: Vec<std::sync::Arc<dyn igv_core::source::AnnotationSource>>,
+        fasta: Arc<dyn igv_core::source::FastaSource>,
+        vcf: Option<Arc<dyn igv_core::source::VcfSource>>,
+        bams: Vec<Arc<dyn igv_core::source::BamSource>>,
+        annotations: Vec<Arc<dyn igv_core::source::AnnotationSource>>,
+        signals: Vec<Arc<dyn SignalSource>>,
         tx: tokio::sync::mpsc::Sender<LoadResult>,
     ) -> Self {
         Self {
@@ -64,6 +72,7 @@ impl Loader {
             vcf,
             bams,
             annotations,
+            signals,
             tx,
             current: Vec::new(),
         }
@@ -181,6 +190,36 @@ impl Loader {
                                 generation: r.generation,
                                 track_index: idx,
                                 transcripts: Vec::new(),
+                            })
+                            .await;
+                    }
+                }
+            }));
+        }
+
+        for (idx, sig) in self.signals.iter().enumerate() {
+            let sig = Arc::clone(sig);
+            let tx = self.tx.clone();
+            let r = req.clone();
+            self.current.push(tokio::spawn(async move {
+                let opts = FetchSignalOpts::default();
+                match sig.fetch(&r.region, &opts).await {
+                    Ok(bins) => {
+                        let _ = tx
+                            .send(LoadResult::Signal {
+                                generation: r.generation,
+                                track_index: idx,
+                                bins,
+                            })
+                            .await;
+                    }
+                    Err(e) => {
+                        tracing::warn!("signal fetch failed: {e}");
+                        let _ = tx
+                            .send(LoadResult::Signal {
+                                generation: r.generation,
+                                track_index: idx,
+                                bins: Vec::new(),
                             })
                             .await;
                     }
