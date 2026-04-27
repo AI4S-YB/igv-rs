@@ -11,6 +11,11 @@ use igv_core::source::{
 use crate::app::state::AppState;
 use crate::ui::theme::Theme;
 
+/// At or above this region width, gene labels move from the left of the
+/// transcript to a row directly below it — at wide zooms each gene occupies
+/// only a few screen columns, leaving no room for a left-anchored label.
+const WIDE_LABEL_THRESHOLD: u64 = 10_000;
+
 pub struct AnnotationsWidget<'a> {
     pub state: &'a AppState,
     pub theme: &'a Theme,
@@ -54,11 +59,14 @@ impl Widget for AnnotationsWidget<'_> {
             return;
         }
 
-        let lanes = stack_transcripts(txs, inner.height as usize);
+        let label_below = region.width() >= WIDE_LABEL_THRESHOLD && inner.height >= 2;
+        let rows_per_lane: u16 = if label_below { 2 } else { 1 };
+        let lane_count = (inner.height / rows_per_lane).max(1) as usize;
+        let lanes = stack_transcripts(txs, lane_count);
         for (lane_idx, lane) in lanes.iter().enumerate() {
-            let y = inner.y + lane_idx as u16;
+            let y = inner.y + (lane_idx as u16) * rows_per_lane;
             for tx in lane {
-                draw_transcript(buf, inner, y, region, tx, self.theme);
+                draw_transcript(buf, inner, y, region, tx, self.theme, label_below);
             }
         }
     }
@@ -124,6 +132,7 @@ fn draw_transcript(
     region: &igv_core::region::Region,
     tx: &AnnotationTranscript,
     theme: &Theme,
+    label_below: bool,
 ) {
     let view_start_0 = region.start - 1;
     let view_width = region.width();
@@ -189,25 +198,85 @@ fn draw_transcript(
         }
     }
 
-    // 5. name label, if it fits to the left of the leftmost block.
+    // 5. name label.
     if !tx.name.is_empty() {
-        if let Some((s, _)) = tx.span() {
-            let g0 = s.saturating_sub(1);
-            if let Some(col) = genomic_to_screen(g0, view_start_0, view_width, inner.width as u32) {
-                let label = format!("{} ", tx.name);
-                let needed = label.len() as u32;
-                if col >= needed {
-                    let start_col = col - needed;
-                    for (i, ch) in label.chars().enumerate() {
-                        if start_col as u16 + i as u16 >= inner.width {
-                            break;
-                        }
-                        buf.get_mut(inner.x + start_col as u16 + i as u16, y)
-                            .set_char(ch)
-                            .set_style(name_style);
-                    }
-                }
-            }
+        if label_below {
+            draw_name_below(buf, inner, y, region, tx, name_style);
+        } else {
+            draw_name_left(buf, inner, y, region, tx, name_style);
         }
+    }
+}
+
+fn draw_name_left(
+    buf: &mut Buffer,
+    inner: Rect,
+    y: u16,
+    region: &igv_core::region::Region,
+    tx: &AnnotationTranscript,
+    name_style: ratatui::style::Style,
+) {
+    let view_start_0 = region.start - 1;
+    let view_width = region.width();
+    let (s, _) = match tx.span() {
+        Some(p) => p,
+        None => return,
+    };
+    let g0 = s.saturating_sub(1);
+    let col = match genomic_to_screen(g0, view_start_0, view_width, inner.width as u32) {
+        Some(c) => c,
+        None => return,
+    };
+    let label = format!("{} ", tx.name);
+    let needed = label.len() as u32;
+    if col < needed {
+        return;
+    }
+    let start_col = col - needed;
+    for (i, ch) in label.chars().enumerate() {
+        if start_col as u16 + i as u16 >= inner.width {
+            break;
+        }
+        buf.get_mut(inner.x + start_col as u16 + i as u16, y)
+            .set_char(ch)
+            .set_style(name_style);
+    }
+}
+
+fn draw_name_below(
+    buf: &mut Buffer,
+    inner: Rect,
+    y: u16,
+    region: &igv_core::region::Region,
+    tx: &AnnotationTranscript,
+    name_style: ratatui::style::Style,
+) {
+    let label_y = y + 1;
+    if label_y >= inner.y + inner.height {
+        return;
+    }
+    let view_start_0 = region.start - 1;
+    let view_width = region.width();
+    let (s, e) = match tx.span() {
+        Some(p) => p,
+        None => return,
+    };
+    // Anchor at the gene's leftmost visible column. Genes that start before
+    // the view but extend into it anchor at column 0.
+    let g0_start = s.saturating_sub(1);
+    let g0_end = e.saturating_sub(1);
+    if g0_end < view_start_0 || g0_start >= view_start_0 + view_width {
+        return;
+    }
+    let start_col =
+        genomic_to_screen(g0_start, view_start_0, view_width, inner.width as u32).unwrap_or(0);
+    for (i, ch) in tx.name.chars().enumerate() {
+        let col = start_col as u16 + i as u16;
+        if col >= inner.width {
+            break;
+        }
+        buf.get_mut(inner.x + col, label_y)
+            .set_char(ch)
+            .set_style(name_style);
     }
 }
