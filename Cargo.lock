@@ -674,7 +674,7 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "igv-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "bigtools",
@@ -690,7 +690,7 @@ dependencies = [
 
 [[package]]
 name = "igv-tui"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
