@@ -12,6 +12,7 @@ pub struct LayoutAreas {
     pub annotations: Vec<ratatui::layout::Rect>,
     pub variants: Option<Rect>,
     pub coverage: Option<Rect>,
+    pub signals: Vec<Rect>,
     pub alignments: Vec<Rect>,
     pub footer: Rect,
 }
@@ -23,6 +24,8 @@ pub struct LayoutSpec {
     pub alignments_min_per_track: u16,
     pub annotation_tracks: usize,
     pub annotation_height_per_track: u16,
+    pub signal_count: usize,
+    pub signal_height_per_track: u16,
 }
 
 impl Default for LayoutSpec {
@@ -36,6 +39,8 @@ impl Default for LayoutSpec {
             // 4 rows = 2 inner rows after borders, leaving room for a body
             // row plus a label row when wide-zoom label-below is active.
             annotation_height_per_track: 4,
+            signal_count: 0,
+            signal_height_per_track: 4,
         }
     }
 }
@@ -69,6 +74,11 @@ pub fn compute(area: Rect, spec: &LayoutSpec) -> LayoutAreas {
     }
     if spec.bam_count > 0 {
         constraints.push(Constraint::Length(spec.coverage_height));
+    }
+    for _ in 0..spec.signal_count {
+        constraints.push(Constraint::Length(spec.signal_height_per_track));
+    }
+    if spec.bam_count > 0 {
         for _ in 0..spec.bam_count {
             constraints.push(Constraint::Min(spec.alignments_min_per_track));
         }
@@ -102,6 +112,11 @@ pub fn compute(area: Rect, spec: &LayoutSpec) -> LayoutAreas {
     } else {
         None
     };
+    let mut signals = Vec::new();
+    for _ in 0..spec.signal_count {
+        signals.push(chunks[idx]);
+        idx += 1;
+    }
     let mut alignments = Vec::new();
     for _ in 0..spec.bam_count {
         alignments.push(chunks[idx]);
@@ -116,6 +131,7 @@ pub fn compute(area: Rect, spec: &LayoutSpec) -> LayoutAreas {
         annotations,
         variants,
         coverage,
+        signals,
         alignments,
         footer,
     }
