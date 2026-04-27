@@ -35,10 +35,10 @@ ambiguous or missing.
 
 ### Keybindings
 
-- `a` / `←` — move backward by 1/10 of the window (fine step)
-- `d` / `→` — move forward by 1/10 of the window
-- `A` — page backward (one full window)
-- `D` — page forward (one full window)
+- `a` / `←` — page backward (one full window)
+- `d` / `→` — page forward (one full window)
+- `h` — move backward by 1/10 of the window (fine pan)
+- `l` — move forward by 1/10 of the window (fine pan)
 - `w` / `↑` — zoom in
 - `s` / `↓` — zoom out
 - `j` / `k` — scroll alignment lanes down / up

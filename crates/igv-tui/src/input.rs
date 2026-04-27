@@ -48,13 +48,13 @@ impl InputState {
             return match code {
                 KeyCode::Char('q') => Action::Quit,
                 KeyCode::Char('a') | KeyCode::Left => {
-                    Action::Move { forward: false, large: false }
+                    Action::Move { forward: false, large: true }
                 }
                 KeyCode::Char('d') | KeyCode::Right => {
-                    Action::Move { forward: true, large: false }
+                    Action::Move { forward: true, large: true }
                 }
-                KeyCode::Char('A') => Action::Move { forward: false, large: true },
-                KeyCode::Char('D') => Action::Move { forward: true, large: true },
+                KeyCode::Char('h') => Action::Move { forward: false, large: false },
+                KeyCode::Char('l') => Action::Move { forward: true, large: false },
                 KeyCode::Char('w') | KeyCode::Up => Action::Zoom { zoom_in: true },
                 KeyCode::Char('s') | KeyCode::Down => Action::Zoom { zoom_in: false },
                 KeyCode::Char('j') => Action::ScrollAlignments(1),
@@ -95,22 +95,32 @@ mod tests {
     }
 
     #[test]
-    fn d_moves_forward_small() {
+    fn d_moves_forward_full_window() {
         let mut s = InputState::default();
         assert!(matches!(
             s.map(&key('d'), false),
+            Action::Move { forward: true, large: true }
+        ));
+    }
+
+    #[test]
+    fn l_moves_forward_fine() {
+        let mut s = InputState::default();
+        assert!(matches!(
+            s.map(&key('l'), false),
             Action::Move { forward: true, large: false }
         ));
     }
 
     #[test]
-    fn shift_d_moves_forward_window() {
+    fn h_moves_backward_fine() {
         let mut s = InputState::default();
         assert!(matches!(
-            s.map(&key('D'), false),
-            Action::Move { forward: true, large: true }
+            s.map(&key('h'), false),
+            Action::Move { forward: false, large: false }
         ));
     }
+
 
     #[test]
     fn j_scrolls_alignments_down() {

@@ -6,7 +6,8 @@ use ratatui::widgets::{Block, Borders, Paragraph, Widget};
 use crate::app::state::{AppState, StatusKind};
 use crate::ui::theme::Theme;
 
-const KEYS: &str = "a/d:nav  w/s:zoom  g/::goto  m<c>:mark  '<c>:jump  t:theme  q:quit";
+const KEYS: &str =
+    "a/d:page  h/l:fine  w/s:zoom  g/::goto  m<c>:mark  '<c>:jump  t:theme  q:quit";
 
 pub struct FooterWidget<'a> {
     pub state: &'a AppState,

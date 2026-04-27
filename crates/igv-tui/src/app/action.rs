@@ -3,8 +3,8 @@ use igv_core::Region;
 #[derive(Debug, Clone)]
 pub enum Action {
     /// Move forward/backward. `large=false` shifts by 1/10 of the window
-    /// (fine step, `a`/`d`); `large=true` shifts by a full window (page
-    /// step, `A`/`D`).
+    /// (fine step, `h`/`l`); `large=true` shifts by a full window
+    /// (page step, `a`/`d` and arrow keys).
     Move { forward: bool, large: bool },
     /// Zoom in / out.
     Zoom { zoom_in: bool },
