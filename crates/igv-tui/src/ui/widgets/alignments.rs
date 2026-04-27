@@ -18,12 +18,34 @@ pub struct AlignmentsWidget<'a> {
 
 impl Widget for AlignmentsWidget<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let title = self
+        let base_title = self
             .state
             .bams
             .get(self.track_index)
             .map(|t| t.display.clone())
             .unwrap_or_else(|| format!("bam {}", self.track_index));
+
+        let region = &self.state.region;
+        let mode = self.state.thresholds.classify(region.width());
+        let renderable = matches!(mode, RenderMode::PerBase | RenderMode::DetailedReads);
+
+        let rows = self.state.bam_rows.get(self.track_index);
+        let lanes = self.state.bam_lanes.get(self.track_index);
+        let total_lanes = self
+            .state
+            .bam_total_lanes
+            .get(self.track_index)
+            .copied()
+            .unwrap_or(0);
+
+        let visible_lanes_estimate = area.height.saturating_sub(2).max(1);
+        let scroll = self.state.bam_scroll;
+        let title = if total_lanes > visible_lanes_estimate {
+            format!("{base_title} [{}..{}/{}]", scroll, scroll + visible_lanes_estimate, total_lanes)
+        } else {
+            base_title
+        };
+
         let block = Block::default()
             .borders(Borders::TOP | Borders::BOTTOM)
             .style(self.theme.get("BORDER"))
@@ -31,54 +53,49 @@ impl Widget for AlignmentsWidget<'_> {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        let region = &self.state.region;
-        let mode = self.state.thresholds.classify(region.width());
-        if !matches!(mode, RenderMode::PerBase | RenderMode::DetailedReads) {
+        if !renderable || inner.area() == 0 {
             return;
         }
-        if inner.area() == 0 {
-            return;
-        }
-
-        let rows = match self.state.bam_rows.get(self.track_index) {
-            Some(r) => r,
-            None => return,
+        let (rows, lanes) = match (rows, lanes) {
+            (Some(r), Some(l)) if !r.is_empty() && r.len() == l.len() => (r, l),
+            _ => return,
         };
 
-        // Stack reads greedily to avoid horizontal overlap.
-        let lanes = stack_reads(rows, inner.height as usize);
         let view_start_0 = region.start - 1;
         let view_width = region.width();
+        let visible = inner.height as u32;
 
-        for (lane_idx, lane) in lanes.iter().enumerate() {
-            let y = inner.y + lane_idx as u16;
-            for row in lane {
-                let cells = expand(row, &self.state.reference_seq, region.start);
-                draw_read(
-                    buf, inner, y, region.start, view_start_0, view_width, &cells, row,
-                    self.theme, mode,
-                );
+        for (row, &lane) in rows.iter().zip(lanes.iter()) {
+            if lane < scroll as u32 {
+                continue;
             }
+            let display = lane - scroll as u32;
+            if display >= visible {
+                continue;
+            }
+            let y = inner.y + display as u16;
+            let cells = expand(row, &self.state.reference_seq, region.start);
+            draw_read(
+                buf, inner, y, region.start, view_start_0, view_width, &cells, row,
+                self.theme, mode,
+            );
+        }
+
+        // Scroll affordance: arrows at the right edge when more lanes exist.
+        let style = self.theme.get("BORDER");
+        if scroll > 0 {
+            buf.get_mut(inner.x + inner.width.saturating_sub(1), inner.y)
+                .set_char('▲')
+                .set_style(style);
+        }
+        let last_visible_lane = scroll as u32 + visible;
+        if last_visible_lane < total_lanes as u32 {
+            let y = inner.y + inner.height.saturating_sub(1);
+            buf.get_mut(inner.x + inner.width.saturating_sub(1), y)
+                .set_char('▼')
+                .set_style(style);
         }
     }
-}
-
-fn stack_reads<'a>(rows: &'a [AlignmentRow], lane_count: usize) -> Vec<Vec<&'a AlignmentRow>> {
-    let mut lanes: Vec<Vec<&AlignmentRow>> = (0..lane_count).map(|_| Vec::new()).collect();
-    'rows: for row in rows {
-        for lane in lanes.iter_mut() {
-            if lane
-                .last()
-                .map(|prev| prev.ref_end + 1 < row.ref_start)
-                .unwrap_or(true)
-            {
-                lane.push(row);
-                continue 'rows;
-            }
-        }
-        // No room: drop. (Future: scrollable.)
-    }
-    lanes
 }
 
 fn draw_read(

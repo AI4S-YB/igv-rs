@@ -97,6 +97,33 @@ pub fn expand(
     }
 }
 
+/// Greedy first-fit lane assignment. Each entry is the lane index for the
+/// corresponding row in `rows`. Reads with `last.ref_end + 1 < row.ref_start`
+/// share a lane; otherwise a new lane is created.
+pub fn assign_lanes(rows: &[AlignmentRow]) -> Vec<u32> {
+    let mut last_ends: Vec<u64> = Vec::new();
+    let mut assigned: Vec<u32> = Vec::with_capacity(rows.len());
+    for row in rows {
+        let mut placed: Option<usize> = None;
+        for (i, end) in last_ends.iter_mut().enumerate() {
+            if *end + 1 < row.ref_start {
+                *end = row.ref_end;
+                placed = Some(i);
+                break;
+            }
+        }
+        let lane = match placed {
+            Some(i) => i,
+            None => {
+                last_ends.push(row.ref_end);
+                last_ends.len() - 1
+            }
+        };
+        assigned.push(lane as u32);
+    }
+    assigned
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

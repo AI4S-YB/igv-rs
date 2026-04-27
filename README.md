@@ -35,10 +35,15 @@ ambiguous or missing.
 
 ### Keybindings
 
-- `a` / `←` — move backward
-- `d` / `→` — move forward
+- `a` / `←` — move backward by 1/10 of the window (fine step)
+- `d` / `→` — move forward by 1/10 of the window
+- `A` — page backward (one full window)
+- `D` — page forward (one full window)
 - `w` / `↑` — zoom in
 - `s` / `↓` — zoom out
+- `j` / `k` — scroll alignment lanes down / up
+- `+` / `-` — grow / shrink alignment-track height
+- `]` / `[` — grow / shrink coverage-track height
 - `:` or `g` — open command palette (type `chr:start-end`, `Enter` to jump)
 - `m<c>` — set bookmark to letter `c`
 - `'<c>` — jump to bookmark `c`

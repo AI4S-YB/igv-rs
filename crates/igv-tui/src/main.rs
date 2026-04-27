@@ -30,7 +30,9 @@ use igv_core::source::vcf::NoodlesVcfSource;
 
 use crate::app::action::Action;
 use crate::app::loader::{LoadResult, Loader};
-use crate::app::state::{AppState, BamTrack, StatusKind};
+use crate::app::state::{
+    AppState, BamTrack, StatusKind, ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT,
+};
 use crate::command::CommandPalette;
 use crate::input::InputState;
 use crate::ui::layout::{compute, LayoutSpec};
@@ -114,8 +116,13 @@ async fn main() -> anyhow::Result<()> {
         reference_seq: Vec::new(),
         variants: Vec::new(),
         bam_rows: vec![Vec::new(); bam_count],
+        bam_lanes: vec![Vec::new(); bam_count],
+        bam_total_lanes: vec![0u16; bam_count],
+        bam_scroll: 0,
         annotations,
         annotation_rows: vec![Vec::new(); annotation_sources.len()],
+        alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
+        coverage_height: COVERAGE_DEFAULT_HEIGHT,
         theme: theme.clone(),
         light_mode: args.light_mode,
         thresholds: Thresholds::default(),
@@ -245,8 +252,17 @@ fn apply_load_result(state: &mut AppState, result: LoadResult) {
         }
         LoadResult::Bam { generation, bam_index, rows } => {
             if generation == state.generation {
+                let lanes = igv_core::alignment::assign_lanes(&rows);
+                let total = lanes.iter().copied().max().map(|m| m + 1).unwrap_or(0);
+                let total_u16 = total.min(u16::MAX as u32) as u16;
                 if let Some(slot) = state.bam_rows.get_mut(bam_index) {
                     *slot = rows;
+                }
+                if let Some(slot) = state.bam_lanes.get_mut(bam_index) {
+                    *slot = lanes;
+                }
+                if let Some(slot) = state.bam_total_lanes.get_mut(bam_index) {
+                    *slot = total_u16;
                 }
             }
         }
@@ -270,6 +286,8 @@ fn draw(f: &mut ratatui::Frame<'_>, state: &AppState) {
         has_vcf: state.vcf.is_some(),
         bam_count: state.bams.len(),
         annotation_tracks: state.annotations.len(),
+        coverage_height: state.coverage_height,
+        alignments_min_per_track: state.alignment_height,
         ..Default::default()
     };
     let areas = compute(f.area(), &spec);

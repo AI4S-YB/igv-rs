@@ -12,6 +12,14 @@ use crate::app::action::Action;
 use crate::app::loader::LoadRequest;
 use crate::ui::theme::Theme;
 
+/// Minimum / maximum sizes for user-resizable tracks.
+pub const ALIGNMENT_MIN_HEIGHT: u16 = 4;
+pub const ALIGNMENT_MAX_HEIGHT: u16 = 60;
+pub const ALIGNMENT_DEFAULT_HEIGHT: u16 = 6;
+pub const COVERAGE_MIN_HEIGHT: u16 = 3;
+pub const COVERAGE_MAX_HEIGHT: u16 = 20;
+pub const COVERAGE_DEFAULT_HEIGHT: u16 = 5;
+
 /// Single owner of all UI-relevant mutable state.
 pub struct AppState {
     pub fasta: Arc<dyn FastaSource>,
@@ -25,9 +33,19 @@ pub struct AppState {
     pub variants: Vec<VariantRecord>,
     /// Per-BAM rows, parallel to `bams` indices.
     pub bam_rows: Vec<Vec<AlignmentRow>>,
+    /// Per-BAM lane assignment for each row, parallel to `bam_rows`.
+    pub bam_lanes: Vec<Vec<u32>>,
+    /// Total lane count per BAM track.
+    pub bam_total_lanes: Vec<u16>,
+    /// Vertical scroll applied to all alignment tracks.
+    pub bam_scroll: u16,
 
     pub annotations: Vec<AnnotationTrack>,
     pub annotation_rows: Vec<Vec<igv_core::source::AnnotationTranscript>>,
+
+    /// User-controlled track heights.
+    pub alignment_height: u16,
+    pub coverage_height: u16,
 
     pub theme: Theme,
     pub light_mode: bool,
@@ -76,12 +94,6 @@ pub struct StatusMessage {
 }
 
 impl AppState {
-    /// Move by the nav_overlap fraction (default 50%).
-    pub fn nav_step(&self) -> u64 {
-        let w = self.region.width();
-        ((w as f64) * 0.5) as u64
-    }
-
     /// Length of the current chromosome from the loaded references.
     fn current_chrom_len(&self) -> Option<u64> {
         self.references
@@ -91,10 +103,15 @@ impl AppState {
     }
 
     /// Compute new region for forward/backward navigation, clamped to the
-    /// chromosome bounds so the user cannot scroll past either end.
-    pub fn next_navigation(&self, forward: bool) -> Region {
-        let step = self.nav_step().max(1);
+    /// chromosome bounds. `large=false` shifts by 1/10 of the window
+    /// (fine), `large=true` by a full window (page).
+    pub fn next_navigation(&self, forward: bool, large: bool) -> Region {
         let width = self.region.width();
+        let step = if large {
+            width.max(1)
+        } else {
+            (width / 10).max(1)
+        };
         let chrom_len = self.current_chrom_len().unwrap_or(u64::MAX);
         let max_start = chrom_len.saturating_sub(width).max(1);
         let new_start = if forward {
@@ -150,8 +167,8 @@ impl AppState {
                 };
                 None
             }
-            Action::MoveForward | Action::MoveBackward => {
-                let r = self.next_navigation(matches!(action, Action::MoveForward));
+            Action::Move { forward, large } => {
+                let r = self.next_navigation(forward, large);
                 self.set_region_pending(r)
             }
             Action::Zoom { zoom_in } => {
@@ -159,6 +176,55 @@ impl AppState {
                 self.set_region_pending(r)
             }
             Action::Goto(r) => self.set_region_pending(r),
+            Action::ScrollAlignments(delta) => {
+                let cap = self
+                    .bam_total_lanes
+                    .iter()
+                    .copied()
+                    .max()
+                    .unwrap_or(0)
+                    .saturating_sub(1);
+                if delta > 0 {
+                    self.bam_scroll =
+                        self.bam_scroll.saturating_add(delta as u16).min(cap);
+                } else {
+                    self.bam_scroll =
+                        self.bam_scroll.saturating_sub((-delta) as u16);
+                }
+                None
+            }
+            Action::ResizeAlignments(delta) => {
+                self.alignment_height = if delta > 0 {
+                    self.alignment_height
+                        .saturating_add(delta as u16)
+                        .min(ALIGNMENT_MAX_HEIGHT)
+                } else {
+                    self.alignment_height
+                        .saturating_sub((-delta) as u16)
+                        .max(ALIGNMENT_MIN_HEIGHT)
+                };
+                self.set_status(
+                    StatusKind::Info,
+                    format!("alignment height: {}", self.alignment_height),
+                );
+                None
+            }
+            Action::ResizeCoverage(delta) => {
+                self.coverage_height = if delta > 0 {
+                    self.coverage_height
+                        .saturating_add(delta as u16)
+                        .min(COVERAGE_MAX_HEIGHT)
+                } else {
+                    self.coverage_height
+                        .saturating_sub((-delta) as u16)
+                        .max(COVERAGE_MIN_HEIGHT)
+                };
+                self.set_status(
+                    StatusKind::Info,
+                    format!("coverage height: {}", self.coverage_height),
+                );
+                None
+            }
             Action::OpenCommand => {
                 self.command_open = true;
                 self.command_buffer.clear();
@@ -207,6 +273,13 @@ impl AppState {
         for rows in &mut self.bam_rows {
             rows.clear();
         }
+        for lanes in &mut self.bam_lanes {
+            lanes.clear();
+        }
+        for total in &mut self.bam_total_lanes {
+            *total = 0;
+        }
+        self.bam_scroll = 0;
         for rows in &mut self.annotation_rows {
             rows.clear();
         }
