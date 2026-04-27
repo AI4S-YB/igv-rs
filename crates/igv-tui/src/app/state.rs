@@ -254,12 +254,34 @@ impl AppState {
             Action::CommandSubmit(buf) => {
                 self.command_open = false;
                 self.command_buffer.clear();
-                match Region::parse(&buf) {
-                    Ok(r) => self.set_region_pending(r),
-                    Err(e) => {
-                        self.set_status(StatusKind::Error, format!("parse: {e}"));
-                        None
-                    }
+                let trimmed = buf.trim();
+                // A bareword like "HER2" parses as a chromosome-only region,
+                // but it's almost certainly a gene name. So accept the parse
+                // only when the chromosome actually exists in the loaded
+                // references; otherwise fall through to gene-name lookup.
+                let parse = Region::parse(trimmed);
+                let parsed_known = parse.as_ref().ok().map(|r| {
+                    self.references.iter().any(|m| m.name == r.chrom)
+                });
+                match (parse, parsed_known) {
+                    (Ok(r), Some(true)) => self.set_region_pending(r),
+                    (parse_result, _) => match self.find_gene_region(trimmed) {
+                        Some((region, label)) => {
+                            self.set_status(StatusKind::Info, format!("jump → {label}"));
+                            self.set_region_pending(region)
+                        }
+                        None => {
+                            let msg = match parse_result {
+                                Ok(r) => format!("unknown chrom or gene: {}", r.chrom),
+                                Err(_) if self.annotations.is_empty() => {
+                                    format!("invalid region: {trimmed}")
+                                }
+                                Err(_) => format!("not a region or gene: {trimmed}"),
+                            };
+                            self.set_status(StatusKind::Error, msg);
+                            None
+                        }
+                    },
                 }
             }
             Action::CommandCancel => {
@@ -303,6 +325,45 @@ impl AppState {
             }
             Action::None => None,
         }
+    }
+
+    /// Search loaded annotation tracks for a transcript whose gene_name,
+    /// gene_id, or transcript_id matches `query` case-insensitively. On a
+    /// hit, returns a region spanning the **union** of all matched
+    /// transcripts on the same chromosome (so multi-isoform genes show all
+    /// isoforms at once), plus a label suitable for the status line.
+    fn find_gene_region(&self, query: &str) -> Option<(Region, String)> {
+        if query.is_empty() {
+            return None;
+        }
+        // First match wins; subsequent matches on the same chrom expand the
+        // span (matches across chromosomes are kept on the first chrom seen).
+        let mut chrom: Option<String> = None;
+        let mut span: Option<(u64, u64)> = None;
+        let mut label: Option<String> = None;
+        for track in &self.annotations {
+            for (c, tx) in track.source.find_by_name(query) {
+                let Some((s, e)) = tx.span() else { continue };
+                match &chrom {
+                    None => {
+                        chrom = Some(c);
+                        span = Some((s, e));
+                        label = Some(tx.name.clone());
+                    }
+                    Some(existing) if existing == &c => {
+                        let (cs, ce) = span.unwrap();
+                        span = Some((cs.min(s), ce.max(e)));
+                    }
+                    Some(_) => {}
+                }
+            }
+        }
+        let chrom = chrom?;
+        let (s, e) = span?;
+        let region = Region::new(chrom, s, e).ok()?;
+        let label = label.unwrap_or_else(|| query.to_string());
+        let status = format!("{label} ({region})");
+        Some((region, status))
     }
 
     fn set_region_pending(&mut self, region: Region) -> Option<LoadRequest> {

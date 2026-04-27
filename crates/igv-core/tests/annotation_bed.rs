@@ -48,3 +48,20 @@ async fn bed_returns_only_overlapping_features() {
     assert!(!txs.iter().any(|t| t.name == "feat2"));
     assert!(!txs.iter().any(|t| t.name == "bigblock"));
 }
+
+#[tokio::test]
+async fn bed_find_by_name_matches_column4() {
+    let src = NoodlesBedSource::open(Path::new("tests/data/sample.bed"))
+        .await
+        .unwrap();
+    let hits = src.find_by_name("feat1");
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].0, "chr1");
+    assert_eq!(hits[0].1.name, "feat1");
+    // Case-insensitive.
+    assert_eq!(src.find_by_name("FEAT1").len(), 1);
+    // gene_id is None for BED.
+    assert!(hits[0].1.gene_id.is_none());
+    // Misses.
+    assert!(src.find_by_name("missing").is_empty());
+}

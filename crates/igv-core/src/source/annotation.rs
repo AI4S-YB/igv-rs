@@ -45,8 +45,15 @@ pub enum TranscriptKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AnnotationTranscript {
+    /// Display label: gene_name when known, otherwise gene_id (or
+    /// transcript_id for GFF3 records lacking both).
     pub name: String,
+    /// Transcript-level identifier (transcript_id for GTF, ID for GFF3,
+    /// column-4 name for BED).
     pub id: String,
+    /// Gene-level identifier when the source supplies one (gene_id for GTF,
+    /// Parent gene ID for GFF3 mRNAs). `None` for BED.
+    pub gene_id: Option<String>,
     pub strand: Strand,
     pub blocks: Vec<AnnotationBlock>,
     pub kind: TranscriptKind,
@@ -66,6 +73,16 @@ impl AnnotationTranscript {
 pub trait AnnotationSource: Send + Sync {
     async fn fetch(&self, region: &Region) -> Result<Vec<AnnotationTranscript>>;
     fn display_name(&self) -> &str;
+
+    /// Search loaded transcripts whose `name` (gene_name fallback gene_id),
+    /// `gene_id`, or `id` (transcript_id) equals `query` case-insensitively.
+    /// Returns `(chrom, transcript)` pairs so callers can construct a
+    /// `Region`. The default returns nothing — backends with an in-memory
+    /// index override.
+    fn find_by_name(&self, query: &str) -> Vec<(String, AnnotationTranscript)> {
+        let _ = query;
+        Vec::new()
+    }
 }
 
 /// Format hint that the user can pass via CLI to override extension-based
@@ -178,6 +195,7 @@ mod tests {
         let t = AnnotationTranscript {
             name: "g".into(),
             id: "t".into(),
+            gene_id: None,
             strand: Strand::Forward,
             blocks: vec![
                 AnnotationBlock { start: 10, end: 20, kind: BlockKind::Cds },
@@ -194,6 +212,7 @@ mod tests {
         let t = AnnotationTranscript {
             name: "g".into(),
             id: "t".into(),
+            gene_id: None,
             strand: Strand::Unknown,
             blocks: vec![],
             kind: TranscriptKind::Other,
