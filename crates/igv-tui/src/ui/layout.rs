@@ -33,7 +33,9 @@ impl Default for LayoutSpec {
             coverage_height: 5,
             alignments_min_per_track: 6,
             annotation_tracks: 0,
-            annotation_height_per_track: 3,
+            // 4 rows = 2 inner rows after borders, leaving room for a body
+            // row plus a label row when wide-zoom label-below is active.
+            annotation_height_per_track: 4,
         }
     }
 }

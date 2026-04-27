@@ -15,11 +15,13 @@ pub struct Thresholds {
 
 impl Default for Thresholds {
     fn default() -> Self {
+        // Tuned for terminal sizes — reads stay visible up to ~50 kb
+        // windows, which matches typical IGV-like browsing.
         Self {
             per_base: 200,
-            detailed: 1_000,
-            coverage_only: 10_000,
-            heat: 100_000,
+            detailed: 50_000,
+            coverage_only: 500_000,
+            heat: 5_000_000,
         }
     }
 }
@@ -55,11 +57,11 @@ mod tests {
         assert_eq!(t.classify(50), RenderMode::PerBase);
         assert_eq!(t.classify(200), RenderMode::PerBase);
         assert_eq!(t.classify(201), RenderMode::DetailedReads);
-        assert_eq!(t.classify(1_000), RenderMode::DetailedReads);
-        assert_eq!(t.classify(1_001), RenderMode::CoverageDense);
-        assert_eq!(t.classify(10_000), RenderMode::CoverageDense);
-        assert_eq!(t.classify(10_001), RenderMode::HeatBar);
-        assert_eq!(t.classify(100_000), RenderMode::HeatBar);
-        assert_eq!(t.classify(100_001), RenderMode::OverviewOnly);
+        assert_eq!(t.classify(50_000), RenderMode::DetailedReads);
+        assert_eq!(t.classify(50_001), RenderMode::CoverageDense);
+        assert_eq!(t.classify(500_000), RenderMode::CoverageDense);
+        assert_eq!(t.classify(500_001), RenderMode::HeatBar);
+        assert_eq!(t.classify(5_000_000), RenderMode::HeatBar);
+        assert_eq!(t.classify(5_000_001), RenderMode::OverviewOnly);
     }
 }

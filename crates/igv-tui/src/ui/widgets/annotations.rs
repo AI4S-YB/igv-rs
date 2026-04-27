@@ -54,11 +54,9 @@ impl Widget for AnnotationsWidget<'_> {
             return;
         }
 
-        if matches!(mode, RenderMode::HeatBar) {
-            draw_heatbar(buf, inner, region, txs, self.theme);
-            return;
-        }
-
+        // Annotations are sparse compared to reads, so lane-stacking still
+        // works at HeatBar / CoverageDense zooms. Only OverviewOnly fully
+        // suppresses the panel.
         let label_below = region.width() >= WIDE_LABEL_THRESHOLD && inner.height >= 2;
         let rows_per_lane: u16 = if label_below { 2 } else { 1 };
         let lane_count = (inner.height / rows_per_lane).max(1) as usize;
@@ -95,34 +93,6 @@ fn stack_transcripts<'a>(
         }
     }
     lanes
-}
-
-fn draw_heatbar(
-    buf: &mut Buffer,
-    inner: Rect,
-    region: &igv_core::region::Region,
-    txs: &[AnnotationTranscript],
-    theme: &Theme,
-) {
-    let style = theme.get("ANNOTATION_EXON");
-    let view_start_0 = region.start - 1;
-    let view_width = region.width();
-    for tx in txs {
-        for blk in &tx.blocks {
-            let g0_start = blk.start.saturating_sub(1);
-            let g0_end = blk.end.saturating_sub(1);
-            let mut g = g0_start;
-            while g <= g0_end {
-                if let Some(col) = genomic_to_screen(g, view_start_0, view_width, inner.width as u32) {
-                    if col < inner.width as u32 {
-                        let cell = &mut buf[(inner.x + col as u16, inner.y)];
-                        cell.set_char('▮').set_style(style);
-                    }
-                }
-                g += 1;
-            }
-        }
-    }
 }
 
 fn draw_transcript(
