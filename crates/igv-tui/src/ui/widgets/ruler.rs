@@ -47,7 +47,7 @@ impl Widget for RulerWidget<'_> {
                 let max_len = (area.width - screen_col) as usize;
                 let cut = &label[..label.len().min(max_len)];
                 for (i, ch) in cut.chars().enumerate() {
-                    buf.get_mut(area.x + screen_col + i as u16, area.y)
+                    buf[(area.x + screen_col + i as u16, area.y)]
                         .set_char(ch)
                         .set_style(style);
                 }

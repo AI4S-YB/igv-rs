@@ -115,7 +115,7 @@ fn draw_heatbar(
             while g <= g0_end {
                 if let Some(col) = genomic_to_screen(g, view_start_0, view_width, inner.width as u32) {
                     if col < inner.width as u32 {
-                        let cell = buf.get_mut(inner.x + col as u16, inner.y);
+                        let cell = &mut buf[(inner.x + col as u16, inner.y)];
                         cell.set_char('▮').set_style(style);
                     }
                 }
@@ -149,7 +149,7 @@ fn draw_transcript(
         while g <= g_end {
             if let Some(col) = genomic_to_screen(g, view_start_0, view_width, inner.width as u32) {
                 if col < inner.width as u32 {
-                    let cell = buf.get_mut(inner.x + col as u16, y);
+                    let cell = &mut buf[(inner.x + col as u16, y)];
                     if cell.symbol().chars().next().unwrap_or(' ') == ' ' {
                         cell.set_char('─').set_style(intron_style);
                     }
@@ -176,7 +176,7 @@ fn draw_transcript(
         while g <= g_end {
             if let Some(col) = genomic_to_screen(g, view_start_0, view_width, inner.width as u32) {
                 if col < inner.width as u32 {
-                    buf.get_mut(inner.x + col as u16, y).set_char(glyph).set_style(style);
+                    buf[(inner.x + col as u16, y)].set_char(glyph).set_style(style);
                 }
             }
             g += 1;
@@ -193,7 +193,7 @@ fn draw_transcript(
                 Strand::Unknown => return,
             };
             if col < inner.width as u32 {
-                buf.get_mut(inner.x + col as u16, y).set_char(glyph).set_style(strand_style);
+                buf[(inner.x + col as u16, y)].set_char(glyph).set_style(strand_style);
             }
         }
     }
@@ -237,7 +237,7 @@ fn draw_name_left(
         if start_col as u16 + i as u16 >= inner.width {
             break;
         }
-        buf.get_mut(inner.x + start_col as u16 + i as u16, y)
+        buf[(inner.x + start_col as u16 + i as u16, y)]
             .set_char(ch)
             .set_style(name_style);
     }
@@ -275,7 +275,7 @@ fn draw_name_below(
         if col >= inner.width {
             break;
         }
-        buf.get_mut(inner.x + col, label_y)
+        buf[(inner.x + col, label_y)]
             .set_char(ch)
             .set_style(name_style);
     }

@@ -22,6 +22,9 @@ pub const COVERAGE_DEFAULT_HEIGHT: u16 = 5;
 
 /// Single owner of all UI-relevant mutable state.
 pub struct AppState {
+    /// Held to keep the `Arc<dyn FastaSource>` alive alongside the loader's
+    /// own clone; not read directly through state.
+    #[allow(dead_code)]
     pub fasta: Arc<dyn FastaSource>,
     pub vcf: Option<Arc<dyn VcfSource>>,
     pub bams: Vec<BamTrack>,
@@ -65,6 +68,7 @@ pub struct AppState {
 // Note: cannot derive `Debug` because `BamSource: Send + Sync` does not require
 // `Debug`. Plan adaptation: drop the `Debug` derive on `BamTrack`.
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct BamTrack {
     pub path: PathBuf,
     pub display: String,
@@ -73,6 +77,7 @@ pub struct BamTrack {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct AnnotationTrack {
     pub path: std::path::PathBuf,
     pub display: String,

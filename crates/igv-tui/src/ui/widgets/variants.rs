@@ -49,7 +49,7 @@ impl Widget for VariantsWidget<'_> {
                     .unwrap_or('▼'),
                 _ => '▼',
             };
-            buf.get_mut(inner.x + col as u16, inner.y)
+            buf[(inner.x + col as u16, inner.y)]
                 .set_char(glyph)
                 .set_style(style);
         }

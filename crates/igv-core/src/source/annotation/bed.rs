@@ -17,6 +17,7 @@ use super::{
     AnnotationBlock, AnnotationSource, AnnotationTranscript, BlockKind, Strand, TranscriptKind,
 };
 
+#[derive(Debug)]
 pub struct NoodlesBedSource {
     #[allow(dead_code)]
     path: PathBuf,

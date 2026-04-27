@@ -84,14 +84,14 @@ impl Widget for AlignmentsWidget<'_> {
         // Scroll affordance: arrows at the right edge when more lanes exist.
         let style = self.theme.get("BORDER");
         if scroll > 0 {
-            buf.get_mut(inner.x + inner.width.saturating_sub(1), inner.y)
+            buf[(inner.x + inner.width.saturating_sub(1), inner.y)]
                 .set_char('▲')
                 .set_style(style);
         }
         let last_visible_lane = scroll as u32 + visible;
         if last_visible_lane < total_lanes as u32 {
             let y = inner.y + inner.height.saturating_sub(1);
-            buf.get_mut(inner.x + inner.width.saturating_sub(1), y)
+            buf[(inner.x + inner.width.saturating_sub(1), y)]
                 .set_char('▼')
                 .set_style(style);
         }
@@ -135,7 +135,7 @@ fn draw_read(
             BaseGlyph::Deletion => ('*', deletion_style),
             BaseGlyph::SoftClip(b) => (*b as char, theme.get("BORDER")),
         };
-        buf.get_mut(inner.x + col as u16, y).set_char(ch).set_style(style);
+        buf[(inner.x + col as u16, y)].set_char(ch).set_style(style);
     }
 
     for (ins_ref_pos_1, _bases) in &cells.insertions {
@@ -144,7 +144,7 @@ fn draw_read(
             continue;
         }
         if let Some(col) = genomic_to_screen(g0, view_start_0, view_width, inner.width as u32) {
-            buf.get_mut(inner.x + col as u16, y)
+            buf[(inner.x + col as u16, y)]
                 .set_char('+')
                 .set_style(insertion_style);
         }

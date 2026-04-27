@@ -60,7 +60,7 @@ impl Widget for CoverageWidget<'_> {
             let bar_h = ((d as f32 / scale) * height as f32).ceil() as u16;
             for row in 0..bar_h.min(inner.height) {
                 let y = inner.y + inner.height.saturating_sub(1) - row;
-                buf.get_mut(inner.x + col as u16, y)
+                buf[(inner.x + col as u16, y)]
                     .set_char('█')
                     .set_style(style);
             }

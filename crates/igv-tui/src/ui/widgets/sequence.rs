@@ -6,7 +6,7 @@ use ratatui::widgets::Widget;
 use crate::app::state::AppState;
 use crate::ui::theme::Theme;
 use igv_core::region::genomic_to_screen;
-use igv_core::render::{RenderMode, Thresholds};
+use igv_core::render::RenderMode;
 
 pub struct SequenceWidget<'a> {
     pub state: &'a AppState,
@@ -42,7 +42,7 @@ impl Widget for SequenceWidget<'_> {
                 _ => "N",
             };
             let style = self.theme.get(key);
-            buf.get_mut(area.x + col as u16, area.y)
+            buf[(area.x + col as u16, area.y)]
                 .set_char(*base as char)
                 .set_style(style);
             // ignore second row of `area` (height ≥ 2 → leave it blank)

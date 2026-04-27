@@ -36,7 +36,7 @@ impl Widget for OverviewWidget<'_> {
         let bar_y = inner.y;
         let style = self.theme.get("OVERVIEW");
         for x in 0..inner.width {
-            buf.get_mut(inner.x + x, bar_y)
+            buf[(inner.x + x, bar_y)]
                 .set_char('─')
                 .set_style(style);
         }
@@ -46,7 +46,7 @@ impl Widget for OverviewWidget<'_> {
         let end_col = ((self.state.region.end as u128 * inner.width as u128 / chrom_len as u128)
             .min(inner.width as u128 - 1)) as u16;
         for x in start_col..=end_col {
-            buf.get_mut(inner.x + x, bar_y)
+            buf[(inner.x + x, bar_y)]
                 .set_char('█')
                 .set_style(style);
         }

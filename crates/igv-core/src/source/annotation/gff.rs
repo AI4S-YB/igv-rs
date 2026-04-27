@@ -31,6 +31,7 @@ use super::{
     TranscriptKind,
 };
 
+#[derive(Debug)]
 pub struct NoodlesGffSource {
     #[allow(dead_code)]
     path: PathBuf,
