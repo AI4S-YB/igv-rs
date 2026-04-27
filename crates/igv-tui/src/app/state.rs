@@ -19,6 +19,9 @@ pub const ALIGNMENT_DEFAULT_HEIGHT: u16 = 6;
 pub const COVERAGE_MIN_HEIGHT: u16 = 3;
 pub const COVERAGE_MAX_HEIGHT: u16 = 20;
 pub const COVERAGE_DEFAULT_HEIGHT: u16 = 5;
+pub const SIGNAL_MIN_HEIGHT: u16 = 2;
+pub const SIGNAL_MAX_HEIGHT: u16 = 12;
+pub const SIGNAL_DEFAULT_HEIGHT: u16 = 4;
 
 /// Single owner of all UI-relevant mutable state.
 pub struct AppState {
@@ -45,6 +48,11 @@ pub struct AppState {
 
     pub annotations: Vec<AnnotationTrack>,
     pub annotation_rows: Vec<Vec<igv_core::source::AnnotationTranscript>>,
+
+    pub signals: Vec<SignalTrack>,
+    pub signal_bins: Vec<Vec<igv_core::source::SignalBin>>,
+    pub signal_shared_scale: bool,
+    pub signal_track_height: u16,
 
     /// User-controlled track heights.
     pub alignment_height: u16,
@@ -82,6 +90,14 @@ pub struct AnnotationTrack {
     pub path: std::path::PathBuf,
     pub display: String,
     pub source: std::sync::Arc<dyn igv_core::source::AnnotationSource>,
+}
+
+#[derive(Clone)]
+#[allow(dead_code)]
+pub struct SignalTrack {
+    pub path: std::path::PathBuf,
+    pub display: String,
+    pub source: std::sync::Arc<dyn igv_core::source::SignalSource>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -263,6 +279,28 @@ impl AppState {
                     None
                 }
             },
+            Action::ToggleSignalSharedScale => {
+                self.signal_shared_scale = !self.signal_shared_scale;
+                let mode = if self.signal_shared_scale { "shared" } else { "per-track" };
+                self.set_status(StatusKind::Info, format!("signal scale: {mode}"));
+                None
+            }
+            Action::ResizeSignal(delta) => {
+                self.signal_track_height = if delta > 0 {
+                    self.signal_track_height
+                        .saturating_add(delta as u16)
+                        .min(SIGNAL_MAX_HEIGHT)
+                } else {
+                    self.signal_track_height
+                        .saturating_sub((-delta) as u16)
+                        .max(SIGNAL_MIN_HEIGHT)
+                };
+                self.set_status(
+                    StatusKind::Info,
+                    format!("signal height: {}", self.signal_track_height),
+                );
+                None
+            }
             Action::None => None,
         }
     }
@@ -287,6 +325,9 @@ impl AppState {
         self.bam_scroll = 0;
         for rows in &mut self.annotation_rows {
             rows.clear();
+        }
+        for bins in &mut self.signal_bins {
+            bins.clear();
         }
         self.variants.clear();
         Some(LoadRequest {

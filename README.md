@@ -25,13 +25,25 @@ igv-rs reference.fa -b alignments.bam
 igv-rs reference.fa -b sample1.bam -b sample2.bam -r chr1:1000-2000
 igv-rs reference.fa -g genes.gff3
 igv-rs reference.fa -g genes.gff3 -g peaks.bed -b sample.bam -r chr1:1000-2000
+igv-rs reference.fa -s chip.bw -s input.bw -r chr1:1-10000000
+igv-rs reference.fa -b sample.bam -s rna.bw -g genes.gff3 -r chr1:1000-2000
 ```
 
 Annotation tracks are auto-detected by extension:
-`.gff` / `.gff3` / `.gtf` (with optional `.gz`) and `.bed` / `.bed.gz` are all
-accepted via the repeatable `-g` / `--annotation` flag. Override the
-auto-detection with `--annotation-format gff|gtf|bed` when the extension is
-ambiguous or missing.
+`.gff` / `.gff3` / `.gtf` (with optional `.gz`), `.bed` / `.bed.gz`, and
+MACS2-style `.narrowPeak` / `.broadPeak` (with optional `.gz`) are all
+accepted via the repeatable `-g` / `--annotation` flag. Peak files are
+treated as BED6 — the extra signal/p-value/q-value/peak columns are
+ignored. Override the auto-detection with
+`--annotation-format gff|gtf|bed|narrowpeak|broadpeak` when the extension
+is ambiguous or missing.
+
+Signal tracks (bigWig, `.bw` / `.bigwig`) are accepted via the repeatable
+`-s` / `--signal` flag and rendered as bar-chart tracks between coverage
+and alignments. At wide zoom the bigwig file's precomputed zoom-level
+summaries are used (≥16 bp/col); at fine zoom raw per-base values are
+fetched. Override extension auto-detection with
+`--signal-format bigwig`.
 
 ### Keybindings
 
@@ -44,6 +56,8 @@ ambiguous or missing.
 - `j` / `k` — scroll alignment lanes down / up
 - `+` / `-` — grow / shrink alignment-track height
 - `]` / `[` — grow / shrink coverage-track height
+- `\` — toggle signal shared / per-track Y-scale
+- `}` / `{` — grow / shrink signal-track height
 - `:` or `g` — open command palette (type `chr:start-end`, `Enter` to jump)
 - `m<c>` — set bookmark to letter `c`
 - `'<c>` — jump to bookmark `c`
@@ -63,6 +77,7 @@ preset = "dark"  # "dark" | "light"
 # Override individual style keys
 "A" = "bold green"
 "MISMATCH" = "bold white on red"
+"SIGNAL" = "cyan"
 ```
 
 The full schema (with `[render]` and `[bookmarks]` tables) is described in
@@ -75,6 +90,7 @@ limitations" below for which sections are wired up.
   expansion, coverage, render thresholds.
 - `crates/igv-tui` — `igv-rs` binary: clap CLI, ratatui custom widgets, tokio
   main loop.
+- `crates/igv-core/src/source/signal.rs` — `SignalSource` trait + bigtools-backed `BigWigSignalSource`.
 - `cligv/` — the project that inspired this work; kept locally as a reference
   and not part of this repository (git-ignored).
 
@@ -96,6 +112,19 @@ configuration knobs and refinements are tracked for follow-up:
   of `42`) when colored by tag.
 - **Snapshot tests** of full TUI frames are limited to a smoke test; widget
   rendering is exercised manually.
+- **No signal-track caching** — every region change re-fetches bigwig.
+  In practice bigtools' R-tree lookup is fast enough; revisit if it's
+  ever observed to lag.
+- **Signal `max_bins` is fixed at 200** (regardless of terminal width).
+  At wide zoom this picks a coarser zoom-summary level than necessary on
+  terminals wider than 200 cols. Visual impact is mild; widget aggregation
+  papers over it. Threading terminal width through to the loader is
+  tracked as a follow-up.
+- **Single signal colormap** — all bigwig tracks share the `SIGNAL`
+  theme key. Per-track colormap is not yet supported.
+- **Signal summary statistic** is fixed at `Max`. `--signal-summary` is
+  not yet a flag.
+- **bigBed (`.bb`)** is not supported — separate spec.
 
 ## Reference
 
@@ -103,3 +132,4 @@ configuration knobs and refinements are tracked for follow-up:
 - Initial implementation plan: `docs/superpowers/plans/2026-04-26-igv-rs-rust-rewrite.md`
 - Annotation track design: `docs/superpowers/specs/2026-04-26-annotations-design.md`
 - Annotation track plan: `docs/superpowers/plans/2026-04-26-annotations.md`
+- bigWig signal-track design: `docs/superpowers/specs/2026-04-27-bigwig-signal-design.md`

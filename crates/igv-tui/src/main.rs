@@ -1,10 +1,3 @@
-mod app;
-mod cli;
-mod command;
-mod input;
-mod logging;
-mod ui;
-
 use std::io;
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,6 +5,9 @@ use std::time::Duration;
 use anyhow::{anyhow, Context};
 use clap::Parser;
 use crossterm::event::{Event, EventStream, KeyEventKind};
+
+use igv_tui::cli;
+use igv_tui::logging;
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -27,17 +23,19 @@ use igv_core::render::Thresholds;
 use igv_core::source::bam::{FetchOpts, NoodlesBamSource};
 use igv_core::source::fasta::NoodlesFastaSource;
 use igv_core::source::vcf::NoodlesVcfSource;
+use igv_core::source::{open_signal, SignalFormat};
 
-use crate::app::action::Action;
-use crate::app::loader::{LoadResult, Loader};
-use crate::app::state::{
-    AppState, BamTrack, StatusKind, ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT,
+use igv_tui::app::action::Action;
+use igv_tui::app::loader::{LoadResult, Loader};
+use igv_tui::app::state::{
+    AppState, BamTrack, SignalTrack, StatusKind,
+    ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT, SIGNAL_DEFAULT_HEIGHT,
 };
-use crate::command::CommandPalette;
-use crate::input::InputState;
-use crate::ui::layout::{compute, LayoutSpec};
-use crate::ui::theme;
-use crate::ui::widgets;
+use igv_tui::command::CommandPalette;
+use igv_tui::input::InputState;
+use igv_tui::ui::layout::{compute, LayoutSpec};
+use igv_tui::ui::theme;
+use igv_tui::ui::widgets;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -72,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
         bam_sources.push(source);
     }
 
-    let mut annotations: Vec<crate::app::state::AnnotationTrack> = Vec::new();
+    let mut annotations: Vec<igv_tui::app::state::AnnotationTrack> = Vec::new();
     let mut annotation_sources: Vec<std::sync::Arc<dyn igv_core::source::AnnotationSource>> =
         Vec::new();
     let format_override = args
@@ -81,7 +79,7 @@ async fn main() -> anyhow::Result<()> {
         .and_then(igv_core::source::AnnotationFormat::parse);
     for path in &args.annotations {
         let src = igv_core::source::open_annotation(path, format_override).await?;
-        annotations.push(crate::app::state::AnnotationTrack {
+        annotations.push(igv_tui::app::state::AnnotationTrack {
             path: path.clone(),
             display: path
                 .file_name()
@@ -91,6 +89,26 @@ async fn main() -> anyhow::Result<()> {
             source: std::sync::Arc::clone(&src),
         });
         annotation_sources.push(src);
+    }
+
+    let mut signals: Vec<SignalTrack> = Vec::new();
+    let mut signal_sources: Vec<std::sync::Arc<dyn igv_core::source::SignalSource>> = Vec::new();
+    let signal_format_override = args
+        .signal_format
+        .as_deref()
+        .and_then(SignalFormat::parse);
+    for path in &args.signals {
+        let src = open_signal(path, signal_format_override).await?;
+        signals.push(SignalTrack {
+            path: path.clone(),
+            display: path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("signal")
+                .to_string(),
+            source: std::sync::Arc::clone(&src),
+        });
+        signal_sources.push(src);
     }
 
     let initial = match args.region.as_deref() {
@@ -121,6 +139,10 @@ async fn main() -> anyhow::Result<()> {
         bam_scroll: 0,
         annotations,
         annotation_rows: vec![Vec::new(); annotation_sources.len()],
+        signals,
+        signal_bins: vec![Vec::new(); signal_sources.len()],
+        signal_shared_scale: false,
+        signal_track_height: SIGNAL_DEFAULT_HEIGHT,
         alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
         coverage_height: COVERAGE_DEFAULT_HEIGHT,
         theme: theme.clone(),
@@ -136,7 +158,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let (tx, mut rx) = mpsc::channel::<LoadResult>(64);
-    let mut loader = Loader::new(fasta, vcf, bam_sources, annotation_sources, tx);
+    let mut loader = Loader::new(fasta, vcf, bam_sources, annotation_sources, signal_sources, tx);
     if let Some(req) = state.apply(Action::Goto(state.region.clone())) {
         loader.dispatch(req);
     }
@@ -273,6 +295,13 @@ fn apply_load_result(state: &mut AppState, result: LoadResult) {
                 }
             }
         }
+        LoadResult::Signal { generation, track_index, bins } => {
+            if generation == state.generation {
+                if let Some(slot) = state.signal_bins.get_mut(track_index) {
+                    *slot = bins;
+                }
+            }
+        }
         LoadResult::Error { generation, message } => {
             if generation == state.generation {
                 state.set_status(StatusKind::Error, message);
@@ -288,6 +317,8 @@ fn draw(f: &mut ratatui::Frame<'_>, state: &AppState) {
         annotation_tracks: state.annotations.len(),
         coverage_height: state.coverage_height,
         alignments_min_per_track: state.alignment_height,
+        signal_count: state.signals.len(),
+        signal_height_per_track: state.signal_track_height,
         ..Default::default()
     };
     let areas = compute(f.area(), &spec);
@@ -310,6 +341,35 @@ fn draw(f: &mut ratatui::Frame<'_>, state: &AppState) {
     }
     if let Some(ca) = areas.coverage {
         f.render_widget(widgets::coverage::CoverageWidget { state, theme: &state.theme }, ca);
+    }
+    let global_signal_max = if state.signal_shared_scale {
+        state
+            .signal_bins
+            .iter()
+            .flatten()
+            .map(|b| b.value)
+            .fold(0.0_f32, f32::max)
+    } else {
+        0.0
+    };
+    for (i, area) in areas.signals.iter().enumerate() {
+        let track = &state.signals[i];
+        let bins: &[igv_core::source::SignalBin] =
+            state.signal_bins.get(i).map(|v| v.as_slice()).unwrap_or(&[]);
+        f.render_widget(
+            widgets::signal::SignalWidget {
+                display_name: &track.display,
+                bins,
+                region: &state.region,
+                theme: &state.theme,
+                shared_max: if state.signal_shared_scale {
+                    Some(global_signal_max)
+                } else {
+                    None
+                },
+            },
+            *area,
+        );
     }
     for (i, area) in areas.alignments.iter().enumerate() {
         f.render_widget(

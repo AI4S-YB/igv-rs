@@ -82,7 +82,7 @@ impl AnnotationFormat {
         match s.to_ascii_lowercase().as_str() {
             "gff" | "gff3" => Some(Self::Gff3),
             "gtf" => Some(Self::Gtf),
-            "bed" => Some(Self::Bed),
+            "bed" | "narrowpeak" | "broadpeak" => Some(Self::Bed),
             _ => None,
         }
     }
@@ -98,7 +98,13 @@ impl AnnotationFormat {
         if lower.ends_with(".gtf") || lower.ends_with(".gtf.gz") {
             return Some(Self::Gtf);
         }
-        if lower.ends_with(".bed") || lower.ends_with(".bed.gz") {
+        if lower.ends_with(".bed")
+            || lower.ends_with(".bed.gz")
+            || lower.ends_with(".narrowpeak")
+            || lower.ends_with(".narrowpeak.gz")
+            || lower.ends_with(".broadpeak")
+            || lower.ends_with(".broadpeak.gz")
+        {
             return Some(Self::Bed);
         }
         None
@@ -147,6 +153,10 @@ mod tests {
             ("a.gtf.gz", Some(AnnotationFormat::Gtf)),
             ("a.bed", Some(AnnotationFormat::Bed)),
             ("a.bed.gz", Some(AnnotationFormat::Bed)),
+            ("peaks.narrowPeak", Some(AnnotationFormat::Bed)),
+            ("peaks.narrowPeak.gz", Some(AnnotationFormat::Bed)),
+            ("peaks.broadPeak", Some(AnnotationFormat::Bed)),
+            ("peaks.broadPeak.gz", Some(AnnotationFormat::Bed)),
             ("a.txt", None),
         ];
         for (name, expected) in cases {

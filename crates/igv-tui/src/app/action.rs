@@ -28,6 +28,10 @@ pub enum Action {
     ResizeAlignments(i16),
     /// Resize coverage-track height. Positive = grow.
     ResizeCoverage(i16),
+    /// Toggle per-track / shared auto-scale across all signal tracks.
+    ToggleSignalSharedScale,
+    /// Resize signal-track height. Positive = grow.
+    ResizeSignal(i16),
     /// Quit the application.
     Quit,
     /// No-op (used as a sentinel).
