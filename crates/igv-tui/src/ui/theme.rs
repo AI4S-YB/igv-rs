@@ -53,6 +53,7 @@ impl Theme {
         m.insert("OVERVIEW".into(), Style::default().fg(Color::Yellow));
         m.insert("BORDER".into(), Style::default().fg(Color::DarkGray));
         m.insert("COVERAGE".into(), Style::default().fg(Color::Cyan));
+        m.insert("SIGNAL".into(), Style::default().fg(Color::Cyan));
         m.insert("WARNING".into(), Style::default().fg(Color::Yellow));
         m.insert("ERROR".into(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
         m.insert("SUCCESS".into(), Style::default().fg(Color::Green));
@@ -97,6 +98,7 @@ impl Theme {
         m.insert("OVERVIEW".into(), Style::default().fg(Color::Rgb(200, 100, 0)));
         m.insert("BORDER".into(), Style::default().fg(Color::Gray));
         m.insert("COVERAGE".into(), Style::default().fg(Color::Blue));
+        m.insert("SIGNAL".into(), Style::default().fg(Color::Blue));
         m.insert("WARNING".into(), Style::default().fg(Color::Rgb(180, 100, 0)));
         m.insert("ERROR".into(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
         m.insert("SUCCESS".into(), Style::default().fg(Color::Green));
