@@ -28,10 +28,13 @@ igv-rs reference.fa -g genes.gff3 -g peaks.bed -b sample.bam -r chr1:1000-2000
 ```
 
 Annotation tracks are auto-detected by extension:
-`.gff` / `.gff3` / `.gtf` (with optional `.gz`) and `.bed` / `.bed.gz` are all
-accepted via the repeatable `-g` / `--annotation` flag. Override the
-auto-detection with `--annotation-format gff|gtf|bed` when the extension is
-ambiguous or missing.
+`.gff` / `.gff3` / `.gtf` (with optional `.gz`), `.bed` / `.bed.gz`, and
+MACS2-style `.narrowPeak` / `.broadPeak` (with optional `.gz`) are all
+accepted via the repeatable `-g` / `--annotation` flag. Peak files are
+treated as BED6 — the extra signal/p-value/q-value/peak columns are
+ignored. Override the auto-detection with
+`--annotation-format gff|gtf|bed|narrowpeak|broadpeak` when the extension
+is ambiguous or missing.
 
 ### Keybindings
 

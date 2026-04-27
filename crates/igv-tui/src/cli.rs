@@ -30,13 +30,14 @@ pub struct Cli {
     #[arg(short = 't', long = "tag")]
     pub tag: Option<String>,
 
-    /// Path to a GFF3, GTF, or BED annotation file. Format auto-detected
-    /// by extension. May be repeated.
+    /// Path to a GFF3, GTF, BED, or narrowPeak/broadPeak annotation file.
+    /// Format auto-detected by extension. May be repeated.
     #[arg(short = 'g', long = "annotation")]
     pub annotations: Vec<std::path::PathBuf>,
 
     /// Override annotation format auto-detection
-    /// (`gff`, `gff3`, `gtf`, or `bed`). Applies to all `-g` files.
+    /// (`gff`, `gff3`, `gtf`, `bed`, `narrowpeak`, or `broadpeak`).
+    /// Applies to all `-g` files.
     #[arg(long = "annotation-format")]
     pub annotation_format: Option<String>,
 
