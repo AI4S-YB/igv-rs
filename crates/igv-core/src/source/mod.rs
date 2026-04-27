@@ -1,6 +1,7 @@
 //! Async data-source traits and noodles-backed implementations.
 
 pub mod annotation;
+pub mod signal;
 pub mod bam;
 pub mod fasta;
 pub mod vcf;
@@ -28,4 +29,7 @@ pub use bam::{AlignmentRow, BamSource, FetchOpts, NoodlesBamSource};
 pub use annotation::{
     AnnotationBlock, AnnotationFormat, AnnotationSource, AnnotationTranscript, BlockKind,
     Strand, TranscriptKind, open_annotation,
+};
+pub use signal::{
+    open_signal, FetchSignalOpts, SignalBin, SignalFormat, SignalSource, SignalSummary,
 };
