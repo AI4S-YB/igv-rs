@@ -1,6 +1,7 @@
 //! SVG render entry point. Per-track functions live in submodules and
 //! all draw into a shared `SvgDoc`.
 
+pub mod alignments;
 pub mod annotations;
 pub mod coverage;
 pub mod doc;
@@ -37,6 +38,18 @@ pub fn render(inputs: &RenderInputs, opts: &SvgOptions) -> String {
     }
     for (rect, track) in layout.signals.iter().zip(inputs.signals.iter()) {
         signal::draw(&mut doc, *rect, &layout.plot, track, opts.signal_shared_max, &opts.theme);
+    }
+    for (rect, track) in layout.alignments.iter().zip(inputs.bams.iter()) {
+        alignments::draw(
+            &mut doc,
+            *rect,
+            &layout.plot,
+            track,
+            &opts.track_heights,
+            &inputs.reference_seq,
+            inputs.region.start,
+            &opts.theme,
+        );
     }
 
     doc.finish()

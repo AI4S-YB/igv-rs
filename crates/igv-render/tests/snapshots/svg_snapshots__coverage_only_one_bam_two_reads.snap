@@ -91,4 +91,7 @@ expression: svg
 <rect x="944.00" y="116.00" width="1.00" height="38.00" fill="#888888"/>
 <rect x="955.00" y="116.00" width="1.00" height="38.00" fill="#888888"/>
 <text x="74.00" y="86.00" fill="#888888" font-size="10" text-anchor="end">max 2</text>
+<text x="74.00" y="170.00" fill="#888888" font-size="10" text-anchor="end">sample.bam</text>
+<polygon points="180.73,161.00 747.52,161.00 751.52,166.00 747.52,171.00 180.73,171.00" fill="#9ec3e0"/>
+<polygon points="404.57,173.00 971.35,173.00 975.35,178.00 971.35,183.00 404.57,183.00" fill="#9ec3e0"/>
 </svg>

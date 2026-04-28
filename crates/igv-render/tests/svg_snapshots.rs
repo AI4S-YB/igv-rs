@@ -115,10 +115,25 @@ fn signal_only_one_bigwig() {
     insta::assert_snapshot!("signal_only_one_bigwig", svg);
 }
 
-// (cigar_match used in alignments fixture, defined later)
-#[allow(dead_code)]
-fn _suppress_unused() {
-    let _ = cigar_match(1);
+#[test]
+fn alignments_only_two_reads() {
+    let mut inputs = empty_inputs(1, 200);
+    inputs.reference_seq = vec![b'A'; 200];
+    let mut row1 = fake_read(20, 60);
+    row1.cigar = vec![cigar_match(41)];
+    row1.query_sequence = vec![b'A'; 41];
+    let mut row2 = fake_read(80, 150);
+    row2.is_reverse = true;
+    row2.cigar = vec![cigar_match(71)];
+    row2.query_sequence = vec![b'T'; 71];
+    inputs.bams.push(BamTrackSnapshot {
+        display: "sample.bam".into(),
+        rows: vec![row1, row2],
+        lanes: vec![0, 0],
+        total_lanes: 1,
+    });
+    let svg = render_svg(&inputs, &SvgOptions::default());
+    insta::assert_snapshot!("alignments_only_two_reads", svg);
 }
 
 #[test]
