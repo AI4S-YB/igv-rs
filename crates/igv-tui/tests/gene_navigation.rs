@@ -97,7 +97,7 @@ fn make_state(annotation: Arc<dyn AnnotationSource>) -> AppState {
         alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
         coverage_height: COVERAGE_DEFAULT_HEIGHT,
         theme: Theme::dark(),
-        light_mode: false,
+        theme_preset: igv_tui::ui::theme::ThemePreset::Dark,
         thresholds: Thresholds::default(),
         bookmarks: HashMap::new(),
         status: None,

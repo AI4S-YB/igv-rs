@@ -10,7 +10,7 @@ use igv_core::source::vcf::VariantRecord;
 
 use crate::app::action::Action;
 use crate::app::loader::LoadRequest;
-use crate::ui::theme::Theme;
+use crate::ui::theme::{Theme, ThemePreset};
 
 /// Minimum / maximum sizes for user-resizable tracks.
 pub const ALIGNMENT_MIN_HEIGHT: u16 = 4;
@@ -69,7 +69,7 @@ pub struct AppState {
     pub coverage_height: u16,
 
     pub theme: Theme,
-    pub light_mode: bool,
+    pub theme_preset: ThemePreset,
     pub thresholds: Thresholds,
 
     pub bookmarks: HashMap<char, Region>,
@@ -204,12 +204,12 @@ impl AppState {
                 None
             }
             Action::ToggleTheme => {
-                self.light_mode = !self.light_mode;
-                self.theme = if self.light_mode {
-                    Theme::light()
-                } else {
-                    Theme::dark()
-                };
+                self.theme_preset = self.theme_preset.next();
+                self.theme = Theme::for_preset(self.theme_preset);
+                self.set_status(
+                    StatusKind::Info,
+                    format!("theme: {}", self.theme_preset.name()),
+                );
                 None
             }
             Action::Move { forward, large } => {

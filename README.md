@@ -87,7 +87,9 @@ zoom pyramid handles chromosome-scale queries cheaply.
   annotation; `Enter` to jump)
 - `m<c>` — set bookmark to letter `c`
 - `'<c>` — jump to bookmark `c`
-- `t` — toggle dark / light theme
+- `t` — cycle theme (`dark` → `light` → `solarized-dark` → `solarized-light`
+  → `dracula` → `gruvbox-dark` → ...). The new theme name briefly shows in
+  the footer.
 - `?` — toggle keybinding help overlay (any key closes it)
 - `q` / `Ctrl-C` — quit
 
@@ -98,7 +100,9 @@ Optional `~/.config/igv-rs/config.toml` is read at startup. Today only the
 
 ```toml
 [theme]
-preset = "dark"  # "dark" | "light"
+# "dark" | "light" | "solarized-dark" | "solarized-light"
+# | "dracula" | "gruvbox-dark"
+preset = "dark"
 
 [theme.custom]
 # Override individual style keys

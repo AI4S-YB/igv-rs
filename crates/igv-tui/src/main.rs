@@ -43,7 +43,8 @@ async fn main() -> anyhow::Result<()> {
     let _log_guard = logging::setup(&args.log_level)?;
     info!(?args, "igv-rs starting");
 
-    let theme = theme::load_theme(Some(args.light_mode), args.config.as_deref());
+    let (theme_preset, theme) =
+        theme::load_theme(Some(args.light_mode), args.config.as_deref());
 
     // Explicit `dyn` types are required because `Vec<Arc<T>>` and
     // `Option<Arc<T>>` are invariant — the unsized coercion to `Arc<dyn ...>`
@@ -146,7 +147,7 @@ async fn main() -> anyhow::Result<()> {
         alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
         coverage_height: COVERAGE_DEFAULT_HEIGHT,
         theme: theme.clone(),
-        light_mode: args.light_mode,
+        theme_preset,
         thresholds: Thresholds::default(),
         bookmarks: std::collections::HashMap::new(),
         status: None,
