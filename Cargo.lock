@@ -777,6 +777,7 @@ dependencies = [
  "directories",
  "futures",
  "igv-core",
+ "igv-render",
  "insta",
  "ratatui 0.29.0",
  "serde",
