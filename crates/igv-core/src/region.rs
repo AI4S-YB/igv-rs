@@ -128,7 +128,7 @@ pub fn genomic_to_screen(
     if view_width == 0 || screen_width == 0 {
         return None;
     }
-    if view_width as u64 > screen_width as u64 {
+    if view_width > screen_width as u64 {
         let scaled = (rel as u128 * screen_width as u128 / view_width as u128) as u32;
         Some(scaled.min(screen_width.saturating_sub(1)))
     } else {
@@ -143,7 +143,7 @@ pub fn screen_to_genomic(
     view_width: u64,
     screen_width: u32,
 ) -> u64 {
-    if view_width as u64 > screen_width as u64 {
+    if view_width > screen_width as u64 {
         let g = screen_pos as u128 * view_width as u128 / screen_width as u128;
         view_start + g as u64
     } else {
