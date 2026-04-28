@@ -26,3 +26,37 @@ fn empty_view_renders_header_and_ruler() {
     let svg = render_svg(&inputs, &SvgOptions::default());
     insta::assert_snapshot!("empty_view_header_ruler", svg);
 }
+
+use igv_core::render_inputs::AnnotationTrackSnapshot;
+use igv_core::source::{AnnotationBlock, AnnotationTranscript, BlockKind, Strand, TranscriptKind};
+
+#[test]
+fn annotations_only_two_transcripts() {
+    let mut inputs = empty_inputs(1, 1000);
+    inputs.annotations.push(AnnotationTrackSnapshot {
+        display: "genes.gtf".into(),
+        transcripts: vec![
+            AnnotationTranscript {
+                name: "GENE1".into(),
+                id: "tx1".into(),
+                gene_id: Some("g1".into()),
+                strand: Strand::Forward,
+                blocks: vec![
+                    AnnotationBlock { start: 100, end: 200, kind: BlockKind::Exon },
+                    AnnotationBlock { start: 400, end: 500, kind: BlockKind::Exon },
+                ],
+                kind: TranscriptKind::Mrna,
+            },
+            AnnotationTranscript {
+                name: "GENE2".into(),
+                id: "tx2".into(),
+                gene_id: Some("g2".into()),
+                strand: Strand::Reverse,
+                blocks: vec![AnnotationBlock { start: 600, end: 800, kind: BlockKind::Exon }],
+                kind: TranscriptKind::Mrna,
+            },
+        ],
+    });
+    let svg = render_svg(&inputs, &SvgOptions::default());
+    insta::assert_snapshot!("annotations_only_two_transcripts", svg);
+}

@@ -1,6 +1,7 @@
 //! SVG render entry point. Per-track functions live in submodules and
 //! all draw into a shared `SvgDoc`.
 
+pub mod annotations;
 pub mod doc;
 pub mod header;
 pub mod ruler;
@@ -22,6 +23,9 @@ pub fn render(inputs: &RenderInputs, opts: &SvgOptions) -> String {
 
     header::draw(&mut doc, layout.header, inputs, opts.title.as_deref(), &opts.theme);
     ruler::draw(&mut doc, layout.ruler, &layout.plot, inputs, &opts.theme);
+    for (rect, track) in layout.annotations.iter().zip(inputs.annotations.iter()) {
+        annotations::draw(&mut doc, *rect, &layout.plot, track, &opts.theme);
+    }
 
     doc.finish()
 }
