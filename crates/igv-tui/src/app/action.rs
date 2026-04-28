@@ -1,7 +1,28 @@
 use igv_core::Region;
 
+#[derive(Debug, Clone, Copy)]
+pub enum SnapshotFormat {
+    Svg,
+    Png,
+}
+
+impl SnapshotFormat {
+    pub fn from_path(p: &std::path::Path) -> Self {
+        match p
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|s| s.to_ascii_lowercase())
+        {
+            Some(ref s) if s == "png" => Self::Png,
+            _ => Self::Svg,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Action {
+    /// Save the current view to disk. `path = None` → auto-named in cwd.
+    SaveSnapshot { path: Option<std::path::PathBuf>, format: SnapshotFormat },
     /// Move forward/backward. `large=false` shifts by 1/10 of the window
     /// (fine step, `h`/`l`); `large=true` shifts by a full window
     /// (page step, `a`/`d` and arrow keys).

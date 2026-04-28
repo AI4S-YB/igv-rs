@@ -8,9 +8,15 @@ use igv_core::source::{BamSource, FastaSource, FetchOpts, RefMeta, VcfSource};
 use igv_core::source::bam::AlignmentRow;
 use igv_core::source::vcf::VariantRecord;
 
-use crate::app::action::Action;
+use crate::app::action::{Action, SnapshotFormat};
 use crate::app::loader::LoadRequest;
 use crate::ui::theme::{Theme, ThemePreset};
+
+#[derive(Debug, Clone)]
+pub struct SnapshotJob {
+    pub path: Option<std::path::PathBuf>,
+    pub format: SnapshotFormat,
+}
 
 /// Minimum / maximum sizes for user-resizable tracks.
 pub const ALIGNMENT_MIN_HEIGHT: u16 = 4;
@@ -82,6 +88,8 @@ pub struct AppState {
     /// so the bigWig zoom level roughly matches the column count we'll render
     /// into. Updated on every frame; resize events trigger a re-fetch.
     pub terminal_width: u16,
+
+    pub pending_snapshot: Option<SnapshotJob>,
 
     pub generation: u64,
     pub loading: bool,
@@ -353,6 +361,14 @@ impl AppState {
                     StatusKind::Info,
                     format!("signal height: {}", self.signal_track_height),
                 );
+                None
+            }
+            Action::SaveSnapshot { path, format } => {
+                if self.loading {
+                    self.set_status(StatusKind::Warning, "snapshot: still loading, try again");
+                } else {
+                    self.pending_snapshot = Some(SnapshotJob { path, format });
+                }
                 None
             }
             Action::None => None,
