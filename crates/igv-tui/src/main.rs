@@ -249,6 +249,7 @@ async fn main() -> anyhow::Result<()> {
         terminal_width: 0,
         pending_snapshot: None,
         generation: 0,
+        loaded_count: 0,
         loading: true,
         should_quit: false,
     };
@@ -365,11 +366,13 @@ async fn run_loop(
             }
             maybe_result = rx.recv() => {
                 if let Some(result) = maybe_result {
+                    let result_gen = result.generation();
                     apply_load_result(state, result);
-                    if state.bam_rows.iter().all(|r| !r.is_empty() || state.bams.is_empty())
-                        && !state.reference_seq.is_empty()
-                    {
-                        state.loading = false;
+                    if result_gen == state.generation {
+                        state.loaded_count = state.loaded_count.saturating_add(1);
+                        if state.loaded_count >= state.expected_loads() {
+                            state.loading = false;
+                        }
                     }
                 }
             }

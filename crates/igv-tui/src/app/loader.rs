@@ -57,6 +57,19 @@ pub enum LoadResult {
     },
 }
 
+impl LoadResult {
+    pub fn generation(&self) -> u64 {
+        match self {
+            LoadResult::Reference { generation, .. }
+            | LoadResult::Variants { generation, .. }
+            | LoadResult::Bam { generation, .. }
+            | LoadResult::Annotation { generation, .. }
+            | LoadResult::Signal { generation, .. }
+            | LoadResult::Error { generation, .. } => *generation,
+        }
+    }
+}
+
 pub struct Loader {
     pub fasta: Arc<dyn FastaSource>,
     pub vcf: Option<Arc<dyn VcfSource>>,

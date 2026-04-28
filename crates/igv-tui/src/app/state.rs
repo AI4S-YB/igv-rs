@@ -93,6 +93,9 @@ pub struct AppState {
 
     pub generation: u64,
     pub loading: bool,
+    /// Number of `LoadResult`s received for the current `generation`.
+    /// Driving signal for clearing `loading` — see `expected_loads`.
+    pub loaded_count: usize,
     pub should_quit: bool,
 }
 
@@ -217,6 +220,38 @@ impl AppState {
     pub fn render_mode(&self) -> RenderMode {
         self.thresholds.classify(self.region.width())
     }
+
+    /// How many `LoadResult`s the loader will emit for the current view.
+    /// Used by the main loop to clear `loading` when the expected count of
+    /// results has arrived. See [`expected_loads_for`] for the rule.
+    pub fn expected_loads(&self) -> usize {
+        expected_loads_for(
+            self.render_mode(),
+            self.bams.len(),
+            self.vcf.is_some(),
+            self.annotations.len(),
+            self.signals.len(),
+        )
+    }
+}
+
+/// Mirrors `Loader::dispatch`: reference and BAMs always send a result
+/// (real or empty stub), VCF only when not gated by OverviewOnly mode,
+/// annotations and signals always send.
+///
+/// Critical at wide zoom (>50 kb) where the reference and BAM fetches
+/// return empty stubs — without this count, `loading` would stay true
+/// forever and the snapshot guard would block indefinitely.
+pub fn expected_loads_for(
+    mode: RenderMode,
+    n_bams: usize,
+    has_vcf: bool,
+    n_annotations: usize,
+    n_signals: usize,
+) -> usize {
+    let suppress_overview = matches!(mode, RenderMode::OverviewOnly);
+    let vcf = if has_vcf && !suppress_overview { 1 } else { 0 };
+    1 + n_bams + vcf + n_annotations + n_signals
 }
 
 impl AppState {
@@ -449,6 +484,7 @@ impl AppState {
         self.region = region;
         self.generation = self.generation.wrapping_add(1);
         self.loading = true;
+        self.loaded_count = 0;
         // Clear stale data so widgets don't render new reads against the old
         // reference window (causing transient phantom mismatches) until the
         // new fetches land.
@@ -509,6 +545,38 @@ mod tests {
         // must land in OverviewOnly so the loader knows to skip heavy fetches.
         let t = Thresholds::default();
         assert_eq!(t.classify(248_000_000), RenderMode::OverviewOnly);
+    }
+
+    #[test]
+    fn expected_loads_per_base_counts_all_sources() {
+        // 1 ref + 2 bams + 1 vcf + 1 annot + 1 sig = 6
+        let n = expected_loads_for(RenderMode::PerBase, 2, true, 1, 1);
+        assert_eq!(n, 6);
+    }
+
+    #[test]
+    fn expected_loads_overview_drops_vcf() {
+        // 1 ref + 1 bam + 0 vcf (suppressed) + 1 annot + 1 sig = 4
+        let n = expected_loads_for(RenderMode::OverviewOnly, 1, true, 1, 1);
+        assert_eq!(n, 4);
+    }
+
+    #[test]
+    fn expected_loads_wide_zoom_still_counts_stubs() {
+        // At CoverageDense the loader still emits empty Reference/BAM stubs.
+        // 1 ref stub + 2 bam stubs + 1 vcf + 1 annot + 1 sig = 6.
+        // Without this fix, loading would stay true forever because the
+        // condition required *non-empty* reference/bam buffers.
+        let n = expected_loads_for(RenderMode::CoverageDense, 2, true, 1, 1);
+        assert_eq!(n, 6);
+    }
+
+    #[test]
+    fn expected_loads_minimal_view_is_one() {
+        // No bams, no vcf, no annotations, no signals: just the reference
+        // (real or stub).
+        let n = expected_loads_for(RenderMode::DetailedReads, 0, false, 0, 0);
+        assert_eq!(n, 1);
     }
 
     #[test]
