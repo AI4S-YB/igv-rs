@@ -10,6 +10,7 @@ use crate::options::TrackHeights;
 use crate::svg::doc::{SvgDoc, TextAnchor};
 use crate::theme::GraphicalTheme;
 
+#[allow(clippy::too_many_arguments)]
 pub fn draw(
     doc: &mut SvgDoc,
     area: Rect,
@@ -98,6 +99,7 @@ fn draw_read(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_mismatches(
     doc: &mut SvgDoc,
     plot: &PlotMetrics,
@@ -109,12 +111,16 @@ fn draw_mismatches(
     theme: &GraphicalTheme,
 ) {
     use igv_core::source::bam::CigarKind;
+    let region_end = region_start + reference_seq.len() as u64;
     let mut ref_pos: u64 = row.ref_start;
     let mut q_pos: usize = 0;
-    for op in &row.cigar {
+    'cigar: for op in &row.cigar {
         match op.kind {
             CigarKind::Match | CigarKind::SeqMatch | CigarKind::SeqMismatch => {
                 for _ in 0..op.len {
+                    if ref_pos >= region_end {
+                        break 'cigar;
+                    }
                     let qbase = row.query_sequence.get(q_pos).copied().unwrap_or(b'N');
                     let ref_idx = (ref_pos as i64 - region_start as i64) as isize;
                     if ref_idx >= 0 && (ref_idx as usize) < reference_seq.len() {
@@ -133,6 +139,9 @@ fn draw_mismatches(
             }
             CigarKind::Deletion | CigarKind::Skip => {
                 ref_pos += op.len as u64;
+                if ref_pos >= region_end {
+                    break 'cigar;
+                }
             }
             CigarKind::HardClip | CigarKind::Padding => {}
         }

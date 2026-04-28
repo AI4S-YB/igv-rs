@@ -25,10 +25,12 @@ pub fn draw(
         TextAnchor::End,
     );
 
-    let cols = plot.plot_width.max(1);
-    let mut depth = vec![0u32; cols as usize];
+    let cols = plot.plot_width.max(1) as usize;
     let region = &inputs.region;
     let region_width = region.width().max(1);
+    // Sweep-line: +1 at lo column, -1 at (hi+1) column, then prefix-sum into
+    // `depth`. Avoids the O(reads × bp) inner loop the naive version had.
+    let mut events = vec![0i32; cols + 1];
     for bam in &inputs.bams {
         for row in &bam.rows {
             let lo = row.ref_start.max(region.start);
@@ -36,15 +38,17 @@ pub fn draw(
             if hi < lo {
                 continue;
             }
-            for bp in lo..=hi {
-                let off = (bp - region.start) as f64;
-                let frac = (off / region_width as f64).clamp(0.0, 0.999_999);
-                let col = (frac * cols as f64) as usize;
-                if col < depth.len() {
-                    depth[col] += 1;
-                }
-            }
+            let lo_col = bp_to_col(lo, region.start, region_width, cols);
+            let hi_col = bp_to_col(hi, region.start, region_width, cols);
+            events[lo_col] += 1;
+            events[hi_col + 1] -= 1;
         }
+    }
+    let mut depth = vec![0u32; cols];
+    let mut running: i32 = 0;
+    for (i, slot) in depth.iter_mut().enumerate() {
+        running += events[i];
+        *slot = running.max(0) as u32;
     }
 
     let max_depth = depth.iter().copied().max().unwrap_or(0);
@@ -70,4 +74,10 @@ pub fn draw(
         theme.font_px_small,
         TextAnchor::End,
     );
+}
+
+fn bp_to_col(bp: u64, region_start: u64, region_width: u64, cols: usize) -> usize {
+    let off = bp.saturating_sub(region_start) as f64;
+    let frac = (off / region_width as f64).clamp(0.0, 0.999_999);
+    (frac * cols as f64) as usize
 }

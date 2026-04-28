@@ -9,8 +9,6 @@ use crate::theme::Rgb;
 #[derive(Debug)]
 pub struct SvgDoc {
     body: String,
-    width: u32,
-    height: u32,
 }
 
 impl SvgDoc {
@@ -20,7 +18,11 @@ impl SvgDoc {
         writeln!(
             body,
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="{}" height="{}" viewBox="0 0 {} {}" font-family="{}">"#,
-            width, height, width, height, font_family
+            width,
+            height,
+            width,
+            height,
+            escape_xml(font_family)
         )
         .unwrap();
         writeln!(
@@ -31,7 +33,7 @@ impl SvgDoc {
             bg.hex()
         )
         .unwrap();
-        Self { body, width, height }
+        Self { body }
     }
 
     pub fn rect(&mut self, x: f64, y: f64, w: f64, h: f64, fill: Rgb) {
@@ -43,20 +45,6 @@ impl SvgDoc {
             w,
             h,
             fill.hex()
-        )
-        .unwrap();
-    }
-
-    pub fn rect_stroke(&mut self, x: f64, y: f64, w: f64, h: f64, stroke: Rgb, stroke_w: f64) {
-        writeln!(
-            self.body,
-            r#"<rect x="{:.2}" y="{:.2}" width="{:.2}" height="{:.2}" fill="none" stroke="{}" stroke-width="{:.2}"/>"#,
-            x,
-            y,
-            w,
-            h,
-            stroke.hex(),
-            stroke_w
         )
         .unwrap();
     }
@@ -111,13 +99,6 @@ impl SvgDoc {
     pub fn finish(mut self) -> String {
         self.body.push_str("</svg>\n");
         self.body
-    }
-
-    pub fn width(&self) -> u32 {
-        self.width
-    }
-    pub fn height(&self) -> u32 {
-        self.height
     }
 }
 

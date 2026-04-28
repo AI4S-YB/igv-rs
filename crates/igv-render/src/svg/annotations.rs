@@ -71,6 +71,7 @@ pub fn draw(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_transcript(
     doc: &mut SvgDoc,
     plot: &PlotMetrics,
