@@ -125,11 +125,12 @@ configuration knobs and refinements are tracked for follow-up:
 - **No signal-track caching** — every region change re-fetches bigwig.
   In practice bigtools' R-tree lookup is fast enough; revisit if it's
   ever observed to lag.
-- **Signal `max_bins` is fixed at 200** (regardless of terminal width).
-  At wide zoom this picks a coarser zoom-summary level than necessary on
-  terminals wider than 200 cols. Visual impact is mild; widget aggregation
-  papers over it. Threading terminal width through to the loader is
-  tracked as a follow-up.
+- **Signal-track vertical quantization.** v0.4 paints partial blocks
+  (`▁▂▃▄▅▆▇█`) so each terminal row resolves 8 levels — at the default 6
+  rows that's 48 vertical levels. For very high-dynamic-range bigwigs
+  (or low-amplitude regions next to a tall peak) bars can still look
+  stepped. Workaround: grow the track with `}` for more rows × 8 levels
+  each. (v0.3 and earlier rendered only `█`, i.e. 1 level per row.)
 - **Single signal colormap** — all bigwig tracks share the `SIGNAL`
   theme key. Per-track colormap is not yet supported.
 - **Signal summary statistic** is fixed at `Max`. `--signal-summary` is
