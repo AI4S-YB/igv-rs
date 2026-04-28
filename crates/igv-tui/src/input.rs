@@ -85,6 +85,10 @@ impl InputState {
                 KeyCode::Char('\\') => Action::ToggleSignalSharedScale,
                 KeyCode::Char('}') => Action::ResizeSignal(1),
                 KeyCode::Char('{') => Action::ResizeSignal(-1),
+                KeyCode::Char('S') => Action::SaveSnapshot {
+                    path: None,
+                    format: crate::app::action::SnapshotFormat::Svg,
+                },
                 KeyCode::Char('t') => Action::ToggleTheme,
                 KeyCode::Char(':') | KeyCode::Char('g') => Action::OpenCommand,
                 KeyCode::Char('?') => Action::ToggleHelp,
@@ -190,6 +194,19 @@ mod tests {
     fn open_brace_shrinks_signal_track() {
         let mut s = InputState::default();
         assert!(matches!(s.map(&key('{'), false), Action::ResizeSignal(-1)));
+    }
+
+    #[test]
+    fn capital_s_saves_svg_snapshot() {
+        let mut s = InputState::default();
+        let act = s.map(&key('S'), false);
+        assert!(matches!(
+            act,
+            Action::SaveSnapshot {
+                path: None,
+                format: crate::app::action::SnapshotFormat::Svg
+            }
+        ));
     }
 
     #[test]

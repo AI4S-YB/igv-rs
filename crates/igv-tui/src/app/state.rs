@@ -8,9 +8,15 @@ use igv_core::source::{BamSource, FastaSource, FetchOpts, RefMeta, VcfSource};
 use igv_core::source::bam::AlignmentRow;
 use igv_core::source::vcf::VariantRecord;
 
-use crate::app::action::Action;
+use crate::app::action::{Action, SnapshotFormat};
 use crate::app::loader::LoadRequest;
 use crate::ui::theme::{Theme, ThemePreset};
+
+#[derive(Debug, Clone)]
+pub struct SnapshotJob {
+    pub path: Option<std::path::PathBuf>,
+    pub format: SnapshotFormat,
+}
 
 /// Minimum / maximum sizes for user-resizable tracks.
 pub const ALIGNMENT_MIN_HEIGHT: u16 = 4;
@@ -83,6 +89,8 @@ pub struct AppState {
     /// into. Updated on every frame; resize events trigger a re-fetch.
     pub terminal_width: u16,
 
+    pub pending_snapshot: Option<SnapshotJob>,
+
     pub generation: u64,
     pub loading: bool,
     pub should_quit: bool,
@@ -127,6 +135,23 @@ pub struct StatusMessage {
     pub kind: StatusKind,
     pub text: String,
     pub set_at: std::time::Instant,
+}
+
+/// Try to parse the palette buffer as a `snapshot`/`snap` command.
+/// Returns `Some((path, format))` when matched, `None` otherwise.
+pub(crate) fn parse_snapshot_command(
+    trimmed: &str,
+) -> Option<(std::path::PathBuf, SnapshotFormat)> {
+    let body = trimmed.strip_prefix(':').unwrap_or(trimmed);
+    let rest = body
+        .strip_prefix("snapshot ")
+        .or_else(|| body.strip_prefix("snap "))?;
+    let path = std::path::PathBuf::from(rest.trim());
+    if path.as_os_str().is_empty() {
+        return None;
+    }
+    let format = SnapshotFormat::from_path(&path);
+    Some((path, format))
 }
 
 impl AppState {
@@ -279,6 +304,20 @@ impl AppState {
                 self.command_open = false;
                 self.command_buffer.clear();
                 let trimmed = buf.trim();
+                if let Some((path, format)) = parse_snapshot_command(trimmed) {
+                    if self.loading {
+                        self.set_status(
+                            StatusKind::Warning,
+                            "snapshot: still loading, try again",
+                        );
+                    } else {
+                        self.pending_snapshot = Some(SnapshotJob {
+                            path: Some(path),
+                            format,
+                        });
+                    }
+                    return None;
+                }
                 // A bareword like "HER2" parses as a chromosome-only region,
                 // but it's almost certainly a gene name. So accept the parse
                 // only when the chromosome actually exists in the loaded
@@ -353,6 +392,14 @@ impl AppState {
                     StatusKind::Info,
                     format!("signal height: {}", self.signal_track_height),
                 );
+                None
+            }
+            Action::SaveSnapshot { path, format } => {
+                if self.loading {
+                    self.set_status(StatusKind::Warning, "snapshot: still loading, try again");
+                } else {
+                    self.pending_snapshot = Some(SnapshotJob { path, format });
+                }
                 None
             }
             Action::None => None,
@@ -462,5 +509,35 @@ mod tests {
         // must land in OverviewOnly so the loader knows to skip heavy fetches.
         let t = Thresholds::default();
         assert_eq!(t.classify(248_000_000), RenderMode::OverviewOnly);
+    }
+
+    #[test]
+    fn parse_snapshot_with_path() {
+        let (p, f) = parse_snapshot_command("snapshot foo.svg").unwrap();
+        assert_eq!(p.to_str().unwrap(), "foo.svg");
+        assert!(matches!(f, SnapshotFormat::Svg));
+    }
+
+    #[test]
+    fn parse_snap_alias_with_png() {
+        let (p, f) = parse_snapshot_command("snap out/x.png").unwrap();
+        assert_eq!(p.to_str().unwrap(), "out/x.png");
+        assert!(matches!(f, SnapshotFormat::Png));
+    }
+
+    #[test]
+    fn parse_snapshot_ignores_leading_colon() {
+        assert!(parse_snapshot_command(":snapshot foo.svg").is_some());
+    }
+
+    #[test]
+    fn parse_snapshot_rejects_empty_path() {
+        assert!(parse_snapshot_command("snapshot ").is_none());
+    }
+
+    #[test]
+    fn parse_snapshot_rejects_other_commands() {
+        assert!(parse_snapshot_command("HER2").is_none());
+        assert!(parse_snapshot_command("chr1:1000-2000").is_none());
     }
 }

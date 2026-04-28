@@ -62,4 +62,36 @@ pub struct Cli {
     /// `$XDG_CONFIG_HOME/igv-rs/config.toml`.
     #[arg(long = "config")]
     pub config: Option<PathBuf>,
+
+    /// Render snapshots for every region in this BED file (no TUI).
+    /// Mutually exclusive with --snapshot-genes.
+    #[arg(long = "snapshot-bed")]
+    pub snapshot_bed: Option<PathBuf>,
+
+    /// Render snapshots for every gene name in this newline-separated
+    /// file (no TUI). Requires at least one -g/--annotation. Mutually
+    /// exclusive with --snapshot-bed.
+    #[arg(long = "snapshot-genes")]
+    pub snapshot_genes: Option<PathBuf>,
+
+    /// Output directory for batch snapshots. Required when
+    /// --snapshot-bed or --snapshot-genes is set.
+    #[arg(long = "snapshot-out")]
+    pub snapshot_out: Option<PathBuf>,
+
+    /// Output format for snapshots: `svg` (default) or `png`.
+    #[arg(long = "snapshot-format", default_value = "svg")]
+    pub snapshot_format: String,
+
+    /// Image width in px for snapshots.
+    #[arg(long = "snapshot-width", default_value_t = 1200)]
+    pub snapshot_width: u32,
+
+    /// Padding fraction added to each side of every batch region.
+    #[arg(long = "snapshot-flank", default_value_t = 0.1)]
+    pub snapshot_flank: f64,
+
+    /// Snapshot color theme: `igv` (default) or `tui`.
+    #[arg(long = "snapshot-theme", default_value = "igv")]
+    pub snapshot_theme: String,
 }

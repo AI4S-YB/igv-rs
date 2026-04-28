@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/igv-core", "crates/igv-tui"]
+members = ["crates/igv-core", "crates/igv-render", "crates/igv-tui"]
 
 [workspace.package]
 version = "0.5.0"

@@ -43,6 +43,17 @@ async fn main() -> anyhow::Result<()> {
     let _log_guard = logging::setup(&args.log_level)?;
     info!(?args, "igv-rs starting");
 
+    if args.snapshot_bed.is_some() && args.snapshot_genes.is_some() {
+        return Err(anyhow!(
+            "--snapshot-bed and --snapshot-genes are mutually exclusive"
+        ));
+    }
+    if (args.snapshot_bed.is_some() || args.snapshot_genes.is_some())
+        && args.snapshot_out.is_none()
+    {
+        return Err(anyhow!("--snapshot-out is required with batch flags"));
+    }
+
     let (theme_preset, theme) =
         theme::load_theme(Some(args.light_mode), args.config.as_deref());
 
@@ -112,6 +123,87 @@ async fn main() -> anyhow::Result<()> {
         signal_sources.push(src);
     }
 
+    if let Some(genes_path) = args.snapshot_genes.as_deref() {
+        if annotation_sources.is_empty() {
+            return Err(anyhow!(
+                "--snapshot-genes requires at least one -g/--annotation"
+            ));
+        }
+        let names = igv_tui::snapshot::genes::read_names(genes_path)?;
+        let regions = igv_tui::snapshot::genes::resolve(&names, &annotation_sources);
+        if regions.is_empty() {
+            return Err(anyhow!("--snapshot-genes: no genes resolved"));
+        }
+        let format = igv_tui::snapshot::batch::parse_format(&args.snapshot_format)?;
+        let theme = igv_tui::snapshot::batch::parse_theme(&args.snapshot_theme)?;
+        let batch = igv_tui::snapshot::batch::BatchOpts {
+            out_dir: args.snapshot_out.clone().unwrap(),
+            format,
+            width_px: args.snapshot_width,
+            flank: args.snapshot_flank,
+            theme,
+        };
+        let bams_owned = bams
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
+        let annotations_owned = annotations
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
+        let signals_owned = signals
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
+        return igv_tui::snapshot::batch::run(
+            fasta,
+            vcf,
+            bams_owned,
+            annotations_owned,
+            signals_owned,
+            references.clone(),
+            regions,
+            batch,
+        )
+        .await;
+    }
+
+    if let Some(bed_path) = args.snapshot_bed.as_deref() {
+        let regions = igv_tui::snapshot::regions::parse_bed(bed_path)?;
+        let format = igv_tui::snapshot::batch::parse_format(&args.snapshot_format)?;
+        let theme = igv_tui::snapshot::batch::parse_theme(&args.snapshot_theme)?;
+        let batch = igv_tui::snapshot::batch::BatchOpts {
+            out_dir: args.snapshot_out.clone().unwrap(),
+            format,
+            width_px: args.snapshot_width,
+            flank: args.snapshot_flank,
+            theme,
+        };
+        let bams_owned = bams
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
+        let annotations_owned = annotations
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
+        let signals_owned = signals
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
+        return igv_tui::snapshot::batch::run(
+            fasta,
+            vcf,
+            bams_owned,
+            annotations_owned,
+            signals_owned,
+            references.clone(),
+            regions,
+            batch,
+        )
+        .await;
+    }
+
     let initial = match args.region.as_deref() {
         Some(s) => Region::parse(s)
             .with_context(|| format!("invalid -r region: {s}"))?,
@@ -155,6 +247,7 @@ async fn main() -> anyhow::Result<()> {
         command_buffer: String::new(),
         help_open: false,
         terminal_width: 0,
+        pending_snapshot: None,
         generation: 0,
         loading: true,
         should_quit: false,
@@ -267,6 +360,7 @@ async fn run_loop(
                     if let Some(req) = state.apply(action) {
                         loader.dispatch(req);
                     }
+                    drain_snapshot(state);
                 }
             }
             maybe_result = rx.recv() => {
@@ -291,6 +385,24 @@ async fn run_loop(
         }
     }
     Ok(())
+}
+
+fn drain_snapshot(state: &mut AppState) {
+    let Some(job) = state.pending_snapshot.take() else { return };
+    let path = job
+        .path
+        .clone()
+        .unwrap_or_else(|| igv_tui::snapshot::naming::auto_name(&state.region, job.format));
+    match igv_tui::snapshot::writer::write_snapshot(state, &path, job.format) {
+        Ok(()) => state.set_status(
+            StatusKind::Info,
+            format!("snapshot → {}", path.display()),
+        ),
+        Err(e) => state.set_status(
+            StatusKind::Error,
+            format!("snapshot failed: {}", e),
+        ),
+    }
 }
 
 fn apply_load_result(state: &mut AppState, result: LoadResult) {

@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 igv-core = { path = "../igv-core" }
+igv-render = { path = "../igv-render" }
 
 anyhow.workspace = true
 async-trait.workspace = true

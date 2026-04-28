@@ -7,4 +7,5 @@ pub mod cli;
 pub mod command;
 pub mod input;
 pub mod logging;
+pub mod snapshot;
 pub mod ui;
