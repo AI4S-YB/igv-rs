@@ -29,7 +29,19 @@ pub struct Sources {
     pub references: Vec<RefMeta>,
 }
 
-#[derive(Clone, Copy)]
+impl std::fmt::Debug for Sources {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Sources")
+            .field("vcf", &self.vcf.is_some())
+            .field("bams", &self.bams.len())
+            .field("annotations", &self.annotations.len())
+            .field("signals", &self.signals.len())
+            .field("references", &self.references.len())
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct CollectOpts {
     pub fetch_opts: FetchOpts,
     pub signal_opts: FetchSignalOpts,
