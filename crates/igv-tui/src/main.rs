@@ -123,6 +123,42 @@ async fn main() -> anyhow::Result<()> {
         signal_sources.push(src);
     }
 
+    if let Some(bed_path) = args.snapshot_bed.as_deref() {
+        let regions = igv_tui::snapshot::regions::parse_bed(bed_path)?;
+        let format = igv_tui::snapshot::batch::parse_format(&args.snapshot_format)?;
+        let theme = igv_tui::snapshot::batch::parse_theme(&args.snapshot_theme)?;
+        let batch = igv_tui::snapshot::batch::BatchOpts {
+            out_dir: args.snapshot_out.clone().unwrap(),
+            format,
+            width_px: args.snapshot_width,
+            flank: args.snapshot_flank,
+            theme,
+        };
+        let bams_owned = bams
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
+        let annotations_owned = annotations
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
+        let signals_owned = signals
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
+        return igv_tui::snapshot::batch::run(
+            fasta,
+            vcf,
+            bams_owned,
+            annotations_owned,
+            signals_owned,
+            references.clone(),
+            regions,
+            batch,
+        )
+        .await;
+    }
+
     let initial = match args.region.as_deref() {
         Some(s) => Region::parse(s)
             .with_context(|| format!("invalid -r region: {s}"))?,
