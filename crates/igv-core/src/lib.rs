@@ -8,7 +8,11 @@ pub mod coverage;
 pub mod error;
 pub mod region;
 pub mod render;
+pub mod render_inputs;
 pub mod source;
 
 pub use error::{IgvError, Result};
 pub use region::Region;
+pub use render_inputs::{
+    AnnotationTrackSnapshot, BamTrackSnapshot, RenderInputs, SignalTrackSnapshot,
+};
