@@ -268,6 +268,7 @@ async fn run_loop(
                     if let Some(req) = state.apply(action) {
                         loader.dispatch(req);
                     }
+                    drain_snapshot(state);
                 }
             }
             maybe_result = rx.recv() => {
@@ -292,6 +293,24 @@ async fn run_loop(
         }
     }
     Ok(())
+}
+
+fn drain_snapshot(state: &mut AppState) {
+    let Some(job) = state.pending_snapshot.take() else { return };
+    let path = job
+        .path
+        .clone()
+        .unwrap_or_else(|| igv_tui::snapshot::naming::auto_name(&state.region, job.format));
+    match igv_tui::snapshot::writer::write_snapshot(state, &path, job.format) {
+        Ok(()) => state.set_status(
+            StatusKind::Info,
+            format!("snapshot → {}", path.display()),
+        ),
+        Err(e) => state.set_status(
+            StatusKind::Error,
+            format!("snapshot failed: {}", e),
+        ),
+    }
 }
 
 fn apply_load_result(state: &mut AppState, result: LoadResult) {
