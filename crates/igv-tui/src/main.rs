@@ -43,6 +43,17 @@ async fn main() -> anyhow::Result<()> {
     let _log_guard = logging::setup(&args.log_level)?;
     info!(?args, "igv-rs starting");
 
+    if args.snapshot_bed.is_some() && args.snapshot_genes.is_some() {
+        return Err(anyhow!(
+            "--snapshot-bed and --snapshot-genes are mutually exclusive"
+        ));
+    }
+    if (args.snapshot_bed.is_some() || args.snapshot_genes.is_some())
+        && args.snapshot_out.is_none()
+    {
+        return Err(anyhow!("--snapshot-out is required with batch flags"));
+    }
+
     let (theme_preset, theme) =
         theme::load_theme(Some(args.light_mode), args.config.as_deref());
 
