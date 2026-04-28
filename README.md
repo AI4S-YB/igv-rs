@@ -87,9 +87,11 @@ zoom pyramid handles chromosome-scale queries cheaply.
   annotation; `Enter` to jump)
 - `m<c>` — set bookmark to letter `c`
 - `'<c>` — jump to bookmark `c`
-- `t` — cycle theme (`dark` → `light` → `solarized-dark` → `solarized-light`
-  → `dracula` → `gruvbox-dark` → ...). The new theme name briefly shows in
-  the footer.
+- `t` — cycle theme (`dark` → `light` → `paper` → `solarized-dark` →
+  `solarized-light` → `dracula` → `gruvbox-dark` → ...). The new theme name
+  briefly shows in the footer. `paper` paints every cell with an explicit
+  white background — useful on terminals whose default background isn't
+  pure white.
 - `?` — toggle keybinding help overlay (any key closes it)
 - `q` / `Ctrl-C` — quit
 
@@ -100,7 +102,7 @@ Optional `~/.config/igv-rs/config.toml` is read at startup. Today only the
 
 ```toml
 [theme]
-# "dark" | "light" | "solarized-dark" | "solarized-light"
+# "dark" | "light" | "paper" | "solarized-dark" | "solarized-light"
 # | "dracula" | "gruvbox-dark"
 preset = "dark"
 

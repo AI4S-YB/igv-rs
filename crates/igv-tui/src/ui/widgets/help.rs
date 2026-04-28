@@ -52,7 +52,7 @@ const SECTIONS: &[Section] = &[
     (
         "Misc",
         &[
-            ("t", "cycle theme (dark / light / solarized / dracula / gruvbox)"),
+            ("t", "cycle theme (dark / light / paper / solarized / dracula / gruvbox)"),
             ("?", "toggle this help"),
             ("q / Ctrl-C", "quit"),
         ],

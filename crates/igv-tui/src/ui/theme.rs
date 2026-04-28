@@ -15,6 +15,7 @@ use serde::Deserialize;
 pub enum ThemePreset {
     Dark,
     Light,
+    Paper,
     SolarizedDark,
     SolarizedLight,
     Dracula,
@@ -23,9 +24,10 @@ pub enum ThemePreset {
 
 impl ThemePreset {
     /// All variants in cycle order (matches declaration order).
-    pub const ALL: [ThemePreset; 6] = [
+    pub const ALL: [ThemePreset; 7] = [
         ThemePreset::Dark,
         ThemePreset::Light,
+        ThemePreset::Paper,
         ThemePreset::SolarizedDark,
         ThemePreset::SolarizedLight,
         ThemePreset::Dracula,
@@ -43,6 +45,7 @@ impl ThemePreset {
         match self {
             ThemePreset::Dark => "dark",
             ThemePreset::Light => "light",
+            ThemePreset::Paper => "paper",
             ThemePreset::SolarizedDark => "solarized-dark",
             ThemePreset::SolarizedLight => "solarized-light",
             ThemePreset::Dracula => "dracula",
@@ -54,6 +57,7 @@ impl ThemePreset {
         match s.to_ascii_lowercase().as_str() {
             "dark" => Some(ThemePreset::Dark),
             "light" => Some(ThemePreset::Light),
+            "paper" | "white" => Some(ThemePreset::Paper),
             "solarized-dark" | "solarized_dark" => Some(ThemePreset::SolarizedDark),
             "solarized-light" | "solarized_light" => Some(ThemePreset::SolarizedLight),
             "dracula" => Some(ThemePreset::Dracula),
@@ -163,11 +167,59 @@ impl Theme {
         match preset {
             ThemePreset::Dark => Self::dark(),
             ThemePreset::Light => Self::light(),
+            ThemePreset::Paper => Self::paper(),
             ThemePreset::SolarizedDark => Self::solarized_dark(),
             ThemePreset::SolarizedLight => Self::solarized_light(),
             ThemePreset::Dracula => Self::dracula(),
             ThemePreset::GruvboxDark => Self::gruvbox_dark(),
         }
+    }
+
+    /// Paper — explicit white background everywhere, ink-on-paper aesthetic.
+    /// Unlike `Light` (which relies on the terminal's own bg color), every
+    /// styled key sets `bg(#ffffff)` so panels stay paper-white even on
+    /// terminals configured with a tinted background. Foreground colors are
+    /// deeply saturated to retain contrast on white.
+    pub fn paper() -> Self {
+        let bg = Color::Rgb(0xff, 0xff, 0xff);
+        let ink = Color::Rgb(0x1a, 0x1a, 0x1a);
+        let muted = Color::Rgb(0x70, 0x70, 0x70);
+        let rule = Color::Rgb(0xc0, 0xc0, 0xc0);
+        let panel = Color::Rgb(0xee, 0xee, 0xee);
+        let red = Color::Rgb(0xc0, 0x39, 0x2b);
+        let green = Color::Rgb(0x1d, 0x7a, 0x2c);
+        let yellow = Color::Rgb(0xa6, 0x7c, 0x00);
+        let orange = Color::Rgb(0xc7, 0x53, 0x00);
+        let blue = Color::Rgb(0x18, 0x4a, 0xa6);
+        let cyan = Color::Rgb(0x0e, 0x77, 0x90);
+        let magenta = Color::Rgb(0xa6, 0x2c, 0x82);
+        let mut m = HashMap::new();
+        m.insert("A".into(), Style::default().fg(green).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert("C".into(), Style::default().fg(blue).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert("G".into(), Style::default().fg(yellow).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert("T".into(), Style::default().fg(red).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert("N".into(), Style::default().fg(ink).bg(bg));
+        m.insert("MATCH_FWD".into(), Style::default().fg(blue).bg(bg));
+        m.insert("MATCH_REV".into(), Style::default().fg(magenta).bg(bg));
+        m.insert("MISMATCH".into(), Style::default().fg(bg).bg(red).add_modifier(Modifier::BOLD));
+        m.insert("DELETION".into(), Style::default().fg(magenta).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert("INSERTION".into(), Style::default().fg(green).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert("VARIANT".into(), Style::default().fg(bg).bg(green).add_modifier(Modifier::BOLD));
+        m.insert("HEADER".into(), Style::default().fg(ink).bg(panel).add_modifier(Modifier::BOLD));
+        m.insert("FOOTER".into(), Style::default().fg(ink).bg(panel));
+        m.insert("OVERVIEW".into(), Style::default().fg(orange).bg(bg));
+        m.insert("BORDER".into(), Style::default().fg(rule).bg(bg));
+        m.insert("COVERAGE".into(), Style::default().fg(blue).bg(bg));
+        m.insert("SIGNAL".into(), Style::default().fg(cyan).bg(bg));
+        m.insert("WARNING".into(), Style::default().fg(orange).bg(bg));
+        m.insert("ERROR".into(), Style::default().fg(red).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert("SUCCESS".into(), Style::default().fg(green).bg(bg));
+        m.insert("ANNOTATION_EXON".into(), Style::default().fg(green).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert("ANNOTATION_UTR".into(), Style::default().fg(green).bg(bg));
+        m.insert("ANNOTATION_INTRON".into(), Style::default().fg(muted).bg(bg));
+        m.insert("ANNOTATION_NAME".into(), Style::default().fg(blue).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert("ANNOTATION_STRAND".into(), Style::default().fg(blue).bg(bg).add_modifier(Modifier::BOLD));
+        Self { map: m }
     }
 
     /// Solarized Dark — Ethan Schoonover's classic dark palette.
