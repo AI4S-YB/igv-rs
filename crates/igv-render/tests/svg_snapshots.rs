@@ -27,8 +27,99 @@ fn empty_view_renders_header_and_ruler() {
     insta::assert_snapshot!("empty_view_header_ruler", svg);
 }
 
-use igv_core::render_inputs::AnnotationTrackSnapshot;
-use igv_core::source::{AnnotationBlock, AnnotationTranscript, BlockKind, Strand, TranscriptKind};
+use igv_core::render_inputs::{AnnotationTrackSnapshot, BamTrackSnapshot, SignalTrackSnapshot};
+use igv_core::source::bam::{CigarKind, CigarOp};
+use igv_core::source::{
+    AlignmentRow, AnnotationBlock, AnnotationTranscript, BlockKind, SignalBin, Strand,
+    TranscriptKind, VariantRecord,
+};
+
+fn fake_read(start: u64, end: u64) -> AlignmentRow {
+    AlignmentRow {
+        query_name: "r".into(),
+        flag: 0,
+        ref_start: start,
+        ref_end: end,
+        mapq: 60,
+        is_reverse: false,
+        query_sequence: vec![],
+        cigar: vec![],
+        tag: None,
+    }
+}
+
+fn cigar_match(len: u32) -> CigarOp {
+    CigarOp { kind: CigarKind::Match, len }
+}
+
+#[test]
+fn variants_only_three_records() {
+    let mut inputs = empty_inputs(1, 1000);
+    inputs.variants = vec![
+        VariantRecord {
+            chrom: "chr1".into(),
+            pos: 250,
+            reference_allele: "A".into(),
+            alternate_alleles: vec!["T".into()],
+            quality: Some(60.0),
+            passes_filter: true,
+        },
+        VariantRecord {
+            chrom: "chr1".into(),
+            pos: 600,
+            reference_allele: "G".into(),
+            alternate_alleles: vec!["GA".into()],
+            quality: Some(50.0),
+            passes_filter: true,
+        },
+        VariantRecord {
+            chrom: "chr1".into(),
+            pos: 900,
+            reference_allele: "C".into(),
+            alternate_alleles: vec!["A".into()],
+            quality: Some(40.0),
+            passes_filter: true,
+        },
+    ];
+    let svg = render_svg(&inputs, &SvgOptions::default());
+    insta::assert_snapshot!("variants_only_three_records", svg);
+}
+
+#[test]
+fn coverage_only_one_bam_two_reads() {
+    let mut inputs = empty_inputs(1, 100);
+    inputs.bams.push(BamTrackSnapshot {
+        display: "sample.bam".into(),
+        rows: vec![fake_read(10, 60), fake_read(30, 80)],
+        lanes: vec![0, 1],
+        total_lanes: 2,
+    });
+    let svg = render_svg(&inputs, &SvgOptions::default());
+    insta::assert_snapshot!("coverage_only_one_bam_two_reads", svg);
+}
+
+#[test]
+fn signal_only_one_bigwig() {
+    let mut inputs = empty_inputs(1, 1000);
+    inputs.signals.push(SignalTrackSnapshot {
+        display: "chip.bw".into(),
+        bins: vec![
+            SignalBin { start: 1, end: 200, value: 5.0 },
+            SignalBin { start: 201, end: 400, value: 12.0 },
+            SignalBin { start: 401, end: 600, value: 3.0 },
+            SignalBin { start: 601, end: 800, value: 8.5 },
+            SignalBin { start: 801, end: 1000, value: 1.5 },
+        ],
+    });
+    let svg = render_svg(&inputs, &SvgOptions::default());
+    insta::assert_snapshot!("signal_only_one_bigwig", svg);
+}
+
+// (cigar_match used in alignments fixture, defined later)
+#[allow(dead_code)]
+fn _suppress_unused() {
+    let _ = cigar_match(1);
+}
 
 #[test]
 fn annotations_only_two_transcripts() {

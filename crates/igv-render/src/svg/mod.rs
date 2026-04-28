@@ -2,9 +2,12 @@
 //! all draw into a shared `SvgDoc`.
 
 pub mod annotations;
+pub mod coverage;
 pub mod doc;
 pub mod header;
 pub mod ruler;
+pub mod signal;
+pub mod variants;
 
 use igv_core::render_inputs::RenderInputs;
 
@@ -25,6 +28,15 @@ pub fn render(inputs: &RenderInputs, opts: &SvgOptions) -> String {
     ruler::draw(&mut doc, layout.ruler, &layout.plot, inputs, &opts.theme);
     for (rect, track) in layout.annotations.iter().zip(inputs.annotations.iter()) {
         annotations::draw(&mut doc, *rect, &layout.plot, track, &opts.theme);
+    }
+    if let Some(rect) = layout.variants {
+        variants::draw(&mut doc, rect, &layout.plot, inputs, &opts.theme);
+    }
+    if let Some(rect) = layout.coverage {
+        coverage::draw(&mut doc, rect, &layout.plot, inputs, &opts.theme);
+    }
+    for (rect, track) in layout.signals.iter().zip(inputs.signals.iter()) {
+        signal::draw(&mut doc, *rect, &layout.plot, track, opts.signal_shared_max, &opts.theme);
     }
 
     doc.finish()
