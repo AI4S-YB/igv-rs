@@ -69,6 +69,40 @@ The footer shows a yellow "overview" hint when fetches are gated. BigWig
 signal tracks remain visible at every zoom level — bigtools' precomputed
 zoom pyramid handles chromosome-scale queries cheaply.
 
+### Snapshot export (SVG / PNG)
+
+Save publication-style figures of the current view or batches of regions
+/ genes. Snapshots are graphical, not character art — matching IGV's
+PNG / SVG output style.
+
+Interactive (inside the TUI):
+
+- `S` — save the current view to `./snapshot_<chrom>_<start>_<end>.svg`
+- `:snapshot path/to/file.svg` (or `:snap`) — save to a chosen path;
+  `.png` extension switches to PNG output.
+
+Headless batch (no TUI is opened):
+
+```bash
+# One snapshot per BED region (column 4 = output filename stem)
+igv-rs ref.fa -b s.bam --snapshot-bed regions.bed --snapshot-out out/
+
+# One snapshot per gene name (requires -g annotation)
+igv-rs ref.fa -b s.bam -g genes.gtf \
+    --snapshot-genes list.txt --snapshot-out out/
+```
+
+Flags shared by both modes:
+
+- `--snapshot-format svg|png` (default `svg`)
+- `--snapshot-width <px>` (default `1200`)
+- `--snapshot-flank <fraction>` (default `0.1`; pads each side)
+- `--snapshot-theme igv|tui` (default `igv` light theme)
+
+Output filenames in batch mode are
+`<label>_<chrom>_<start>_<end>.<ext>` (with `<label>` from the BED 4th
+column or the gene name when set).
+
 ### Keybindings
 
 - `a` / `←` — page backward (one full window)
@@ -92,6 +126,8 @@ zoom pyramid handles chromosome-scale queries cheaply.
   briefly shows in the footer. `paper` paints every cell with an explicit
   white background — useful on terminals whose default background isn't
   pure white.
+- `S` — save SVG snapshot of current view to
+  `./snapshot_<chrom>_<s>_<e>.svg` (see "Snapshot export" above)
 - `?` — toggle keybinding help overlay (any key closes it)
 - `q` / `Ctrl-C` — quit
 
