@@ -14,6 +14,10 @@ pub struct LoadRequest {
     pub generation: u64,
     pub region: Region,
     pub fetch_opts: FetchOpts,
+    /// Max bins to request from each signal source for this fetch. Driven by
+    /// terminal width so zoom-level selection roughly matches what the widget
+    /// can actually render.
+    pub signal_max_bins: u32,
 }
 
 #[derive(Debug)]
@@ -202,7 +206,10 @@ impl Loader {
             let tx = self.tx.clone();
             let r = req.clone();
             self.current.push(tokio::spawn(async move {
-                let opts = FetchSignalOpts::default();
+                let opts = FetchSignalOpts {
+                    max_bins: r.signal_max_bins.max(1),
+                    ..FetchSignalOpts::default()
+                };
                 match sig.fetch(&r.region, &opts).await {
                     Ok(bins) => {
                         let _ = tx

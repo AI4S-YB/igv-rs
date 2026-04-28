@@ -7,7 +7,7 @@ use crate::app::state::{AppState, StatusKind};
 use crate::ui::theme::Theme;
 
 const KEYS: &str =
-    "a/d:page  h/l:fine  w/s:zoom  g/::goto  m<c>:mark  '<c>:jump  t:theme  q:quit";
+    "a/d:page  h/l:fine  w/s:zoom  g/::goto  m<c>:mark  '<c>:jump  t:theme  ?:help  q:quit";
 
 pub struct FooterWidget<'a> {
     pub state: &'a AppState,

@@ -32,6 +32,10 @@ pub enum Action {
     ToggleSignalSharedScale,
     /// Resize signal-track height. Positive = grow.
     ResizeSignal(i16),
+    /// Toggle the keybinding help overlay.
+    ToggleHelp,
+    /// Close the keybinding help overlay (any-key dismiss).
+    CloseHelp,
     /// Quit the application.
     Quit,
     /// No-op (used as a sentinel).

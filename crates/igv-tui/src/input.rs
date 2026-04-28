@@ -21,7 +21,26 @@ impl InputState {
         event: &Event,
         command_open: bool,
     ) -> Action {
+        self.map_with_help(event, command_open, false)
+    }
+
+    pub fn map_with_help(
+        &mut self,
+        event: &Event,
+        command_open: bool,
+        help_open: bool,
+    ) -> Action {
         if let Event::Key(KeyEvent { code, modifiers, .. }) = event {
+            // While the help overlay is open, Ctrl-C still quits; any other
+            // key dismisses the overlay (top-style any-key-to-close).
+            if help_open {
+                if modifiers.contains(KeyModifiers::CONTROL)
+                    && matches!(code, KeyCode::Char('c'))
+                {
+                    return Action::Quit;
+                }
+                return Action::CloseHelp;
+            }
             // While the command palette is open, only Esc/Enter/typing matter.
             if command_open {
                 return match code {
@@ -68,6 +87,7 @@ impl InputState {
                 KeyCode::Char('{') => Action::ResizeSignal(-1),
                 KeyCode::Char('t') => Action::ToggleTheme,
                 KeyCode::Char(':') | KeyCode::Char('g') => Action::OpenCommand,
+                KeyCode::Char('?') => Action::ToggleHelp,
                 KeyCode::Char('m') => {
                     self.pending_bookmark = Some(BookmarkOp::Set);
                     Action::None
@@ -170,5 +190,40 @@ mod tests {
     fn open_brace_shrinks_signal_track() {
         let mut s = InputState::default();
         assert!(matches!(s.map(&key('{'), false), Action::ResizeSignal(-1)));
+    }
+
+    #[test]
+    fn question_mark_toggles_help() {
+        let mut s = InputState::default();
+        assert!(matches!(s.map(&key('?'), false), Action::ToggleHelp));
+    }
+
+    #[test]
+    fn any_key_closes_help_when_open() {
+        let mut s = InputState::default();
+        // While the overlay is open, an arbitrary key dismisses it.
+        assert!(matches!(
+            s.map_with_help(&key('a'), false, true),
+            Action::CloseHelp
+        ));
+        assert!(matches!(
+            s.map_with_help(&key('?'), false, true),
+            Action::CloseHelp
+        ));
+    }
+
+    #[test]
+    fn ctrl_c_still_quits_when_help_open() {
+        let mut s = InputState::default();
+        let ctrl_c = Event::Key(KeyEvent {
+            code: KeyCode::Char('c'),
+            modifiers: KeyModifiers::CONTROL,
+            kind: KeyEventKind::Press,
+            state: KeyEventState::NONE,
+        });
+        assert!(matches!(
+            s.map_with_help(&ctrl_c, false, true),
+            Action::Quit
+        ));
     }
 }

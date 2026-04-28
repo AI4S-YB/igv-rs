@@ -103,6 +103,8 @@ fn make_state(annotation: Arc<dyn AnnotationSource>) -> AppState {
         status: None,
         command_open: false,
         command_buffer: String::new(),
+        help_open: false,
+        terminal_width: 0,
         generation: 0,
         loading: false,
         should_quit: false,

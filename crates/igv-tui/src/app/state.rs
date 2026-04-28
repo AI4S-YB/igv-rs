@@ -21,7 +21,17 @@ pub const COVERAGE_MAX_HEIGHT: u16 = 20;
 pub const COVERAGE_DEFAULT_HEIGHT: u16 = 5;
 pub const SIGNAL_MIN_HEIGHT: u16 = 2;
 pub const SIGNAL_MAX_HEIGHT: u16 = 12;
-pub const SIGNAL_DEFAULT_HEIGHT: u16 = 4;
+pub const SIGNAL_DEFAULT_HEIGHT: u16 = 6;
+
+/// Translate terminal column count into a target bin count for signal fetches.
+///
+/// The widget aggregates with **max** when re-binning to terminal columns, so
+/// 2× oversampling preserves spike detail without thrashing the bigWig zoom
+/// pyramid. Clamped so very narrow terminals still get useful resolution and
+/// very wide ones don't request absurd amounts of data.
+pub fn signal_bins_for_width(terminal_width: u16) -> u32 {
+    ((terminal_width as u32).saturating_mul(2)).clamp(64, 4096)
+}
 
 /// Single owner of all UI-relevant mutable state.
 pub struct AppState {
@@ -67,6 +77,11 @@ pub struct AppState {
 
     pub command_open: bool,
     pub command_buffer: String,
+    pub help_open: bool,
+    /// Last terminal width seen by `draw()`. Used to size signal-track fetches
+    /// so the bigWig zoom level roughly matches the column count we'll render
+    /// into. Updated on every frame; resize events trigger a re-fetch.
+    pub terminal_width: u16,
 
     pub generation: u64,
     pub loading: bool,
@@ -307,6 +322,14 @@ impl AppState {
                 self.set_status(StatusKind::Info, format!("signal scale: {mode}"));
                 None
             }
+            Action::ToggleHelp => {
+                self.help_open = !self.help_open;
+                None
+            }
+            Action::CloseHelp => {
+                self.help_open = false;
+                None
+            }
             Action::ResizeSignal(delta) => {
                 self.signal_track_height = if delta > 0 {
                     self.signal_track_height
@@ -395,6 +418,7 @@ impl AppState {
             generation: self.generation,
             region: self.region.clone(),
             fetch_opts: FetchOpts::default(),
+            signal_max_bins: signal_bins_for_width(self.terminal_width),
         })
     }
 
@@ -404,5 +428,19 @@ impl AppState {
             text: text.into(),
             set_at: std::time::Instant::now(),
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn signal_bins_for_width_clamps_low_and_high() {
+        assert_eq!(signal_bins_for_width(0), 64);
+        assert_eq!(signal_bins_for_width(20), 64);     // 20*2=40 → clamped up
+        assert_eq!(signal_bins_for_width(80), 160);    // 80*2 sits in range
+        assert_eq!(signal_bins_for_width(200), 400);
+        assert_eq!(signal_bins_for_width(4000), 4096); // 4000*2=8000 → clamped down
     }
 }

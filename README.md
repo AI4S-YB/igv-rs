@@ -71,6 +71,7 @@ fetched. Override extension auto-detection with
 - `m<c>` — set bookmark to letter `c`
 - `'<c>` — jump to bookmark `c`
 - `t` — toggle dark / light theme
+- `?` — toggle keybinding help overlay (any key closes it)
 - `q` / `Ctrl-C` — quit
 
 ## Configuration

@@ -152,10 +152,18 @@ async fn main() -> anyhow::Result<()> {
         status: None,
         command_open: false,
         command_buffer: String::new(),
+        help_open: false,
+        terminal_width: 0,
         generation: 0,
         loading: true,
         should_quit: false,
     };
+
+    // Sample terminal width up front so the very first signal fetch uses a
+    // bin count matched to the screen instead of the placeholder value.
+    if let Ok((cols, _)) = crossterm::terminal::size() {
+        state.terminal_width = cols;
+    }
 
     let (tx, mut rx) = mpsc::channel::<LoadResult>(64);
     let mut loader = Loader::new(fasta, vcf, bam_sources, annotation_sources, signal_sources, tx);
@@ -218,7 +226,31 @@ async fn run_loop(
         tokio::select! {
             maybe_evt = events.next() => {
                 if let Some(Ok(evt)) = maybe_evt {
-                    let action = if state.command_open {
+                    // Resize: terminal_width changes how we size signal fetches.
+                    // Re-dispatch only when the target bin count crosses a
+                    // threshold, so dragging the window edge by a column or two
+                    // doesn't refetch every frame.
+                    if let Event::Resize(w, _) = evt {
+                        use igv_tui::app::state::signal_bins_for_width;
+                        let prev = signal_bins_for_width(state.terminal_width);
+                        let next = signal_bins_for_width(w);
+                        state.terminal_width = w;
+                        if !state.signals.is_empty() && next != prev {
+                            if let Some(req) =
+                                state.apply(Action::Goto(state.region.clone()))
+                            {
+                                loader.dispatch(req);
+                            }
+                        }
+                        continue;
+                    }
+                    let action = if state.help_open {
+                        if matches!(&evt, Event::Key(k) if k.kind != KeyEventKind::Press) {
+                            Action::None
+                        } else {
+                            input_state.map_with_help(&evt, false, true)
+                        }
+                    } else if state.command_open {
                         let act = palette.handle(&evt);
                         state.command_buffer = palette.input.value().to_string();
                         act
@@ -378,4 +410,7 @@ fn draw(f: &mut ratatui::Frame<'_>, state: &AppState) {
         );
     }
     f.render_widget(widgets::footer::FooterWidget { state, theme: &state.theme }, areas.footer);
+    if state.help_open {
+        f.render_widget(widgets::help::HelpWidget { theme: &state.theme }, f.area());
+    }
 }

@@ -57,6 +57,7 @@ async fn dispatch_routes_signals_to_correct_indices() {
         generation: 1,
         region: Region::new("chr1", 1, 100).unwrap(),
         fetch_opts: FetchOpts::default(),
+        signal_max_bins: 200,
     });
 
     let mut got_a = false;
