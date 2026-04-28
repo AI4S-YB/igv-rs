@@ -52,6 +52,23 @@ summaries are used (≥16 bp/col); at fine zoom raw per-base values are
 fetched. Override extension auto-detection with
 `--signal-format bigwig`.
 
+### Wide-zoom behavior
+
+You can zoom out all the way to the full chromosome (`s` / `↓` repeatedly).
+At wide zoom the loader skips the heaviest fetches so chromosome-scale
+views don't OOM:
+
+| view width            | reference | reads | coverage | variants | annotations    | signals |
+|-----------------------|-----------|-------|----------|----------|----------------|---------|
+| ≤ 50 kb (per-base)    | yes       | yes   | yes      | yes      | transcripts    | yes     |
+| 50 kb – 500 kb        | no        | no    | no       | yes      | transcripts    | yes     |
+| 500 kb – 5 Mb         | no        | no    | no       | no       | transcripts    | yes     |
+| > 5 Mb (overview)     | no        | no    | no       | no       | gene density   | yes     |
+
+The footer shows a yellow "overview" hint when fetches are gated. BigWig
+signal tracks remain visible at every zoom level — bigtools' precomputed
+zoom pyramid handles chromosome-scale queries cheaply.
+
 ### Keybindings
 
 - `a` / `←` — page backward (one full window)
@@ -116,8 +133,10 @@ configuration knobs and refinements are tracked for follow-up:
   overrides) are not read yet. Hardcoded defaults match the spec.
 - **`[bookmarks]` config table** is not loaded. In-session bookmarks via
   `m<c>` / `'<c>` work fully.
-- **Coverage widget at very wide zoom** still renders full-resolution bars
-  rather than the heat-bar mode described in spec §6.
+- **Coverage at wide zoom is hidden, not heat-mapped.** Beyond the
+  `detailed` threshold (50 kb by default) BAM is no longer fetched, so the
+  coverage track shows just a `coverage (zoomed out)` title. Use a
+  precomputed bigWig if you need a chromosome-scale depth view.
 - **BAM tag display** uses Rust's `Debug` formatting (e.g. `Int8(42)` instead
   of `42`) when colored by tag.
 - **Snapshot tests** of full TUI frames are limited to a smoke test; widget

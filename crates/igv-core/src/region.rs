@@ -6,7 +6,6 @@ use std::fmt;
 use crate::error::{IgvError, Result};
 
 pub const DEFAULT_REGION_WIDTH: u64 = 250;
-pub const MAX_REGION_WIDTH: u64 = 100_000;
 
 /// A 1-based, inclusive genomic interval.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -226,6 +225,15 @@ mod tests {
         assert!(Region::parse("not a region").is_err());
         assert!(Region::parse("chr1:abc-def").is_err());
         assert!(Region::parse("").is_err());
+    }
+
+    #[test]
+    fn region_supports_chromosome_scale_widths() {
+        // Widths up to chromosome size (≈ chr1 = 248Mb) must construct cleanly
+        // — there is no hard cap. Render-time skipping is handled by the
+        // loader / widget layer via `Thresholds::classify`.
+        let r = Region::new("chr1", 1, 248_000_000).unwrap();
+        assert_eq!(r.width(), 248_000_000);
     }
 
     #[test]

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use igv_core::region::Region;
 use igv_core::source::bam::AlignmentRow;
 use igv_core::source::vcf::VariantRecord;
+use igv_core::render::RenderMode;
 use igv_core::source::{BamSource, FastaSource, FetchOpts, VcfSource};
 use igv_core::source::{FetchSignalOpts, SignalBin, SignalSource};
 use tokio::sync::mpsc;
@@ -18,6 +19,10 @@ pub struct LoadRequest {
     /// terminal width so zoom-level selection roughly matches what the widget
     /// can actually render.
     pub signal_max_bins: u32,
+    /// Current render mode (derived from view width + thresholds). Drives
+    /// loader-side gating: at wide zoom we skip reference / BAM / VCF fetches
+    /// entirely so chromosome-scale views don't OOM.
+    pub render_mode: RenderMode,
 }
 
 #[derive(Debug)]
@@ -88,33 +93,60 @@ impl Loader {
             h.abort();
         }
 
-        // Reference fetch
-        let fasta = Arc::clone(&self.fasta);
-        let tx = self.tx.clone();
-        let r = req.clone();
-        self.current.push(tokio::spawn(async move {
-            match fasta.fetch(&r.region).await {
-                Ok(bytes) => {
-                    let _ = tx
-                        .send(LoadResult::Reference {
-                            generation: r.generation,
-                            region: r.region,
-                            bytes,
-                        })
-                        .await;
-                }
-                Err(e) => {
-                    let _ = tx
-                        .send(LoadResult::Error {
-                            generation: r.generation,
-                            message: e.to_string(),
-                        })
-                        .await;
-                }
-            }
-        }));
+        // Render-mode gates: at wide zoom, skip per-base fetches that would
+        // otherwise pull hundreds of MB of reference / millions of reads.
+        let needs_per_base = matches!(
+            req.render_mode,
+            RenderMode::PerBase | RenderMode::DetailedReads
+        );
+        let suppress_overview = matches!(req.render_mode, RenderMode::OverviewOnly);
 
-        // VCF fetch
+        // Reference fetch — only at zoom levels where the sequence widget can
+        // actually render bases (widget gates on the same modes).
+        if needs_per_base {
+            let fasta = Arc::clone(&self.fasta);
+            let tx = self.tx.clone();
+            let r = req.clone();
+            self.current.push(tokio::spawn(async move {
+                match fasta.fetch(&r.region).await {
+                    Ok(bytes) => {
+                        let _ = tx
+                            .send(LoadResult::Reference {
+                                generation: r.generation,
+                                region: r.region,
+                                bytes,
+                            })
+                            .await;
+                    }
+                    Err(e) => {
+                        let _ = tx
+                            .send(LoadResult::Error {
+                                generation: r.generation,
+                                message: e.to_string(),
+                            })
+                            .await;
+                    }
+                }
+            }));
+        } else {
+            // Send an empty reference result so any state machine waiting on a
+            // reference response settles (and stale bytes from a prior fetch
+            // are explicitly cleared).
+            let tx = self.tx.clone();
+            let r = req.clone();
+            self.current.push(tokio::spawn(async move {
+                let _ = tx
+                    .send(LoadResult::Reference {
+                        generation: r.generation,
+                        region: r.region,
+                        bytes: Vec::new(),
+                    })
+                    .await;
+            }));
+        }
+
+        // VCF fetch — variants widget hides itself in OverviewOnly, so skip.
+        if !suppress_overview {
         if let Some(vcf) = &self.vcf {
             let vcf = Arc::clone(vcf);
             let tx = self.tx.clone();
@@ -141,8 +173,11 @@ impl Loader {
                 }
             }));
         }
+        }
 
-        // BAM fetches
+        // BAM fetches — alignments widget can't render at wider modes anyway,
+        // and a chr-scale BAM fetch would pull millions of reads.
+        if needs_per_base {
         for (idx, bam) in self.bams.iter().enumerate() {
             let bam = Arc::clone(bam);
             let tx = self.tx.clone();
@@ -171,7 +206,26 @@ impl Loader {
                 }
             }));
         }
+        } else {
+            // Clear stale rows so the alignments widget doesn't show old data
+            // after zooming out past the BAM gate.
+            for idx in 0..self.bams.len() {
+                let tx = self.tx.clone();
+                let r = req.clone();
+                self.current.push(tokio::spawn(async move {
+                    let _ = tx
+                        .send(LoadResult::Bam {
+                            generation: r.generation,
+                            bam_index: idx,
+                            rows: Vec::new(),
+                        })
+                        .await;
+                }));
+            }
+        }
 
+        // Annotations always fetch — at OverviewOnly the widget renders gene
+        // density, not individual transcripts.
         for (idx, ann) in self.annotations.iter().enumerate() {
             let ann = std::sync::Arc::clone(ann);
             let tx = self.tx.clone();

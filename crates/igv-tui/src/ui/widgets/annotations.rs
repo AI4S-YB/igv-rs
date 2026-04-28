@@ -11,6 +11,14 @@ use igv_core::source::{
 use crate::app::state::AppState;
 use crate::ui::theme::Theme;
 
+/// Bottom-anchored partial blocks: index = number of eighths filled (0–8).
+/// Used by the gene-density rendering at wide zoom; mirrors the signal
+/// widget's encoding so the two tracks share a visual vocabulary.
+const LOWER_EIGHTHS: [char; 9] = [
+    ' ', '\u{2581}', '\u{2582}', '\u{2583}', '\u{2584}', '\u{2585}', '\u{2586}',
+    '\u{2587}', '\u{2588}',
+];
+
 /// At or above this region width, gene labels move from the left of the
 /// transcript to a row directly below it — at wide zooms each gene occupies
 /// only a few screen columns, leaving no room for a left-anchored label.
@@ -42,15 +50,15 @@ impl Widget for AnnotationsWidget<'_> {
         }
         let region = &self.state.region;
         let mode = self.state.thresholds.classify(region.width());
-        if matches!(mode, RenderMode::OverviewOnly) {
-            return;
-        }
-
         let txs = match self.state.annotation_rows.get(self.track_index) {
             Some(r) => r,
             None => return,
         };
         if txs.is_empty() {
+            return;
+        }
+        if matches!(mode, RenderMode::OverviewOnly) {
+            draw_density(buf, inner, region, txs, self.theme);
             return;
         }
 
@@ -66,6 +74,71 @@ impl Widget for AnnotationsWidget<'_> {
             for tx in lane {
                 draw_transcript(buf, inner, y, region, tx, self.theme, label_below);
             }
+        }
+    }
+}
+
+/// At very wide zoom (`OverviewOnly`), individual transcripts collapse to
+/// sub-pixel slivers. Render a per-column density histogram instead: each
+/// column counts the number of transcript spans overlapping the genomic range
+/// it represents, normalized to the maximum across visible columns.
+fn draw_density(
+    buf: &mut Buffer,
+    inner: Rect,
+    region: &igv_core::region::Region,
+    txs: &[AnnotationTranscript],
+    theme: &Theme,
+) {
+    let cols = inner.width as u32;
+    if cols == 0 || inner.height == 0 {
+        return;
+    }
+    let span = region.width().max(1);
+    let mut counts = vec![0u32; cols as usize];
+    for tx in txs {
+        let (s, e) = match tx.span() {
+            Some(p) => p,
+            None => continue,
+        };
+        if e < region.start || s > region.end {
+            continue;
+        }
+        let lo = s.max(region.start);
+        let hi = e.min(region.end);
+        let lo_col = ((lo - region.start) * cols as u64 / span) as u32;
+        let hi_col = ((hi - region.start) * cols as u64 / span) as u32;
+        let hi_col = hi_col.min(cols.saturating_sub(1));
+        for c in lo_col..=hi_col {
+            counts[c as usize] = counts[c as usize].saturating_add(1);
+        }
+    }
+    let max = counts.iter().copied().max().unwrap_or(0);
+    if max == 0 {
+        return;
+    }
+    let style = theme.get("ANNOTATION_EXON");
+    let height = inner.height as f32;
+    for (col, &n) in counts.iter().enumerate() {
+        if n == 0 {
+            continue;
+        }
+        let frac = (n as f32 / max as f32).clamp(0.0, 1.0) * height;
+        let eighths = (frac * 8.0).round() as u32;
+        if eighths == 0 {
+            continue;
+        }
+        let full_rows = (eighths / 8) as u16;
+        let partial = (eighths % 8) as u8;
+        let x = inner.x + col as u16;
+        for row in 0..full_rows.min(inner.height) {
+            let y = inner.y + inner.height.saturating_sub(1) - row;
+            buf[(x, y)].set_char('\u{2588}').set_style(style);
+        }
+        if partial > 0 && full_rows < inner.height {
+            let y = inner.y + inner.height.saturating_sub(1) - full_rows;
+            buf[(x, y)]
+                .set_char(LOWER_EIGHTHS[partial as usize])
+                .set_style(style);
         }
     }
 }
@@ -248,5 +321,67 @@ fn draw_name_below(
         buf[(inner.x + col, label_y)]
             .set_char(ch)
             .set_style(name_style);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use igv_core::region::Region;
+    use igv_core::source::TranscriptKind;
+
+    fn make_tx(s: u64, e: u64) -> AnnotationTranscript {
+        AnnotationTranscript {
+            name: "g".into(),
+            id: "t".into(),
+            gene_id: None,
+            strand: Strand::Forward,
+            blocks: vec![AnnotationBlock { start: s, end: e, kind: BlockKind::Cds }],
+            kind: TranscriptKind::Mrna,
+        }
+    }
+
+    #[test]
+    fn density_renders_block_chars_in_overview() {
+        // Chromosome-scale view, two clustered genes near the start.
+        let region = Region::new("chr1", 1, 100_000_000).unwrap();
+        let txs = vec![make_tx(1_000_000, 1_500_000), make_tx(1_200_000, 1_600_000)];
+        let theme = Theme::dark();
+        let area = Rect::new(0, 0, 80, 4);
+        let mut buf = Buffer::empty(area);
+        draw_density(&mut buf, area, &region, &txs, &theme);
+        // Cluster sits near column 0–2 (1.6Mb / 100Mb * 80 ≈ 1.3); expect at
+        // least one full or partial block char in the leftmost columns.
+        let mut found = false;
+        for x in 0..3u16 {
+            for y in 0..area.height {
+                let ch = buf[(x, y)].symbol().chars().next().unwrap_or(' ');
+                if matches!(ch, '\u{2581}'..='\u{2588}') {
+                    found = true;
+                }
+            }
+        }
+        assert!(found, "expected density blocks near chr1 start");
+    }
+
+    #[test]
+    fn density_skips_when_no_overlap() {
+        let region = Region::new("chr1", 1, 100_000_000).unwrap();
+        let txs = vec![make_tx(99_000_000, 99_500_000)]; // far right, but should still draw
+        let theme = Theme::dark();
+        let area = Rect::new(0, 0, 80, 4);
+        let mut buf = Buffer::empty(area);
+        draw_density(&mut buf, area, &region, &txs, &theme);
+        // Right side ≈ column 79
+        let mut found = false;
+        for x in 76..80u16 {
+            for y in 0..area.height {
+                let ch = buf[(x, y)].symbol().chars().next().unwrap_or(' ');
+                if matches!(ch, '\u{2581}'..='\u{2588}') {
+                    found = true;
+                }
+            }
+        }
+        assert!(found, "expected density block near chr1 end");
     }
 }

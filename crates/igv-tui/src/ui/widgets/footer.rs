@@ -3,6 +3,8 @@ use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Widget};
 
+use igv_core::render::RenderMode;
+
 use crate::app::state::{AppState, StatusKind};
 use crate::ui::theme::Theme;
 
@@ -33,6 +35,21 @@ impl Widget for FooterWidget<'_> {
             spans.push(Span::raw(self.state.command_buffer.clone()));
             spans.push(Span::styled("█", self.theme.get("HEADER")));
         } else {
+            // At wide zoom we drop reference / BAM / VCF fetches; tell the
+            // user why their reads / sequence panel went blank.
+            let mode = self.state.thresholds.classify(self.state.region.width());
+            let hint = match mode {
+                RenderMode::CoverageDense => Some(" overview: reads/seq hidden "),
+                RenderMode::HeatBar => Some(" overview: reads/seq/variants hidden "),
+                RenderMode::OverviewOnly => {
+                    Some(" overview: signals + gene density only ")
+                }
+                _ => None,
+            };
+            if let Some(text) = hint {
+                spans.push(Span::styled(text, self.theme.get("WARNING")));
+                spans.push(Span::raw("  "));
+            }
             spans.push(Span::styled(KEYS, self.theme.get("FOOTER")));
         }
 

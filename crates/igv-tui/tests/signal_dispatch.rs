@@ -58,6 +58,7 @@ async fn dispatch_routes_signals_to_correct_indices() {
         region: Region::new("chr1", 1, 100).unwrap(),
         fetch_opts: FetchOpts::default(),
         signal_max_bins: 200,
+        render_mode: igv_core::render::RenderMode::PerBase,
     });
 
     let mut got_a = false;

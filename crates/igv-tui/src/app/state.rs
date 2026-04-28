@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use igv_core::region::{Region, MAX_REGION_WIDTH};
-use igv_core::render::Thresholds;
+use igv_core::region::Region;
+use igv_core::render::{RenderMode, Thresholds};
 use igv_core::source::{BamSource, FastaSource, FetchOpts, RefMeta, VcfSource};
 use igv_core::source::bam::AlignmentRow;
 use igv_core::source::vcf::VariantRecord;
@@ -164,7 +164,10 @@ impl AppState {
     }
 
     /// Compute new region for zoom in/out around the current center, clamped
-    /// to chromosome bounds.
+    /// to chromosome bounds. There is no fixed maximum width — the upper limit
+    /// is the length of the current chromosome, so users can zoom all the way
+    /// out to whole-chromosome view (loader gates heavy fetches by render mode
+    /// at wide zoom — see `Loader::dispatch`).
     pub fn next_zoom(&self, zoom_in: bool, factor: f64) -> Region {
         let width = self.region.width();
         let new_width: u64 = if zoom_in {
@@ -172,9 +175,9 @@ impl AppState {
         } else {
             ((width as f64) * factor).round() as u64
         };
-        let new_width = new_width.clamp(10, MAX_REGION_WIDTH);
-        let center = self.region.start + width / 2;
         let chrom_len = self.current_chrom_len().unwrap_or(u64::MAX);
+        let new_width = new_width.clamp(10, chrom_len.max(10));
+        let center = self.region.start + width / 2;
         let new_start = center.saturating_sub(new_width / 2).max(1);
         let new_end = (new_start + new_width - 1).min(chrom_len.max(1));
         Region {
@@ -182,6 +185,12 @@ impl AppState {
             start: new_start,
             end: new_end,
         }
+    }
+
+    /// Render-mode classification for the current view, used by the loader to
+    /// skip heavy fetches at wide zoom and by widgets to choose presentation.
+    pub fn render_mode(&self) -> RenderMode {
+        self.thresholds.classify(self.region.width())
     }
 }
 
@@ -414,11 +423,13 @@ impl AppState {
             bins.clear();
         }
         self.variants.clear();
+        let render_mode = self.render_mode();
         Some(LoadRequest {
             generation: self.generation,
             region: self.region.clone(),
             fetch_opts: FetchOpts::default(),
             signal_max_bins: signal_bins_for_width(self.terminal_width),
+            render_mode,
         })
     }
 
@@ -442,5 +453,14 @@ mod tests {
         assert_eq!(signal_bins_for_width(80), 160);    // 80*2 sits in range
         assert_eq!(signal_bins_for_width(200), 400);
         assert_eq!(signal_bins_for_width(4000), 4096); // 4000*2=8000 → clamped down
+    }
+
+    #[test]
+    fn classify_chromosome_scale_is_overview_only() {
+        // Sanity check: the constant change in `region.rs` (no MAX_REGION_WIDTH)
+        // means we can construct a chr-scale view; classification at that size
+        // must land in OverviewOnly so the loader knows to skip heavy fetches.
+        let t = Thresholds::default();
+        assert_eq!(t.classify(248_000_000), RenderMode::OverviewOnly);
     }
 }
