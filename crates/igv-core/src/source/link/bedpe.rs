@@ -17,7 +17,7 @@ use tracing::warn;
 use crate::error::{IgvError, Result};
 use crate::region::Region;
 use crate::source::annotation::Strand;
-use crate::source::link::{FetchLinkOpts, LinkRecord, LinkSource, VisibleLink};
+use crate::source::link::{FetchLinkOpts, LinkRecord, LinkScope, LinkSource, VisibleLink};
 
 pub struct BedpeLinkSource {
     display: String,
@@ -80,11 +80,82 @@ impl BedpeLinkSource {
 impl LinkSource for BedpeLinkSource {
     async fn query(
         &self,
-        _region: &Region,
-        _opts: &FetchLinkOpts,
+        region: &Region,
+        opts: &FetchLinkOpts,
     ) -> Result<Vec<VisibleLink>> {
-        // Implemented in Task 6.
-        Ok(Vec::new())
+        // IntervalMap is half-open; convert region [start, end] → [start, end+1).
+        let lo = region.start;
+        let hi = region.end.saturating_add(1);
+        let chrom = region.chrom.as_str();
+
+        // Collect candidate indices from both per-chromosome trees.
+        let mut seen: std::collections::HashSet<usize> = std::collections::HashSet::new();
+        if let Some(t) = self.tree_a.get(chrom) {
+            for (_, &idx) in t.iter(lo..hi) {
+                seen.insert(idx);
+            }
+        }
+        if let Some(t) = self.tree_b.get(chrom) {
+            for (_, &idx) in t.iter(lo..hi) {
+                seen.insert(idx);
+            }
+        }
+
+        let mut out = Vec::with_capacity(seen.len());
+        for idx in seen {
+            let rec = &self.records[idx];
+
+            if let (Some(min), Some(s)) = (opts.min_score, rec.score) {
+                if s < min {
+                    continue;
+                }
+            }
+
+            let a_in = rec.chrom_a.as_ref() == chrom
+                && rec.end_a >= region.start
+                && rec.start_a <= region.end;
+            let b_in = rec.chrom_b.as_ref() == chrom
+                && rec.end_b >= region.start
+                && rec.start_b <= region.end;
+
+            let scope = match (a_in, b_in) {
+                (true, true) => LinkScope::BothIn,
+                (true, false) => {
+                    if rec.is_trans() {
+                        LinkScope::Trans {
+                            off_chrom: Arc::clone(&rec.chrom_b),
+                            off_anchor_mid: midpoint(rec.start_b, rec.end_b),
+                        }
+                    } else {
+                        let mid = midpoint(rec.start_b, rec.end_b);
+                        LinkScope::PartialCis {
+                            off_anchor_mid: mid,
+                            off_to_left: mid < region.start,
+                        }
+                    }
+                }
+                (false, true) => {
+                    if rec.is_trans() {
+                        LinkScope::Trans {
+                            off_chrom: Arc::clone(&rec.chrom_a),
+                            off_anchor_mid: midpoint(rec.start_a, rec.end_a),
+                        }
+                    } else {
+                        let mid = midpoint(rec.start_a, rec.end_a);
+                        LinkScope::PartialCis {
+                            off_anchor_mid: mid,
+                            off_to_left: mid < region.start,
+                        }
+                    }
+                }
+                (false, false) => continue, // safety net: tree surfaced it but neither anchor overlaps
+            };
+            out.push(VisibleLink {
+                record: rec.clone(),
+                scope,
+            });
+        }
+        Ok(out)
     }
 
     fn display_name(&self) -> &str {
@@ -94,6 +165,10 @@ impl LinkSource for BedpeLinkSource {
     fn record_count(&self) -> usize {
         self.records.len()
     }
+}
+
+fn midpoint(s: u64, e: u64) -> u64 {
+    s + (e - s) / 2
 }
 
 fn load(
