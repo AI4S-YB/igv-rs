@@ -26,17 +26,41 @@ async fn query_returns_both_in_and_partial_cis() {
         names.contains(&"spanning_loop"),
         "spanning_loop should be PartialCis (one anchor in window): {names:?}"
     );
-    let scopes: Vec<_> = visible.iter().map(|v| &v.scope).collect();
+
+    // Verify loop2 is BothIn
+    let loop2 = visible
+        .iter()
+        .find(|v| v.record.name.as_deref() == Some("loop2"))
+        .expect("loop2 must be in result");
     assert!(
-        scopes.iter().any(|s| matches!(s, LinkScope::BothIn)),
-        "scopes: {scopes:?}"
+        matches!(loop2.scope, LinkScope::BothIn),
+        "loop2 should be BothIn, got: {:?}",
+        loop2.scope
     );
+
+    // Verify spanning_loop is PartialCis with correct off-anchor details
+    let spanning = visible
+        .iter()
+        .find(|v| v.record.name.as_deref() == Some("spanning_loop"))
+        .expect("spanning_loop must be in result");
     assert!(
-        scopes
-            .iter()
-            .any(|s| matches!(s, LinkScope::PartialCis { .. })),
-        "scopes: {scopes:?}"
+        matches!(spanning.scope, LinkScope::PartialCis { .. }),
+        "spanning_loop should be PartialCis, got: {:?}",
+        spanning.scope
     );
+    match &spanning.scope {
+        LinkScope::PartialCis { off_anchor_mid, off_to_left } => {
+            assert!(
+                !*off_to_left,
+                "spanning_loop's off-anchor (anchor B at chr1:5M) should be to the RIGHT"
+            );
+            assert_eq!(
+                *off_anchor_mid, 5_000_500,
+                "off_anchor_mid should be midpoint of anchor B [5_000_000, 5_001_000]"
+            );
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[tokio::test]
@@ -50,6 +74,24 @@ async fn query_returns_trans_when_one_anchor_in_window() {
         .collect();
     assert_eq!(trans.len(), 1, "expected exactly one trans hit");
     assert_eq!(trans[0].record.name.as_deref(), Some("trans_link"));
+
+    // Verify off_chrom and off_anchor_mid for trans_link
+    // trans_link: chr1 [1004001, 1005000] ↔ chr2 [4999001, 5000000] (1-based inclusive)
+    // Query on chr2, so off anchor is on chr1 with midpoint = (1004001 + 1005000) / 2 = 1004500
+    match &trans[0].scope {
+        LinkScope::Trans { off_chrom, off_anchor_mid } => {
+            assert_eq!(
+                off_chrom.as_ref(),
+                "chr1",
+                "off_chrom should be the chrom of the OFF anchor (chr1, since query was on chr2)"
+            );
+            assert_eq!(
+                *off_anchor_mid, 1_004_500,
+                "off_anchor_mid should be midpoint of the chr1 anchor [1_004_001, 1_005_000]"
+            );
+        }
+        _ => unreachable!(),
+    }
 }
 
 #[tokio::test]
