@@ -96,6 +96,22 @@ impl SvgDoc {
         writeln!(self.body, r#"<polygon points="{}" fill="{}"/>"#, buf, fill.hex()).unwrap();
     }
 
+    pub fn path(&mut self, d: &str, stroke: Rgb, stroke_w: f64, fill: Option<Rgb>) {
+        let fill_attr = match fill {
+            Some(f) => format!(r#"fill="{}""#, f.hex()),
+            None => "fill=\"none\"".to_string(),
+        };
+        writeln!(
+            self.body,
+            r#"<path d="{}" stroke="{}" stroke-width="{:.2}" {}/>"#,
+            d,
+            stroke.hex(),
+            stroke_w,
+            fill_attr,
+        )
+        .unwrap();
+    }
+
     pub fn finish(mut self) -> String {
         self.body.push_str("</svg>\n");
         self.body
