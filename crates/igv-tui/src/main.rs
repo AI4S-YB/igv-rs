@@ -487,8 +487,17 @@ fn apply_load_result(state: &mut AppState, result: LoadResult) {
                 }
             }
         }
-        LoadResult::Link { .. } => {
-            // Link track state not yet wired in TUI (Task 11+).
+        LoadResult::Link {
+            generation,
+            track_index,
+            visible,
+            total_record_count: _,
+        } => {
+            if generation == state.generation {
+                if let Some(slot) = state.link_records.get_mut(track_index) {
+                    *slot = visible;
+                }
+            }
         }
         LoadResult::Error { generation, message } => {
             if generation == state.generation {
@@ -503,6 +512,8 @@ fn draw(f: &mut ratatui::Frame<'_>, state: &AppState) {
         has_vcf: state.vcf.is_some(),
         bam_count: state.bams.len(),
         annotation_tracks: state.annotations.len(),
+        link_count: state.links.len(),
+        link_height_per_track: state.link_track_height,
         coverage_height: state.coverage_height,
         alignments_min_per_track: state.alignment_height,
         signal_count: state.signals.len(),
@@ -520,6 +531,22 @@ fn draw(f: &mut ratatui::Frame<'_>, state: &AppState) {
                 state,
                 theme: &state.theme,
                 track_index: i,
+            },
+            *area,
+        );
+    }
+    for (i, area) in areas.links.iter().enumerate() {
+        let track = &state.links[i];
+        let visible: &[igv_core::source::link::VisibleLink] =
+            state.link_records.get(i).map(|v| v.as_slice()).unwrap_or(&[]);
+        f.render_widget(
+            widgets::link::LinkWidget {
+                display_name: &track.display,
+                region: &state.region,
+                theme: &state.theme,
+                visible,
+                total_record_count: track.source.record_count(),
+                height_rows: state.link_track_height,
             },
             *area,
         );
