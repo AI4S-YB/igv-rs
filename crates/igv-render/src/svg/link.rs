@@ -109,7 +109,7 @@ fn paint_arc(
 
     // PartialCis half-arcs with arrowheads.
     for v in visible {
-        if let LinkScope::PartialCis { off_anchor_mid: _, off_to_left } = v.scope {
+        if let LinkScope::PartialCis { off_anchor_mid, off_to_left } = v.scope {
             let in_anchor = if v.record.end_a >= region_start && v.record.start_a <= region_end {
                 (v.record.start_a, v.record.end_a)
             } else {
@@ -144,6 +144,31 @@ fn paint_arc(
                     (x_edge + dir * arrow_h, arc_bot),
                 ],
                 color,
+            );
+            // Distance label.
+            let dist_bp = if off_to_left {
+                region_start.saturating_sub(off_anchor_mid)
+            } else {
+                off_anchor_mid.saturating_sub(region_end)
+            };
+            let label = human_bp(dist_bp);
+            let label_x = if off_to_left {
+                x_edge + arrow_h + 2.0
+            } else {
+                x_edge - arrow_h - 2.0
+            };
+            let label_anchor = if off_to_left {
+                TextAnchor::Start
+            } else {
+                TextAnchor::End
+            };
+            doc.text(
+                label_x,
+                arc_bot - 2.0,
+                &label,
+                color,
+                theme.font_px_small,
+                label_anchor,
             );
         }
     }
@@ -192,6 +217,16 @@ fn anchor_rect(
 
 fn midpoint_u64(s: u64, e: u64) -> u64 {
     s + (e - s) / 2
+}
+
+fn human_bp(n: u64) -> String {
+    if n >= 1_000_000 {
+        format!("{:.1}Mb", n as f64 / 1_000_000.0)
+    } else if n >= 1_000 {
+        format!("{}kb", n / 1_000)
+    } else {
+        format!("{}b", n)
+    }
 }
 
 fn paint_heatmap(

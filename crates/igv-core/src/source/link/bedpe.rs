@@ -271,6 +271,11 @@ fn parse_line(line: &str, lineno: usize) -> Result<LinkRecord> {
             "bedpe line {lineno}: anchor end ≤ start"
         )));
     }
+    if start_a_zb == u64::MAX || start_b_zb == u64::MAX {
+        return Err(IgvError::Other(format!(
+            "bedpe line {lineno}: anchor start at u64::MAX is not representable"
+        )));
+    }
     let name = match cols.get(6).copied() {
         Some(".") | None | Some("") => None,
         Some(n) => Some(n.to_string()),
