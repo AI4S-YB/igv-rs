@@ -84,3 +84,90 @@ fn empty_visible_renders_zero_loops_title() {
     let title = &rows[rows.len() - 1];
     assert!(title.contains("0 loops"), "title: {title:?}");
 }
+
+fn partial_cis_record(s_a: u64, e_a: u64, off_mid: u64, off_to_left: bool) -> VisibleLink {
+    VisibleLink {
+        record: LinkRecord {
+            chrom_a: Arc::from("chr1"),
+            start_a: s_a,
+            end_a: e_a,
+            chrom_b: Arc::from("chr1"),
+            start_b: off_mid - 100,
+            end_b: off_mid + 100,
+            name: None,
+            score: Some(3.0),
+            strand_a: Strand::Forward,
+            strand_b: Strand::Reverse,
+        },
+        scope: LinkScope::PartialCis { off_anchor_mid: off_mid, off_to_left },
+    }
+}
+
+fn trans_record(s: u64, e: u64, off_chrom: &str, off_mid: u64) -> VisibleLink {
+    VisibleLink {
+        record: LinkRecord {
+            chrom_a: Arc::from("chr1"),
+            start_a: s,
+            end_a: e,
+            chrom_b: Arc::from(off_chrom),
+            start_b: off_mid - 100,
+            end_b: off_mid + 100,
+            name: None,
+            score: Some(1.0),
+            strand_a: Strand::Forward,
+            strand_b: Strand::Reverse,
+        },
+        scope: LinkScope::Trans {
+            off_chrom: Arc::from(off_chrom),
+            off_anchor_mid: off_mid,
+        },
+    }
+}
+
+#[test]
+fn partial_cis_renders_arrow_at_window_edge() {
+    // off_anchor_mid 1_500_000 is to the right of window end 1_010_000.
+    let v = vec![partial_cis_record(
+        1_002_000,
+        1_003_000,
+        1_500_000,
+        false, // off to RIGHT
+    )];
+    let rows = render(&v, 80, 6);
+    let body = rows.join("\n");
+    assert!(
+        body.contains('\u{25b6}') || body.contains('>'),
+        "expected ► or > arrow somewhere: {body:?}"
+    );
+}
+
+#[test]
+fn trans_renders_off_chrom_marker() {
+    let v = vec![trans_record(1_004_000, 1_005_000, "chr2", 5_000_000)];
+    let rows = render(&v, 80, 6);
+    let body = rows.join("\n");
+    assert!(
+        body.contains("chr2"),
+        "expected chr2 in trans marker: {body:?}"
+    );
+}
+
+#[test]
+fn heatmap_kicks_in_when_arc_count_exceeds_budget() {
+    // height 4 → arc budget = 3; 5 BothIn records force heatmap mode.
+    let mut v = Vec::new();
+    for i in 0..5 {
+        let off = 1_000_000 + i * 1000;
+        v.push(cis_record(off + 100, off + 200, off + 800, off + 900, Some(i as f64)));
+    }
+    let rows = render(&v, 80, 4);
+    let body = rows.join("\n");
+    assert!(
+        body.contains("heatmap"),
+        "expected heatmap in title: {body:?}"
+    );
+    assert!(
+        body.chars().any(|c| matches!(c, '\u{2591}' | '\u{2592}' | '\u{2593}' | '\u{2588}')),
+        "expected ░▒▓█ in heatmap output"
+    );
+}
