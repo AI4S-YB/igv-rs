@@ -10,6 +10,7 @@ pub struct LayoutAreas {
     pub ruler: Rect,
     pub sequence: Rect,
     pub annotations: Vec<ratatui::layout::Rect>,
+    pub links: Vec<Rect>,
     pub variants: Option<Rect>,
     pub coverage: Option<Rect>,
     pub signals: Vec<Rect>,
@@ -24,6 +25,8 @@ pub struct LayoutSpec {
     pub alignments_min_per_track: u16,
     pub annotation_tracks: usize,
     pub annotation_height_per_track: u16,
+    pub link_count: usize,
+    pub link_height_per_track: u16,
     pub signal_count: usize,
     pub signal_height_per_track: u16,
 }
@@ -39,6 +42,8 @@ impl Default for LayoutSpec {
             // 4 rows = 2 inner rows after borders, leaving room for a body
             // row plus a label row when wide-zoom label-below is active.
             annotation_height_per_track: 4,
+            link_count: 0,
+            link_height_per_track: 6,
             signal_count: 0,
             signal_height_per_track: 4,
         }
@@ -69,6 +74,10 @@ pub fn compute(area: Rect, spec: &LayoutSpec) -> LayoutAreas {
         constraints.push(ratatui::layout::Constraint::Min(spec.annotation_height_per_track));
     }
 
+    for _ in 0..spec.link_count {
+        constraints.push(Constraint::Length(spec.link_height_per_track));
+    }
+
     if spec.has_vcf {
         constraints.push(Constraint::Length(3));
     }
@@ -96,6 +105,11 @@ pub fn compute(area: Rect, spec: &LayoutSpec) -> LayoutAreas {
     let mut annotations = Vec::new();
     for _ in 0..spec.annotation_tracks {
         annotations.push(chunks[idx]);
+        idx += 1;
+    }
+    let mut links = Vec::new();
+    for _ in 0..spec.link_count {
+        links.push(chunks[idx]);
         idx += 1;
     }
     let variants = if spec.has_vcf {
@@ -129,10 +143,36 @@ pub fn compute(area: Rect, spec: &LayoutSpec) -> LayoutAreas {
         ruler,
         sequence,
         annotations,
+        links,
         variants,
         coverage,
         signals,
         alignments,
         footer,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::layout::Rect;
+
+    #[test]
+    fn link_tracks_get_dedicated_areas_after_annotations() {
+        let area = Rect::new(0, 0, 80, 60);
+        let spec = LayoutSpec {
+            has_vcf: false,
+            bam_count: 0,
+            annotation_tracks: 1,
+            link_count: 2,
+            link_height_per_track: 6,
+            ..Default::default()
+        };
+        let areas = compute(area, &spec);
+        assert_eq!(areas.links.len(), 2);
+        assert!(areas.links[0].y > areas.annotations[0].y);
+        assert!(areas.links[0].y >= areas.annotations[0].y + areas.annotations[0].height);
+        assert_eq!(areas.links[0].height, 6);
+        assert_eq!(areas.links[1].height, 6);
     }
 }

@@ -31,6 +31,7 @@ async fn collect_minimal_inputs() {
         bams: vec![],
         annotations: vec![],
         signals: vec![],
+        links: vec![],
         references: vec![RefMeta { name: "chr1".into(), length: 1000 }],
     };
     let region = Region::new("chr1", 1, 8).unwrap();
@@ -53,6 +54,7 @@ async fn collect_skips_reference_at_wide_zoom() {
         bams: vec![],
         annotations: vec![],
         signals: vec![],
+        links: vec![],
         references: vec![RefMeta { name: "chr1".into(), length: 1000 }],
     };
     let region = Region::new("chr1", 1, 1000).unwrap();

@@ -85,6 +85,8 @@ impl InputState {
                 KeyCode::Char('\\') => Action::ToggleSignalSharedScale,
                 KeyCode::Char('}') => Action::ResizeSignal(1),
                 KeyCode::Char('{') => Action::ResizeSignal(-1),
+                KeyCode::Char('>') => Action::ResizeLink(1),
+                KeyCode::Char('<') => Action::ResizeLink(-1),
                 KeyCode::Char('S') => Action::SaveSnapshot {
                     path: None,
                     format: crate::app::action::SnapshotFormat::Svg,
@@ -242,5 +244,17 @@ mod tests {
             s.map_with_help(&ctrl_c, false, true),
             Action::Quit
         ));
+    }
+
+    #[test]
+    fn greater_grows_link_track() {
+        let mut s = InputState::default();
+        assert!(matches!(s.map(&key('>'), false), Action::ResizeLink(1)));
+    }
+
+    #[test]
+    fn less_shrinks_link_track() {
+        let mut s = InputState::default();
+        assert!(matches!(s.map(&key('<'), false), Action::ResizeLink(-1)));
     }
 }

@@ -16,5 +16,6 @@ pub use collect::{collect_render_inputs, CollectOpts, Sources};
 pub use error::{IgvError, Result};
 pub use region::Region;
 pub use render_inputs::{
-    AnnotationTrackSnapshot, BamTrackSnapshot, RenderInputs, SignalTrackSnapshot,
+    AnnotationTrackSnapshot, BamTrackSnapshot, LinkTrackSnapshot, RenderInputs,
+    SignalTrackSnapshot,
 };

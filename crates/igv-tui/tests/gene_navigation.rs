@@ -17,7 +17,7 @@ use igv_core::source::{FastaSource, RefMeta};
 use igv_tui::app::action::Action;
 use igv_tui::app::state::{
     AnnotationTrack, AppState, ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT,
-    SIGNAL_DEFAULT_HEIGHT,
+    LINK_DEFAULT_HEIGHT, SIGNAL_DEFAULT_HEIGHT,
 };
 use igv_tui::ui::theme::Theme;
 
@@ -94,6 +94,10 @@ fn make_state(annotation: Arc<dyn AnnotationSource>) -> AppState {
         signal_bins: Vec::new(),
         signal_shared_scale: false,
         signal_track_height: SIGNAL_DEFAULT_HEIGHT,
+        links: Vec::new(),
+        link_records: Vec::new(),
+        link_track_height: LINK_DEFAULT_HEIGHT,
+        link_min_score: None,
         alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
         coverage_height: COVERAGE_DEFAULT_HEIGHT,
         theme: Theme::dark(),

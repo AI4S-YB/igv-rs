@@ -11,6 +11,7 @@ async-trait.workspace = true
 bigtools = { version = "0.5", default-features = false, features = ["read"] }
 flate2 = "1"
 futures.workspace = true
+iset = "0.3"
 noodles = { workspace = true, features = [
     "async", "core", "fasta", "bam", "sam", "vcf", "csi", "tabix", "bgzf",
     "gff", "bed",

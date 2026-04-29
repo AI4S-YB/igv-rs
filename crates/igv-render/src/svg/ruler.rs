@@ -22,7 +22,7 @@ pub fn draw(
     );
     let region = &inputs.region;
     let step = nice_step_bp(region.width());
-    let first = ((region.start + step - 1) / step) * step;
+    let first = region.start.div_ceil(step) * step;
     let mut tick = first;
     while tick <= region.end {
         let x = plot.bp_to_px(tick);

@@ -27,6 +27,10 @@ igv-rs reference.fa -g genes.gff3
 igv-rs reference.fa -g genes.gff3 -g peaks.bed -b sample.bam -r chr1:1000-2000
 igv-rs reference.fa -s chip.bw -s input.bw -r chr1:1-10000000
 igv-rs reference.fa -b sample.bam -s rna.bw -g genes.gff3 -r chr1:1000-2000
+igv-rs reference.fa -l loops.bedpe
+igv-rs reference.fa -l hiccups.bedpe.gz -l abc.bedpe
+igv-rs reference.fa -l loops.bedpe --link-min-score 5.0
+igv-rs reference.fa -b sample.bam -g genes.gff3 -l loops.bedpe -r chr1:1000-2000
 ```
 
 The command palette (`:` or `g`) accepts coordinate input
@@ -52,18 +56,29 @@ summaries are used (≥16 bp/col); at fine zoom raw per-base values are
 fetched. Override extension auto-detection with
 `--signal-format bigwig`.
 
+Link tracks (BEDPE pairwise interactions, `.bedpe` / `.bedpe.gz`) are
+accepted via the repeatable `-l` / `--link` flag. Each file becomes
+its own track showing chromatin loops, enhancer-promoter interactions,
+ChIA-PET, or any other paired-region data. Visualization is adaptive:
+sparse data renders as box-drawing arcs; dense data switches to a
+per-column heatmap. Off-window anchors render as half-arrows with a
+distance label; cross-chromosome (trans) links show a `⤴ chr2:5M`
+edge marker. Override extension auto-detection with
+`--link-format bedpe`. Filter low-confidence loops with
+`--link-min-score N`.
+
 ### Wide-zoom behavior
 
 You can zoom out all the way to the full chromosome (`s` / `↓` repeatedly).
 At wide zoom the loader skips the heaviest fetches so chromosome-scale
 views don't OOM:
 
-| view width            | reference | reads | coverage | variants | annotations    | signals |
-|-----------------------|-----------|-------|----------|----------|----------------|---------|
-| ≤ 50 kb (per-base)    | yes       | yes   | yes      | yes      | transcripts    | yes     |
-| 50 kb – 500 kb        | no        | no    | no       | yes      | transcripts    | yes     |
-| 500 kb – 5 Mb         | no        | no    | no       | no       | transcripts    | yes     |
-| > 5 Mb (overview)     | no        | no    | no       | no       | gene density   | yes     |
+| view width            | reference | reads | coverage | variants | annotations    | signals | links |
+|-----------------------|-----------|-------|----------|----------|----------------|---------|-------|
+| ≤ 50 kb (per-base)    | yes       | yes   | yes      | yes      | transcripts    | yes     | yes   |
+| 50 kb – 500 kb        | no        | no    | no       | yes      | transcripts    | yes     | yes   |
+| 500 kb – 5 Mb         | no        | no    | no       | no       | transcripts    | yes     | yes   |
+| > 5 Mb (overview)     | no        | no    | no       | no       | gene density   | yes     | yes   |
 
 The footer shows a yellow "overview" hint when fetches are gated. BigWig
 signal tracks remain visible at every zoom level — bigtools' precomputed
@@ -116,6 +131,7 @@ column or the gene name when set).
 - `]` / `[` — grow / shrink coverage-track height
 - `\` — toggle signal shared / per-track Y-scale
 - `}` / `{` — grow / shrink signal-track height
+- `<` / `>` — shrink / grow link-track height
 - `:` or `g` — open command palette (type `chr:start-end`, a chromosome
   name, or a `gene_name` / `gene_id` / `transcript_id` from a loaded
   annotation; `Enter` to jump)
@@ -147,6 +163,7 @@ preset = "dark"
 "A" = "bold green"
 "MISMATCH" = "bold white on red"
 "SIGNAL" = "cyan"
+"LINK" = "magenta"
 ```
 
 The full schema (with `[render]` and `[bookmarks]` tables) is described in
@@ -160,6 +177,11 @@ limitations" below for which sections are wired up.
 - `crates/igv-tui` — `igv-rs` binary: clap CLI, ratatui custom widgets, tokio
   main loop.
 - `crates/igv-core/src/source/signal.rs` — `SignalSource` trait + bigtools-backed `BigWigSignalSource`.
+- `crates/igv-core/src/source/link.rs` — `LinkSource` trait + `BedpeLinkSource`
+  in-memory IntervalMap backend.
+- `crates/igv-tui/src/ui/widgets/link.rs` — adaptive arc / heatmap widget.
+- `crates/igv-render/src/svg/link.rs` — SVG painter (Bézier arcs +
+  viridis-like color ramp).
 - `cligv/` — the project that inspired this work; kept locally as a reference
   and not part of this repository (git-ignored).
 
@@ -197,6 +219,18 @@ configuration knobs and refinements are tracked for follow-up:
 - **Signal summary statistic** is fixed at `Max`. `--signal-summary` is
   not yet a flag.
 - **bigBed (`.bb`)** is not supported — separate spec.
+- **No tabix / pairix support for link tracks.** BEDPE files >1M
+  records load slowly (whole-file in-memory parse). Workaround:
+  pre-filter the file. Tracked as a follow-up spec.
+- **No bigInteract / UCSC interact format.** Separate spec; will reuse
+  the same `LinkSource` trait and `LinkRecord` shape.
+- **Single `LINK` theme key.** All link tracks share one base color;
+  per-track palette is deferred.
+- **Score column fixed to BEDPE col 8.** `--link-score-col` not yet
+  available for files using a custom scoring column.
+- **Per-window score normalization.** Adjacent panning frames may
+  show slightly shifted colors for the same link as the visible
+  score range moves. Acceptable for a no-config UX.
 
 ## Reference
 
@@ -205,3 +239,5 @@ configuration knobs and refinements are tracked for follow-up:
 - Annotation track design: `docs/superpowers/specs/2026-04-26-annotations-design.md`
 - Annotation track plan: `docs/superpowers/plans/2026-04-26-annotations.md`
 - bigWig signal-track design: `docs/superpowers/specs/2026-04-27-bigwig-signal-design.md`
+- BEDPE link-track design: `docs/superpowers/specs/2026-04-29-bedpe-link-design.md`
+- BEDPE link-track plan: `docs/superpowers/plans/2026-04-29-bedpe-link.md`

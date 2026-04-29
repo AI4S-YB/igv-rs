@@ -7,8 +7,8 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use igv_core::collect_render_inputs;
 use igv_core::source::{
-    AnnotationSource, BamSource, FastaSource, FetchOpts, FetchSignalOpts, RefMeta, SignalSource,
-    VcfSource,
+    AnnotationSource, BamSource, FastaSource, FetchOpts, FetchSignalOpts, LinkSource, RefMeta,
+    SignalSource, VcfSource,
 };
 use igv_core::{CollectOpts, Sources};
 use igv_render::{render_png, render_svg, GraphicalTheme, SvgOptions};
@@ -27,12 +27,14 @@ pub struct BatchOpts {
     pub theme: GraphicalTheme,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     fasta: Arc<dyn FastaSource>,
     vcf: Option<Arc<dyn VcfSource>>,
     bams: Vec<(String, Arc<dyn BamSource>)>,
     annotations: Vec<(String, Arc<dyn AnnotationSource>)>,
     signals: Vec<(String, Arc<dyn SignalSource>)>,
+    links: Vec<(String, Arc<dyn LinkSource>)>,
     references: Vec<RefMeta>,
     regions: Vec<LabeledRegion>,
     batch: BatchOpts,
@@ -46,6 +48,7 @@ pub async fn run(
         bams,
         annotations,
         signals,
+        links,
         references: references.clone(),
     };
 
@@ -64,6 +67,7 @@ pub async fn run(
         let collect_opts = CollectOpts {
             fetch_opts: FetchOpts::default(),
             signal_opts: FetchSignalOpts::default(),
+            link_opts: igv_core::source::link::FetchLinkOpts::default(),
             render_mode: mode,
         };
         let inputs = match collect_render_inputs(&sources, &padded, &collect_opts).await {

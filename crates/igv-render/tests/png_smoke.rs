@@ -13,6 +13,7 @@ fn png_smoke_empty_view() {
         bams: vec![],
         annotations: vec![],
         signals: vec![],
+        links: vec![],
         render_mode: RenderMode::DetailedReads,
     };
     let bytes = render_png(&inputs, &SvgOptions::default()).expect("render_png");

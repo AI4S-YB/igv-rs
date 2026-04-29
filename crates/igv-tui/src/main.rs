@@ -24,12 +24,13 @@ use igv_core::source::bam::{FetchOpts, NoodlesBamSource};
 use igv_core::source::fasta::NoodlesFastaSource;
 use igv_core::source::vcf::NoodlesVcfSource;
 use igv_core::source::{open_signal, SignalFormat};
+use igv_core::source::link::{open_link, LinkFormat};
 
 use igv_tui::app::action::Action;
 use igv_tui::app::loader::{LoadResult, Loader};
 use igv_tui::app::state::{
-    AppState, BamTrack, SignalTrack, StatusKind,
-    ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT, SIGNAL_DEFAULT_HEIGHT,
+    AppState, BamTrack, LinkTrack, SignalTrack, StatusKind,
+    ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT, LINK_DEFAULT_HEIGHT, SIGNAL_DEFAULT_HEIGHT,
 };
 use igv_tui::command::CommandPalette;
 use igv_tui::input::InputState;
@@ -123,6 +124,28 @@ async fn main() -> anyhow::Result<()> {
         signal_sources.push(src);
     }
 
+    let mut links: Vec<LinkTrack> = Vec::new();
+    let mut link_sources: Vec<std::sync::Arc<dyn igv_core::source::LinkSource>> = Vec::new();
+    let link_format_override = args.link_format.as_deref().and_then(LinkFormat::parse);
+    for path in &args.links {
+        let src = open_link(path, link_format_override).await?;
+        let count = src.record_count();
+        let display_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("link")
+            .to_string();
+        if count > 100_000 {
+            info!("loaded {count} links from {display_name}");
+        }
+        links.push(LinkTrack {
+            path: path.clone(),
+            display: display_name,
+            source: std::sync::Arc::clone(&src),
+        });
+        link_sources.push(src);
+    }
+
     if let Some(genes_path) = args.snapshot_genes.as_deref() {
         if annotation_sources.is_empty() {
             return Err(anyhow!(
@@ -155,12 +178,17 @@ async fn main() -> anyhow::Result<()> {
             .iter()
             .map(|t| (t.display.clone(), Arc::clone(&t.source)))
             .collect();
+        let links_owned = links
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
         return igv_tui::snapshot::batch::run(
             fasta,
             vcf,
             bams_owned,
             annotations_owned,
             signals_owned,
+            links_owned,
             references.clone(),
             regions,
             batch,
@@ -191,12 +219,17 @@ async fn main() -> anyhow::Result<()> {
             .iter()
             .map(|t| (t.display.clone(), Arc::clone(&t.source)))
             .collect();
+        let links_owned = links
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
         return igv_tui::snapshot::batch::run(
             fasta,
             vcf,
             bams_owned,
             annotations_owned,
             signals_owned,
+            links_owned,
             references.clone(),
             regions,
             batch,
@@ -236,6 +269,10 @@ async fn main() -> anyhow::Result<()> {
         signal_bins: vec![Vec::new(); signal_sources.len()],
         signal_shared_scale: false,
         signal_track_height: SIGNAL_DEFAULT_HEIGHT,
+        links,
+        link_records: vec![Vec::new(); link_sources.len()],
+        link_track_height: LINK_DEFAULT_HEIGHT,
+        link_min_score: args.link_min_score,
         alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
         coverage_height: COVERAGE_DEFAULT_HEIGHT,
         theme: theme.clone(),
@@ -261,7 +298,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let (tx, mut rx) = mpsc::channel::<LoadResult>(64);
-    let mut loader = Loader::new(fasta, vcf, bam_sources, annotation_sources, signal_sources, tx);
+    let mut loader = Loader::new(fasta, vcf, bam_sources, annotation_sources, signal_sources, link_sources, tx);
     if let Some(req) = state.apply(Action::Goto(state.region.clone())) {
         loader.dispatch(req);
     }
@@ -450,6 +487,18 @@ fn apply_load_result(state: &mut AppState, result: LoadResult) {
                 }
             }
         }
+        LoadResult::Link {
+            generation,
+            track_index,
+            visible,
+            total_record_count: _,
+        } => {
+            if generation == state.generation {
+                if let Some(slot) = state.link_records.get_mut(track_index) {
+                    *slot = visible;
+                }
+            }
+        }
         LoadResult::Error { generation, message } => {
             if generation == state.generation {
                 state.set_status(StatusKind::Error, message);
@@ -463,6 +512,8 @@ fn draw(f: &mut ratatui::Frame<'_>, state: &AppState) {
         has_vcf: state.vcf.is_some(),
         bam_count: state.bams.len(),
         annotation_tracks: state.annotations.len(),
+        link_count: state.links.len(),
+        link_height_per_track: state.link_track_height,
         coverage_height: state.coverage_height,
         alignments_min_per_track: state.alignment_height,
         signal_count: state.signals.len(),
@@ -480,6 +531,22 @@ fn draw(f: &mut ratatui::Frame<'_>, state: &AppState) {
                 state,
                 theme: &state.theme,
                 track_index: i,
+            },
+            *area,
+        );
+    }
+    for (i, area) in areas.links.iter().enumerate() {
+        let track = &state.links[i];
+        let visible: &[igv_core::source::link::VisibleLink] =
+            state.link_records.get(i).map(|v| v.as_slice()).unwrap_or(&[]);
+        f.render_widget(
+            widgets::link::LinkWidget {
+                display_name: &track.display,
+                region: &state.region,
+                theme: &state.theme,
+                visible,
+                total_record_count: track.source.record_count(),
+                height_rows: state.link_track_height,
             },
             *area,
         );

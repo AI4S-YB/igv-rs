@@ -1,0 +1,9 @@
+# sample BEDPE for tests — comments OK; blank lines OK
+chr1	1000000	1001000	chr1	1009000	1010000	loop1	5.0	+	-
+chr1	1500000	1501000	chr1	1600000	1601000	loop2	2.0	+	-
+chr1	1549999	1560000	chr1	4999999	5001000	spanning_loop	7.5	.	.
+chr1	1004000	1005000	chr2	4999000	5000000	trans_link	1.5	+	-
+chr1	2000000	2001000	chr1	2010000	2011000	.	.	.	.
+chr1	3000000	3001000	chr1	3050000	3051000	low_score_loop	0.1	+	-
+chrX_random	500	600	chrX_random	700	800	random_chrom	1.0	+	+
+truncated	too few cols

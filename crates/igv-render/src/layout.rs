@@ -22,6 +22,7 @@ pub struct Layout {
     pub header: Rect,
     pub ruler: Rect,
     pub annotations: Vec<Rect>,
+    pub links: Vec<Rect>,
     pub variants: Option<Rect>,
     pub coverage: Option<Rect>,
     pub signals: Vec<Rect>,
@@ -84,6 +85,12 @@ pub fn compute(inputs: &RenderInputs, width_px: u32, h: &TrackHeights) -> Layout
         y += h.annotation_each + h.gutter;
     }
 
+    let mut links = Vec::with_capacity(inputs.links.len());
+    for _ in &inputs.links {
+        links.push(Rect { x: 0, y, w: width_px, h: h.link_each });
+        y += h.link_each + h.gutter;
+    }
+
     let variants = if !inputs.variants.is_empty() {
         let r = Rect { x: 0, y, w: width_px, h: h.variants };
         y += h.variants + h.gutter;
@@ -121,6 +128,7 @@ pub fn compute(inputs: &RenderInputs, width_px: u32, h: &TrackHeights) -> Layout
         header,
         ruler,
         annotations,
+        links,
         variants,
         coverage,
         signals,
@@ -144,6 +152,7 @@ mod tests {
             bams: vec![],
             annotations: vec![],
             signals: vec![],
+            links: vec![],
             render_mode: RenderMode::DetailedReads,
         }
     }
@@ -172,5 +181,64 @@ mod tests {
         let l = compute(&empty_inputs(), 1200, &TrackHeights::default());
         assert!((l.plot.bp_to_px(0) - 80.0).abs() < 1e-6);
         assert!((l.plot.bp_to_px(10_000) - 1188.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn link_layout_sits_between_annotations_and_variants() {
+        use igv_core::render_inputs::{AnnotationTrackSnapshot, LinkTrackSnapshot, RenderInputs};
+        use igv_core::source::link::{LinkRecord, LinkScope, VisibleLink};
+        use igv_core::source::annotation::{
+            AnnotationBlock, AnnotationTranscript, BlockKind, Strand, TranscriptKind,
+        };
+        use std::sync::Arc;
+
+        let inputs = RenderInputs {
+            region: igv_core::region::Region::new("chr1", 1, 1000).unwrap(),
+            references: vec![],
+            reference_seq: vec![],
+            variants: vec![],
+            bams: vec![],
+            annotations: vec![AnnotationTrackSnapshot {
+                display: "g.gff".into(),
+                transcripts: vec![AnnotationTranscript {
+                    name: "g".into(),
+                    id: "t".into(),
+                    gene_id: None,
+                    strand: Strand::Forward,
+                    blocks: vec![AnnotationBlock {
+                        start: 100,
+                        end: 200,
+                        kind: BlockKind::Exon,
+                    }],
+                    kind: TranscriptKind::Mrna,
+                }],
+            }],
+            signals: vec![],
+            links: vec![LinkTrackSnapshot {
+                display: "l.bedpe".into(),
+                visible: vec![VisibleLink {
+                    record: LinkRecord {
+                        chrom_a: Arc::from("chr1"),
+                        start_a: 100,
+                        end_a: 200,
+                        chrom_b: Arc::from("chr1"),
+                        start_b: 700,
+                        end_b: 800,
+                        name: None,
+                        score: Some(1.0),
+                        strand_a: Strand::Forward,
+                        strand_b: Strand::Reverse,
+                    },
+                    scope: LinkScope::BothIn,
+                }],
+                total_record_count: 1,
+            }],
+            render_mode: igv_core::render::RenderMode::DetailedReads,
+        };
+        let l = compute(&inputs, 1200, &TrackHeights::default());
+        assert_eq!(l.links.len(), 1);
+        assert_eq!(l.links[0].h, TrackHeights::default().link_each);
+        assert!(l.links[0].y > l.annotations[0].y);
+        assert!(l.links[0].y >= l.annotations[0].y + l.annotations[0].h);
     }
 }

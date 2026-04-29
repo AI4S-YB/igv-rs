@@ -16,6 +16,7 @@ fn empty_inputs(start: u64, end: u64) -> RenderInputs {
         bams: vec![],
         annotations: vec![],
         signals: vec![],
+        links: vec![],
         render_mode: RenderMode::DetailedReads,
     }
 }

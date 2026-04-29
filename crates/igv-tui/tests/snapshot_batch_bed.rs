@@ -49,6 +49,7 @@ async fn batch_bed_emits_one_svg_per_region() {
         vec![],
         vec![],
         vec![],
+        vec![],
         vec![RefMeta { name: "chr1".into(), length: 1000 }],
         regions,
         opts,

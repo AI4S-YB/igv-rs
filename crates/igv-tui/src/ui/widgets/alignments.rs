@@ -98,6 +98,7 @@ impl Widget for AlignmentsWidget<'_> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn draw_read(
     buf: &mut Buffer,
     inner: Rect,

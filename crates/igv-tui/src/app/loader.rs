@@ -6,6 +6,7 @@ use igv_core::source::vcf::VariantRecord;
 use igv_core::render::RenderMode;
 use igv_core::source::{BamSource, FastaSource, FetchOpts, VcfSource};
 use igv_core::source::{FetchSignalOpts, SignalBin, SignalSource};
+use igv_core::source::link::{FetchLinkOpts, LinkSource, VisibleLink};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::warn;
@@ -19,6 +20,8 @@ pub struct LoadRequest {
     /// terminal width so zoom-level selection roughly matches what the widget
     /// can actually render.
     pub signal_max_bins: u32,
+    /// Min score filter passed to LinkSource::query; None = no filter.
+    pub link_min_score: Option<f64>,
     /// Current render mode (derived from view width + thresholds). Drives
     /// loader-side gating: at wide zoom we skip reference / BAM / VCF fetches
     /// entirely so chromosome-scale views don't OOM.
@@ -51,6 +54,12 @@ pub enum LoadResult {
         track_index: usize,
         bins: Vec<SignalBin>,
     },
+    Link {
+        generation: u64,
+        track_index: usize,
+        visible: Vec<VisibleLink>,
+        total_record_count: usize,
+    },
     Error {
         generation: u64,
         message: String,
@@ -65,6 +74,7 @@ impl LoadResult {
             | LoadResult::Bam { generation, .. }
             | LoadResult::Annotation { generation, .. }
             | LoadResult::Signal { generation, .. }
+            | LoadResult::Link { generation, .. }
             | LoadResult::Error { generation, .. } => *generation,
         }
     }
@@ -76,6 +86,7 @@ pub struct Loader {
     pub bams: Vec<Arc<dyn BamSource>>,
     pub annotations: Vec<std::sync::Arc<dyn igv_core::source::AnnotationSource>>,
     pub signals: Vec<Arc<dyn SignalSource>>,
+    pub links: Vec<Arc<dyn LinkSource>>,
     pub tx: mpsc::Sender<LoadResult>,
     pub current: Vec<JoinHandle<()>>,
 }
@@ -87,6 +98,7 @@ impl Loader {
         bams: Vec<Arc<dyn igv_core::source::BamSource>>,
         annotations: Vec<Arc<dyn igv_core::source::AnnotationSource>>,
         signals: Vec<Arc<dyn SignalSource>>,
+        links: Vec<Arc<dyn LinkSource>>,
         tx: tokio::sync::mpsc::Sender<LoadResult>,
     ) -> Self {
         Self {
@@ -95,6 +107,7 @@ impl Loader {
             bams,
             annotations,
             signals,
+            links,
             tx,
             current: Vec::new(),
         }
@@ -294,6 +307,39 @@ impl Loader {
                                 generation: r.generation,
                                 track_index: idx,
                                 bins: Vec::new(),
+                            })
+                            .await;
+                    }
+                }
+            }));
+        }
+
+        for (idx, lk) in self.links.iter().enumerate() {
+            let lk = Arc::clone(lk);
+            let tx = self.tx.clone();
+            let r = req.clone();
+            self.current.push(tokio::spawn(async move {
+                let opts = FetchLinkOpts { min_score: r.link_min_score };
+                match lk.query(&r.region, &opts).await {
+                    Ok(visible) => {
+                        let count = lk.record_count();
+                        let _ = tx
+                            .send(LoadResult::Link {
+                                generation: r.generation,
+                                track_index: idx,
+                                visible,
+                                total_record_count: count,
+                            })
+                            .await;
+                    }
+                    Err(e) => {
+                        tracing::warn!("link query failed: {e}");
+                        let _ = tx
+                            .send(LoadResult::Link {
+                                generation: r.generation,
+                                track_index: idx,
+                                visible: Vec::new(),
+                                total_record_count: 0,
                             })
                             .await;
                     }

@@ -37,7 +37,7 @@ impl Widget for RulerWidget<'_> {
         let step = nice_step(raw_step.max(1));
 
         let mut col = 0;
-        let mut pos = ((region.start + step - 1) / step) * step; // round up
+        let mut pos = region.start.div_ceil(step) * step; // round up
         while pos <= region.end && col < area.width {
             let rel = pos.saturating_sub(region.start);
             let screen_col =
