@@ -29,7 +29,7 @@ use igv_tui::app::action::Action;
 use igv_tui::app::loader::{LoadResult, Loader};
 use igv_tui::app::state::{
     AppState, BamTrack, SignalTrack, StatusKind,
-    ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT, SIGNAL_DEFAULT_HEIGHT,
+    ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT, LINK_DEFAULT_HEIGHT, SIGNAL_DEFAULT_HEIGHT,
 };
 use igv_tui::command::CommandPalette;
 use igv_tui::input::InputState;
@@ -236,6 +236,10 @@ async fn main() -> anyhow::Result<()> {
         signal_bins: vec![Vec::new(); signal_sources.len()],
         signal_shared_scale: false,
         signal_track_height: SIGNAL_DEFAULT_HEIGHT,
+        links: Vec::new(),
+        link_records: Vec::new(),
+        link_track_height: LINK_DEFAULT_HEIGHT,
+        link_min_score: None,
         alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
         coverage_height: COVERAGE_DEFAULT_HEIGHT,
         theme: theme.clone(),

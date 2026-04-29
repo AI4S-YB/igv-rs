@@ -28,6 +28,9 @@ pub const COVERAGE_DEFAULT_HEIGHT: u16 = 5;
 pub const SIGNAL_MIN_HEIGHT: u16 = 2;
 pub const SIGNAL_MAX_HEIGHT: u16 = 12;
 pub const SIGNAL_DEFAULT_HEIGHT: u16 = 6;
+pub const LINK_MIN_HEIGHT: u16 = 3;
+pub const LINK_MAX_HEIGHT: u16 = 16;
+pub const LINK_DEFAULT_HEIGHT: u16 = 6;
 
 /// Translate terminal column count into a target bin count for signal fetches.
 ///
@@ -69,6 +72,11 @@ pub struct AppState {
     pub signal_bins: Vec<Vec<igv_core::source::SignalBin>>,
     pub signal_shared_scale: bool,
     pub signal_track_height: u16,
+
+    pub links: Vec<LinkTrack>,
+    pub link_records: Vec<Vec<igv_core::source::link::VisibleLink>>,
+    pub link_track_height: u16,
+    pub link_min_score: Option<f64>,
 
     /// User-controlled track heights.
     pub alignment_height: u16,
@@ -124,6 +132,14 @@ pub struct SignalTrack {
     pub path: std::path::PathBuf,
     pub display: String,
     pub source: std::sync::Arc<dyn igv_core::source::SignalSource>,
+}
+
+#[derive(Clone)]
+#[allow(dead_code)]
+pub struct LinkTrack {
+    pub path: std::path::PathBuf,
+    pub display: String,
+    pub source: std::sync::Arc<dyn igv_core::source::LinkSource>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -231,6 +247,7 @@ impl AppState {
             self.vcf.is_some(),
             self.annotations.len(),
             self.signals.len(),
+            self.links.len(),
         )
     }
 }
@@ -248,10 +265,11 @@ pub fn expected_loads_for(
     has_vcf: bool,
     n_annotations: usize,
     n_signals: usize,
+    n_links: usize,
 ) -> usize {
     let suppress_overview = matches!(mode, RenderMode::OverviewOnly);
     let vcf = if has_vcf && !suppress_overview { 1 } else { 0 };
-    1 + n_bams + vcf + n_annotations + n_signals
+    1 + n_bams + vcf + n_annotations + n_signals + n_links
 }
 
 impl AppState {
@@ -429,6 +447,22 @@ impl AppState {
                 );
                 None
             }
+            Action::ResizeLink(delta) => {
+                self.link_track_height = if delta > 0 {
+                    self.link_track_height
+                        .saturating_add(delta as u16)
+                        .min(LINK_MAX_HEIGHT)
+                } else {
+                    self.link_track_height
+                        .saturating_sub((-delta) as u16)
+                        .max(LINK_MIN_HEIGHT)
+                };
+                self.set_status(
+                    StatusKind::Info,
+                    format!("link height: {}", self.link_track_height),
+                );
+                None
+            }
             Action::SaveSnapshot { path, format } => {
                 if self.loading {
                     self.set_status(StatusKind::Warning, "snapshot: still loading, try again");
@@ -505,6 +539,9 @@ impl AppState {
         for bins in &mut self.signal_bins {
             bins.clear();
         }
+        for v in &mut self.link_records {
+            v.clear();
+        }
         self.variants.clear();
         let render_mode = self.render_mode();
         Some(LoadRequest {
@@ -512,7 +549,7 @@ impl AppState {
             region: self.region.clone(),
             fetch_opts: FetchOpts::default(),
             signal_max_bins: signal_bins_for_width(self.terminal_width),
-            link_min_score: None,
+            link_min_score: self.link_min_score,
             render_mode,
         })
     }
@@ -550,33 +587,33 @@ mod tests {
 
     #[test]
     fn expected_loads_per_base_counts_all_sources() {
-        // 1 ref + 2 bams + 1 vcf + 1 annot + 1 sig = 6
-        let n = expected_loads_for(RenderMode::PerBase, 2, true, 1, 1);
+        // 1 ref + 2 bams + 1 vcf + 1 annot + 1 sig + 0 link = 6
+        let n = expected_loads_for(RenderMode::PerBase, 2, true, 1, 1, 0);
         assert_eq!(n, 6);
     }
 
     #[test]
     fn expected_loads_overview_drops_vcf() {
-        // 1 ref + 1 bam + 0 vcf (suppressed) + 1 annot + 1 sig = 4
-        let n = expected_loads_for(RenderMode::OverviewOnly, 1, true, 1, 1);
+        // 1 ref + 1 bam + 0 vcf (suppressed) + 1 annot + 1 sig + 0 link = 4
+        let n = expected_loads_for(RenderMode::OverviewOnly, 1, true, 1, 1, 0);
         assert_eq!(n, 4);
     }
 
     #[test]
     fn expected_loads_wide_zoom_still_counts_stubs() {
         // At CoverageDense the loader still emits empty Reference/BAM stubs.
-        // 1 ref stub + 2 bam stubs + 1 vcf + 1 annot + 1 sig = 6.
+        // 1 ref stub + 2 bam stubs + 1 vcf + 1 annot + 1 sig + 0 link = 6.
         // Without this fix, loading would stay true forever because the
         // condition required *non-empty* reference/bam buffers.
-        let n = expected_loads_for(RenderMode::CoverageDense, 2, true, 1, 1);
+        let n = expected_loads_for(RenderMode::CoverageDense, 2, true, 1, 1, 0);
         assert_eq!(n, 6);
     }
 
     #[test]
     fn expected_loads_minimal_view_is_one() {
-        // No bams, no vcf, no annotations, no signals: just the reference
+        // No bams, no vcf, no annotations, no signals, no links: just the reference
         // (real or stub).
-        let n = expected_loads_for(RenderMode::DetailedReads, 0, false, 0, 0);
+        let n = expected_loads_for(RenderMode::DetailedReads, 0, false, 0, 0, 0);
         assert_eq!(n, 1);
     }
 
@@ -608,5 +645,107 @@ mod tests {
     fn parse_snapshot_rejects_other_commands() {
         assert!(parse_snapshot_command("HER2").is_none());
         assert!(parse_snapshot_command("chr1:1000-2000").is_none());
+    }
+
+    #[cfg(test)]
+    fn test_state_with_links(n_links: usize) -> AppState {
+        use std::sync::Arc;
+        use igv_core::source::link::{FetchLinkOpts, LinkSource};
+        use async_trait::async_trait;
+
+        #[derive(Debug)]
+        struct StubFasta;
+        #[async_trait]
+        impl igv_core::source::FastaSource for StubFasta {
+            async fn references(&self) -> igv_core::error::Result<Vec<igv_core::source::RefMeta>> {
+                Ok(vec![igv_core::source::RefMeta { name: "chr1".into(), length: 1_000_000 }])
+            }
+            async fn fetch(&self, _r: &Region) -> igv_core::error::Result<Vec<u8>> {
+                Ok(Vec::new())
+            }
+        }
+
+        #[derive(Debug)]
+        struct StubLink;
+        #[async_trait]
+        impl LinkSource for StubLink {
+            async fn query(
+                &self,
+                _r: &Region,
+                _o: &FetchLinkOpts,
+            ) -> igv_core::error::Result<Vec<igv_core::source::link::VisibleLink>> {
+                Ok(Vec::new())
+            }
+            fn display_name(&self) -> &str { "stub" }
+            fn record_count(&self) -> usize { 0 }
+        }
+
+        let mut links = Vec::new();
+        for _ in 0..n_links {
+            links.push(LinkTrack {
+                path: "stub.bedpe".into(),
+                display: "stub".into(),
+                source: Arc::new(StubLink),
+            });
+        }
+        AppState {
+            fasta: Arc::new(StubFasta),
+            vcf: None,
+            bams: vec![],
+            references: vec![igv_core::source::RefMeta { name: "chr1".into(), length: 1_000_000 }],
+            region: Region::new("chr1", 1, 1000).unwrap(),
+            reference_seq: vec![],
+            variants: vec![],
+            bam_rows: vec![],
+            bam_lanes: vec![],
+            bam_total_lanes: vec![],
+            bam_scroll: 0,
+            annotations: vec![],
+            annotation_rows: vec![],
+            signals: vec![],
+            signal_bins: vec![],
+            signal_shared_scale: false,
+            signal_track_height: SIGNAL_DEFAULT_HEIGHT,
+            links,
+            link_records: vec![Vec::new(); n_links],
+            link_track_height: LINK_DEFAULT_HEIGHT,
+            link_min_score: None,
+            alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
+            coverage_height: COVERAGE_DEFAULT_HEIGHT,
+            theme: Theme::dark(),
+            theme_preset: ThemePreset::Dark,
+            thresholds: igv_core::render::Thresholds::default(),
+            bookmarks: HashMap::new(),
+            status: None,
+            command_open: false,
+            command_buffer: String::new(),
+            help_open: false,
+            terminal_width: 80,
+            pending_snapshot: None,
+            generation: 0,
+            loaded_count: 0,
+            loading: false,
+            should_quit: false,
+        }
+    }
+
+    #[test]
+    fn link_height_clamps() {
+        let mut s = test_state_with_links(2);
+        for _ in 0..20 {
+            let _ = s.apply(Action::ResizeLink(1));
+        }
+        assert_eq!(s.link_track_height, LINK_MAX_HEIGHT);
+        for _ in 0..30 {
+            let _ = s.apply(Action::ResizeLink(-1));
+        }
+        assert_eq!(s.link_track_height, LINK_MIN_HEIGHT);
+    }
+
+    #[test]
+    fn expected_loads_includes_links() {
+        // 1 ref + 0 bams + 0 vcf + 0 ann + 0 sig + 2 link = 3
+        let n = expected_loads_for(RenderMode::DetailedReads, 0, false, 0, 0, 2);
+        assert_eq!(n, 3);
     }
 }
