@@ -355,13 +355,14 @@ fn paint_heatmap(
             let hi = ((e - region.start) as f64 / span as f64
                 * (cols as f64 - 1.0))
                 .ceil() as usize;
-            for c in lo..=hi.min(cols.saturating_sub(1)) {
+            let end = hi.min(cols.saturating_sub(1)).saturating_add(1);
+            for val in &mut col_value[lo..end] {
                 if use_count_fallback {
-                    col_value[c] += 1.0;
+                    *val += 1.0;
                 } else {
                     let score = v.record.score.unwrap_or(q25);
-                    if score > col_value[c] {
-                        col_value[c] = score;
+                    if score > *val {
+                        *val = score;
                     }
                 }
             }

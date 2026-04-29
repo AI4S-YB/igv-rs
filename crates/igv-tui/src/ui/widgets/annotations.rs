@@ -143,6 +143,7 @@ fn draw_density(
     }
 }
 
+#[allow(clippy::needless_lifetimes)]
 fn stack_transcripts<'a>(
     txs: &'a [AnnotationTranscript],
     lane_count: usize,

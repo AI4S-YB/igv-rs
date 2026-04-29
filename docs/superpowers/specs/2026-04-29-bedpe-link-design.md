@@ -1,7 +1,7 @@
 # BEDPE link-track support — design
 
 **Date**: 2026-04-29
-**Status**: design accepted; implementation pending
+**Status**: implemented in v0.6 (commit range covered by `docs/superpowers/plans/2026-04-29-bedpe-link.md`)
 **Scope**: add BEDPE (`.bedpe` / `.bedpe.gz`) read-only support as a new
 "link track" axis in `igv-rs`, alongside reference / variants / alignments /
 coverage / annotations / signals. Renders pairwise genomic interactions
@@ -208,8 +208,8 @@ overlaps) is not surfaced by either tree query and therefore cannot reach
 this loop — the cross-window scope rule (B) is enforced by the tree
 geometry itself, not by an explicit filter here.
 
-The interval tree crate is `iset` (already used by the annotation source);
-no new dependency.
+The interval tree crate is `iset` (added as a new dependency in Task 1
+of the implementation plan).
 
 ### 3.3 `igv-tui::ui::widgets::link::LinkWidget`
 

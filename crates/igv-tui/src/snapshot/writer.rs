@@ -80,8 +80,10 @@ fn signal_shared_max(state: &AppState) -> Option<f32> {
 
 pub fn write_snapshot(state: &AppState, path: &Path, format: SnapshotFormat) -> Result<()> {
     let inputs = inputs_from_state(state);
-    let mut opts = SvgOptions::default();
-    opts.signal_shared_max = signal_shared_max(state);
+    let opts = SvgOptions {
+        signal_shared_max: signal_shared_max(state),
+        ..Default::default()
+    };
     match format {
         SnapshotFormat::Svg => {
             let svg = render_svg(&inputs, &opts);

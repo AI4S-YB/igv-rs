@@ -27,6 +27,7 @@ pub struct BatchOpts {
     pub theme: GraphicalTheme,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     fasta: Arc<dyn FastaSource>,
     vcf: Option<Arc<dyn VcfSource>>,

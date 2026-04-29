@@ -14,6 +14,13 @@ use async_trait::async_trait;
 use iset::IntervalMap;
 use tracing::warn;
 
+/// Type alias to avoid a complex return type in `load()`.
+type LoadResult = (
+    Vec<LinkRecord>,
+    HashMap<Arc<str>, IntervalMap<u64, usize>>,
+    HashMap<Arc<str>, IntervalMap<u64, usize>>,
+);
+
 use crate::error::{IgvError, Result};
 use crate::region::Region;
 use crate::source::annotation::Strand;
@@ -171,13 +178,7 @@ fn midpoint(s: u64, e: u64) -> u64 {
     s + (e - s) / 2
 }
 
-fn load(
-    path: &Path,
-) -> Result<(
-    Vec<LinkRecord>,
-    HashMap<Arc<str>, IntervalMap<u64, usize>>,
-    HashMap<Arc<str>, IntervalMap<u64, usize>>,
-)> {
+fn load(path: &Path) -> Result<LoadResult> {
     let file = std::fs::File::open(path).map_err(|e| IgvError::io(path, e))?;
     let lower = path
         .file_name()
@@ -233,11 +234,11 @@ fn load(
                 // inclusive [s, e] as half-open [s, e+1).
                 tree_a
                     .entry(chrom_a)
-                    .or_insert_with(IntervalMap::new)
+                    .or_default()
                     .force_insert(sa..ea.saturating_add(1), idx);
                 tree_b
                     .entry(chrom_b)
-                    .or_insert_with(IntervalMap::new)
+                    .or_default()
                     .force_insert(sb..eb.saturating_add(1), idx);
             }
             Err(e) => warn!("bedpe {}: line {lineno}: {e}; skipping", path.display()),

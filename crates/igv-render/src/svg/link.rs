@@ -218,9 +218,9 @@ fn paint_heatmap(
             let x1 = plot.bp_to_px(e + 1) as usize;
             let lo = x0.saturating_sub(plot.plot_x0 as usize);
             let hi = x1.saturating_sub(plot.plot_x0 as usize).min(plot_w);
-            for c in lo..hi {
-                if score > col_score[c] {
-                    col_score[c] = score;
+            for val in &mut col_score[lo..hi] {
+                if score > *val {
+                    *val = score;
                 }
             }
         }

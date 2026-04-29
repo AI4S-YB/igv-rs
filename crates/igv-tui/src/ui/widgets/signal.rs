@@ -139,6 +139,7 @@ mod tests {
         // height=6 → 1 top border + 4 inner + 1 bottom border.
         let rows = render(&bins, 4, 6);
         // Inner rows are y=1..=4. The single column should be all `█`.
+        #[allow(clippy::needless_range_loop)]
         for y in 1..=4 {
             assert!(rows[y].contains('\u{2588}'), "row {y}: {:?}", rows[y]);
         }
