@@ -69,10 +69,10 @@ impl BedpeLinkSource {
             .find(|r| r.name.as_deref() == Some(name))
     }
 
-    /// Test-only lookup for the first record whose name was `.` and score `.`.
+    /// Test-only: return all records whose name is missing (was `.`).
     #[cfg(test)]
-    pub(crate) fn record_with_dot_score(&self) -> Option<&LinkRecord> {
-        self.records.iter().find(|r| r.score.is_none())
+    pub(crate) fn unnamed_records(&self) -> Vec<&LinkRecord> {
+        self.records.iter().filter(|r| r.name.is_none()).collect()
     }
 }
 
@@ -139,11 +139,20 @@ fn load(
         }
         match parse_line(trimmed, lineno) {
             Ok(rec) => {
+                let (sa, ea) = (rec.start_a, rec.end_a);
+                let (sb, eb) = (rec.start_b, rec.end_b);
+                // Guard against u64::MAX which would make an empty interval
+                // after saturating_add(1).
+                if ea == u64::MAX || eb == u64::MAX {
+                    warn!(
+                        "bedpe {}: line {lineno}: anchor end at u64::MAX is not representable; skipping",
+                        path.display()
+                    );
+                    continue;
+                }
                 let idx = records.len();
                 let chrom_a = Arc::clone(&rec.chrom_a);
                 let chrom_b = Arc::clone(&rec.chrom_b);
-                let (sa, ea) = (rec.start_a, rec.end_a);
-                let (sb, eb) = (rec.start_b, rec.end_b);
                 records.push(rec);
                 // IntervalMap uses half-open [start, end); we store
                 // inclusive [s, e] as half-open [s, e+1).
@@ -245,11 +254,18 @@ mod tests {
 
     #[tokio::test]
     async fn missing_optional_columns_become_none_or_unknown() {
+        use crate::source::annotation::Strand;
         let src = BedpeLinkSource::open(&fixture()).await.unwrap();
-        let r2k = src.record_at_name("loop2").expect("loop2");
-        assert_eq!(r2k.score, Some(2.0));
-        let dot = src.record_with_dot_score().expect("record with . score");
+        let l2 = src.record_at_name("loop2").expect("loop2");
+        assert_eq!(l2.score, Some(2.0));
+        // The record at chr1:2000001-2001000 has all dot-fields (name/score/strands).
+        let unnamed: Vec<_> = src.unnamed_records();
+        assert_eq!(unnamed.len(), 1, "fixture has exactly one all-dot record");
+        let dot = unnamed[0];
         assert_eq!(dot.score, None);
+        assert_eq!(dot.name, None);
+        assert!(matches!(dot.strand_a, Strand::Unknown));
+        assert!(matches!(dot.strand_b, Strand::Unknown));
     }
 
     #[tokio::test]
