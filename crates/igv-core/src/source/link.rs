@@ -50,6 +50,7 @@ impl LinkRecord {
 
 /// How a record relates to the visible region — drives widget rendering.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum LinkScope {
     /// Both anchors overlap the region.
     BothIn,
@@ -92,6 +93,7 @@ pub trait LinkSource: Send + Sync {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum LinkFormat {
     Bedpe,
 }

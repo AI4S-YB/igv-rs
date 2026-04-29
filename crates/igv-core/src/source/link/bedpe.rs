@@ -283,7 +283,13 @@ fn parse_line(line: &str, lineno: usize) -> Result<LinkRecord> {
     let score = match cols.get(7).copied() {
         Some(".") | None | Some("") => None,
         Some(s) => match s.parse::<f64>() {
-            Ok(v) => Some(v),
+            Ok(v) if v.is_finite() => Some(v),
+            Ok(v) => {
+                warn!(
+                    "bedpe line {lineno}: non-finite score {v}; treating as missing"
+                );
+                None
+            }
             Err(_) => {
                 warn!(
                     "bedpe line {lineno}: non-numeric score {s:?}; treating as missing"
@@ -359,5 +365,23 @@ mod tests {
         assert_eq!(l1.end_a, 1_001_000);
         assert_eq!(l1.start_b, 1_009_001);
         assert_eq!(l1.end_b, 1_010_000);
+    }
+
+    #[tokio::test]
+    async fn nan_inf_score_treated_as_missing() {
+        use std::io::Write;
+        use tempfile::NamedTempFile;
+        let mut tf = NamedTempFile::new().unwrap();
+        writeln!(tf, "chr1\t100\t200\tchr1\t300\t400\tnan_score\tNaN\t+\t-").unwrap();
+        writeln!(tf, "chr1\t500\t600\tchr1\t700\t800\tinf_score\tinf\t+\t-").unwrap();
+        writeln!(tf, "chr1\t900\t1000\tchr1\t1100\t1200\tinfinity_score\tInfinity\t+\t-").unwrap();
+        let src = BedpeLinkSource::open(tf.path()).await.unwrap();
+        assert_eq!(src.record_count(), 3);
+        let nan = src.record_at_name("nan_score").unwrap();
+        let inf = src.record_at_name("inf_score").unwrap();
+        let infinity = src.record_at_name("infinity_score").unwrap();
+        assert_eq!(nan.score, None, "NaN must parse to None");
+        assert_eq!(inf.score, None, "Inf must parse to None");
+        assert_eq!(infinity.score, None, "Infinity must parse to None");
     }
 }
