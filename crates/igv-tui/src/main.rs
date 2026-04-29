@@ -178,12 +178,17 @@ async fn main() -> anyhow::Result<()> {
             .iter()
             .map(|t| (t.display.clone(), Arc::clone(&t.source)))
             .collect();
+        let links_owned = links
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
         return igv_tui::snapshot::batch::run(
             fasta,
             vcf,
             bams_owned,
             annotations_owned,
             signals_owned,
+            links_owned,
             references.clone(),
             regions,
             batch,
@@ -214,12 +219,17 @@ async fn main() -> anyhow::Result<()> {
             .iter()
             .map(|t| (t.display.clone(), Arc::clone(&t.source)))
             .collect();
+        let links_owned = links
+            .iter()
+            .map(|t| (t.display.clone(), Arc::clone(&t.source)))
+            .collect();
         return igv_tui::snapshot::batch::run(
             fasta,
             vcf,
             bams_owned,
             annotations_owned,
             signals_owned,
+            links_owned,
             references.clone(),
             regions,
             batch,

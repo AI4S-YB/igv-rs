@@ -4,7 +4,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use igv_core::render_inputs::{
-    AnnotationTrackSnapshot, BamTrackSnapshot, RenderInputs, SignalTrackSnapshot,
+    AnnotationTrackSnapshot, BamTrackSnapshot, LinkTrackSnapshot, RenderInputs, SignalTrackSnapshot,
 };
 use igv_render::{render_png, render_svg, SvgOptions};
 
@@ -42,6 +42,16 @@ pub fn inputs_from_state(state: &AppState) -> RenderInputs {
             bins: state.signal_bins.get(i).cloned().unwrap_or_default(),
         })
         .collect();
+    let links = state
+        .links
+        .iter()
+        .enumerate()
+        .map(|(i, t)| LinkTrackSnapshot {
+            display: t.display.clone(),
+            visible: state.link_records.get(i).cloned().unwrap_or_default(),
+            total_record_count: t.source.record_count(),
+        })
+        .collect();
     RenderInputs {
         region: state.region.clone(),
         references: state.references.clone(),
@@ -50,7 +60,7 @@ pub fn inputs_from_state(state: &AppState) -> RenderInputs {
         bams,
         annotations,
         signals,
-        links: Vec::new(),
+        links,
         render_mode: state.render_mode(),
     }
 }

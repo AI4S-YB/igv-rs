@@ -7,8 +7,8 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use igv_core::collect_render_inputs;
 use igv_core::source::{
-    AnnotationSource, BamSource, FastaSource, FetchOpts, FetchSignalOpts, RefMeta, SignalSource,
-    VcfSource,
+    AnnotationSource, BamSource, FastaSource, FetchOpts, FetchSignalOpts, LinkSource, RefMeta,
+    SignalSource, VcfSource,
 };
 use igv_core::{CollectOpts, Sources};
 use igv_render::{render_png, render_svg, GraphicalTheme, SvgOptions};
@@ -33,6 +33,7 @@ pub async fn run(
     bams: Vec<(String, Arc<dyn BamSource>)>,
     annotations: Vec<(String, Arc<dyn AnnotationSource>)>,
     signals: Vec<(String, Arc<dyn SignalSource>)>,
+    links: Vec<(String, Arc<dyn LinkSource>)>,
     references: Vec<RefMeta>,
     regions: Vec<LabeledRegion>,
     batch: BatchOpts,
@@ -46,7 +47,7 @@ pub async fn run(
         bams,
         annotations,
         signals,
-        links: vec![],
+        links,
         references: references.clone(),
     };
 
