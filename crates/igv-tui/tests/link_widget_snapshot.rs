@@ -154,7 +154,8 @@ fn trans_renders_off_chrom_marker() {
 
 #[test]
 fn heatmap_kicks_in_when_arc_count_exceeds_budget() {
-    // height 4 → arc budget = 3; 5 BothIn records force heatmap mode.
+    // height 4 → inner.height 2 → arc budget 1 (after anchor strip).
+    // 5 BothIn records exceed the budget, forcing heatmap mode.
     let mut v = Vec::new();
     for i in 0..5 {
         let off = 1_000_000 + i * 1000;
@@ -169,5 +170,23 @@ fn heatmap_kicks_in_when_arc_count_exceeds_budget() {
     assert!(
         body.chars().any(|c| matches!(c, '\u{2591}' | '\u{2592}' | '\u{2593}' | '\u{2588}')),
         "expected ░▒▓█ in heatmap output"
+    );
+}
+
+#[test]
+fn heatmap_falls_back_to_count_for_unscored_records() {
+    // 5 unscored BothIn records (score=None) at height 4 → heatmap mode.
+    // Pre-fix: heatmap rendered nothing because q25=0.
+    // Post-fix: count-based fallback paints ░▒▓█ based on anchor density.
+    let mut v = Vec::new();
+    for i in 0..5 {
+        let off = 1_000_000 + i * 1000;
+        v.push(cis_record(off + 100, off + 200, off + 800, off + 900, None));
+    }
+    let rows = render(&v, 80, 4);
+    let body = rows.join("\n");
+    assert!(
+        body.chars().any(|c| matches!(c, '\u{2591}' | '\u{2592}' | '\u{2593}' | '\u{2588}')),
+        "expected ░▒▓█ in heatmap output even with unscored records: {body:?}"
     );
 }

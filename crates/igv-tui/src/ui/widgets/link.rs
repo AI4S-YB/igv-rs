@@ -326,18 +326,22 @@ fn paint_heatmap(
     if cols == 0 {
         return;
     }
-    // Per-column score: max of overlapping anchors. Missing-score
-    // anchors contribute as the per-window q25.
     let scored: Vec<f64> = visible.iter().filter_map(|v| v.record.score).collect();
-    let q25 = if scored.len() >= 4 {
+    let use_count_fallback = scored.len() < 4;
+
+    // Per-column accumulator: max-of-scores in normal mode,
+    // count-of-overlapping-anchors in fallback mode.
+    let mut col_value: Vec<f64> = vec![0.0; cols];
+    let span = (region.end - region.start).max(1);
+
+    let q25 = if !use_count_fallback {
         let mut s = scored.clone();
         s.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         s[s.len() / 4]
     } else {
         0.0
     };
-    let mut col_score: Vec<f64> = vec![0.0; cols];
-    let span = (region.end - region.start).max(1);
+
     for v in visible {
         for (s, e) in anchors_in_window(v, region) {
             if e < region.start || s > region.end {
@@ -351,19 +355,24 @@ fn paint_heatmap(
             let hi = ((e - region.start) as f64 / span as f64
                 * (cols as f64 - 1.0))
                 .ceil() as usize;
-            let score = v.record.score.unwrap_or(q25);
             for c in lo..=hi.min(cols.saturating_sub(1)) {
-                if score > col_score[c] {
-                    col_score[c] = score;
+                if use_count_fallback {
+                    col_value[c] += 1.0;
+                } else {
+                    let score = v.record.score.unwrap_or(q25);
+                    if score > col_value[c] {
+                        col_value[c] = score;
+                    }
                 }
             }
         }
     }
-    let max = col_score.iter().cloned().fold(0.0_f64, f64::max);
+
+    let max = col_value.iter().cloned().fold(0.0_f64, f64::max);
     if max <= 0.0 {
         return;
     }
-    for (c, &v) in col_score.iter().enumerate() {
+    for (c, &v) in col_value.iter().enumerate() {
         let q = (v / max).clamp(0.0, 1.0);
         let ch = if q == 0.0 { ' ' }
             else if q < 0.25 { '\u{2591}' }   // ░
