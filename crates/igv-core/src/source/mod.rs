@@ -2,6 +2,7 @@
 
 pub mod annotation;
 pub mod signal;
+pub mod link;
 pub mod bam;
 pub mod fasta;
 pub mod vcf;
@@ -32,4 +33,7 @@ pub use annotation::{
 };
 pub use signal::{
     open_signal, FetchSignalOpts, SignalBin, SignalFormat, SignalSource, SignalSummary,
+};
+pub use link::{
+    open_link, FetchLinkOpts, LinkFormat, LinkRecord, LinkScope, LinkSource, VisibleLink,
 };
