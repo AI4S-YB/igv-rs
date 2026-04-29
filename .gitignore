@@ -15,3 +15,6 @@ Cargo.lock.bak
 
 # Logs
 *.log
+
+# Git worktrees (isolated workspaces for parallel feature development)
+/.worktrees
