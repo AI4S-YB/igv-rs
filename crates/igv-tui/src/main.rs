@@ -24,11 +24,12 @@ use igv_core::source::bam::{FetchOpts, NoodlesBamSource};
 use igv_core::source::fasta::NoodlesFastaSource;
 use igv_core::source::vcf::NoodlesVcfSource;
 use igv_core::source::{open_signal, SignalFormat};
+use igv_core::source::link::{open_link, LinkFormat};
 
 use igv_tui::app::action::Action;
 use igv_tui::app::loader::{LoadResult, Loader};
 use igv_tui::app::state::{
-    AppState, BamTrack, SignalTrack, StatusKind,
+    AppState, BamTrack, LinkTrack, SignalTrack, StatusKind,
     ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT, LINK_DEFAULT_HEIGHT, SIGNAL_DEFAULT_HEIGHT,
 };
 use igv_tui::command::CommandPalette;
@@ -121,6 +122,28 @@ async fn main() -> anyhow::Result<()> {
             source: std::sync::Arc::clone(&src),
         });
         signal_sources.push(src);
+    }
+
+    let mut links: Vec<LinkTrack> = Vec::new();
+    let mut link_sources: Vec<std::sync::Arc<dyn igv_core::source::LinkSource>> = Vec::new();
+    let link_format_override = args.link_format.as_deref().and_then(LinkFormat::parse);
+    for path in &args.links {
+        let src = open_link(path, link_format_override).await?;
+        let count = src.record_count();
+        let display_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("link")
+            .to_string();
+        if count > 100_000 {
+            info!("loaded {count} links from {display_name}");
+        }
+        links.push(LinkTrack {
+            path: path.clone(),
+            display: display_name,
+            source: std::sync::Arc::clone(&src),
+        });
+        link_sources.push(src);
     }
 
     if let Some(genes_path) = args.snapshot_genes.as_deref() {
@@ -236,10 +259,10 @@ async fn main() -> anyhow::Result<()> {
         signal_bins: vec![Vec::new(); signal_sources.len()],
         signal_shared_scale: false,
         signal_track_height: SIGNAL_DEFAULT_HEIGHT,
-        links: Vec::new(),
-        link_records: Vec::new(),
+        links,
+        link_records: vec![Vec::new(); link_sources.len()],
         link_track_height: LINK_DEFAULT_HEIGHT,
-        link_min_score: None,
+        link_min_score: args.link_min_score,
         alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
         coverage_height: COVERAGE_DEFAULT_HEIGHT,
         theme: theme.clone(),
@@ -265,7 +288,6 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let (tx, mut rx) = mpsc::channel::<LoadResult>(64);
-    let link_sources: Vec<std::sync::Arc<dyn igv_core::source::LinkSource>> = Vec::new();
     let mut loader = Loader::new(fasta, vcf, bam_sources, annotation_sources, signal_sources, link_sources, tx);
     if let Some(req) = state.apply(Action::Goto(state.region.clone())) {
         loader.dispatch(req);

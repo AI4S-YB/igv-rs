@@ -50,6 +50,22 @@ pub struct Cli {
     #[arg(long = "signal-format")]
     pub signal_format: Option<String>,
 
+    /// Path to a BEDPE link file (.bedpe / .bedpe.gz). May be repeated.
+    /// Each file becomes its own track showing pairwise interactions
+    /// (chromatin loops, enhancer-promoter, ChIA-PET, etc.).
+    #[arg(short = 'l', long = "link")]
+    pub links: Vec<PathBuf>,
+
+    /// Override link format auto-detection (currently only `bedpe`).
+    /// Applies to all `-l` files.
+    #[arg(long = "link-format")]
+    pub link_format: Option<String>,
+
+    /// Drop links whose score column is below this value.
+    /// Records without a score are unaffected.
+    #[arg(long = "link-min-score")]
+    pub link_min_score: Option<f64>,
+
     /// Use light theme (for light-background terminals).
     #[arg(long = "light-mode")]
     pub light_mode: bool,
