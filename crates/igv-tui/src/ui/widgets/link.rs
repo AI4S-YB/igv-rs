@@ -221,10 +221,11 @@ fn compute_bucket_styles(
     visible: &[VisibleLink],
     base: ratatui::style::Style,
 ) -> Option<[ratatui::style::Style; 4]> {
-    let scored: Vec<f64> = visible
+    let mut scored: Vec<f64> = visible
         .iter()
         .filter_map(|v| v.record.score)
         .collect();
+    scored.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     if scored.len() < 4 {
         return None;
     }
