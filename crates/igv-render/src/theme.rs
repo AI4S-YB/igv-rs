@@ -23,6 +23,8 @@ pub struct GraphicalTheme {
     pub variant_indel: Rgb,
     pub coverage_bar: Rgb,
     pub signal_bar: Rgb,
+    pub link_color: Rgb,
+    pub link_gradient: [Rgb; 5],
     pub read_forward: Rgb,
     pub read_reverse: Rgb,
     pub mismatch_a: Rgb,
@@ -50,6 +52,14 @@ impl GraphicalTheme {
             variant_indel: Rgb(0x7d, 0x3c, 0x98),
             coverage_bar: Rgb(0x88, 0x88, 0x88),
             signal_bar: Rgb(0x1f, 0x4e, 0x79),
+            link_color: Rgb(0x6a, 0x3d, 0x9a),
+            link_gradient: [
+                Rgb(0xfd, 0xe7, 0x25), // viridis-low (yellow)
+                Rgb(0x7a, 0xd1, 0x51),
+                Rgb(0x21, 0x90, 0x8d),
+                Rgb(0x44, 0x47, 0x8c),
+                Rgb(0x44, 0x01, 0x54), // viridis-high (purple)
+            ],
             read_forward: Rgb(0x9e, 0xc3, 0xe0),
             read_reverse: Rgb(0xe8, 0xb6, 0xb6),
             mismatch_a: Rgb(0x2c, 0xa0, 0x2c),
@@ -74,6 +84,25 @@ impl GraphicalTheme {
             _ => self.mismatch_n,
         }
     }
+
+    /// Sample the `link_gradient` at `t ∈ [0, 1]`. Clamps; intermediate
+    /// values lerp between adjacent stops.
+    pub fn link_color_at(&self, t: f64) -> Rgb {
+        let t = t.clamp(0.0, 1.0);
+        let stops = self.link_gradient.len();
+        let scaled = t * (stops as f64 - 1.0);
+        let idx = scaled.floor() as usize;
+        let frac = scaled - idx as f64;
+        if idx + 1 >= stops {
+            return self.link_gradient[stops - 1];
+        }
+        let a = self.link_gradient[idx];
+        let b = self.link_gradient[idx + 1];
+        let lerp = |x: u8, y: u8| -> u8 {
+            (x as f64 + (y as f64 - x as f64) * frac).round() as u8
+        };
+        Rgb(lerp(a.0, b.0), lerp(a.1, b.1), lerp(a.2, b.2))
+    }
 }
 
 #[cfg(test)]
@@ -96,5 +125,19 @@ mod tests {
         let t = GraphicalTheme::igv_light();
         assert_eq!(t.mismatch_color(b'X').hex(), t.mismatch_n.hex());
         assert_eq!(t.mismatch_color(b'a').hex(), t.mismatch_a.hex());
+    }
+
+    #[test]
+    fn link_gradient_endpoints_match() {
+        let t = GraphicalTheme::igv_light();
+        assert_eq!(t.link_color_at(0.0).hex(), t.link_gradient[0].hex());
+        assert_eq!(t.link_color_at(1.0).hex(), t.link_gradient[4].hex());
+    }
+
+    #[test]
+    fn link_gradient_midpoint_lerps_between_stops() {
+        let t = GraphicalTheme::igv_light();
+        // t=0.5 lands on a 5-stop ramp's middle stop (index 2).
+        assert_eq!(t.link_color_at(0.5).hex(), t.link_gradient[2].hex());
     }
 }
