@@ -261,7 +261,8 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let (tx, mut rx) = mpsc::channel::<LoadResult>(64);
-    let mut loader = Loader::new(fasta, vcf, bam_sources, annotation_sources, signal_sources, tx);
+    let link_sources: Vec<std::sync::Arc<dyn igv_core::source::LinkSource>> = Vec::new();
+    let mut loader = Loader::new(fasta, vcf, bam_sources, annotation_sources, signal_sources, link_sources, tx);
     if let Some(req) = state.apply(Action::Goto(state.region.clone())) {
         loader.dispatch(req);
     }
@@ -449,6 +450,9 @@ fn apply_load_result(state: &mut AppState, result: LoadResult) {
                     *slot = bins;
                 }
             }
+        }
+        LoadResult::Link { .. } => {
+            // Link track state not yet wired in TUI (Task 11+).
         }
         LoadResult::Error { generation, message } => {
             if generation == state.generation {

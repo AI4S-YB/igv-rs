@@ -512,6 +512,7 @@ impl AppState {
             region: self.region.clone(),
             fetch_opts: FetchOpts::default(),
             signal_max_bins: signal_bins_for_width(self.terminal_width),
+            link_min_score: None,
             render_mode,
         })
     }

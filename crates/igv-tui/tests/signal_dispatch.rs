@@ -52,12 +52,13 @@ async fn dispatch_routes_signals_to_correct_indices() {
         Arc::new(MockSignal { bins: bins_b.clone(), name: "b".into() }),
     ];
 
-    let mut loader = Loader::new(fasta, None, vec![], vec![], signals, tx);
+    let mut loader = Loader::new(fasta, None, vec![], vec![], signals, vec![], tx);
     loader.dispatch(LoadRequest {
         generation: 1,
         region: Region::new("chr1", 1, 100).unwrap(),
         fetch_opts: FetchOpts::default(),
         signal_max_bins: 200,
+        link_min_score: None,
         render_mode: igv_core::render::RenderMode::PerBase,
     });
 
