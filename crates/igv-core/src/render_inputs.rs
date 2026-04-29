@@ -10,6 +10,7 @@ use crate::render::RenderMode;
 use crate::source::{
     AlignmentRow, AnnotationTranscript, RefMeta, SignalBin, VariantRecord,
 };
+use crate::source::link::VisibleLink;
 
 #[derive(Debug, Clone)]
 pub struct BamTrackSnapshot {
@@ -34,6 +35,13 @@ pub struct SignalTrackSnapshot {
 }
 
 #[derive(Debug, Clone)]
+pub struct LinkTrackSnapshot {
+    pub display: String,
+    pub visible: Vec<VisibleLink>,
+    pub total_record_count: usize,
+}
+
+#[derive(Debug, Clone)]
 pub struct RenderInputs {
     pub region: Region,
     pub references: Vec<RefMeta>,
@@ -42,6 +50,7 @@ pub struct RenderInputs {
     pub bams: Vec<BamTrackSnapshot>,
     pub annotations: Vec<AnnotationTrackSnapshot>,
     pub signals: Vec<SignalTrackSnapshot>,
+    pub links: Vec<LinkTrackSnapshot>,
     pub render_mode: RenderMode,
 }
 
@@ -52,6 +61,7 @@ impl RenderInputs {
             && self.bams.iter().all(|t| t.rows.is_empty())
             && self.annotations.iter().all(|t| t.transcripts.is_empty())
             && self.signals.iter().all(|t| t.bins.is_empty())
+            && self.links.iter().all(|t| t.visible.is_empty())
             && self.reference_seq.is_empty()
     }
 }
@@ -72,6 +82,23 @@ mod tests {
             bams: vec![],
             annotations: vec![],
             signals: vec![],
+            links: vec![],
+            render_mode: RenderMode::DetailedReads,
+        };
+        assert!(inputs.is_empty());
+    }
+
+    #[test]
+    fn empty_inputs_reports_empty_with_links() {
+        let inputs = RenderInputs {
+            region: Region::new("chr1", 1, 100).unwrap(),
+            references: vec![],
+            reference_seq: vec![],
+            variants: vec![],
+            bams: vec![],
+            annotations: vec![],
+            signals: vec![],
+            links: vec![],
             render_mode: RenderMode::DetailedReads,
         };
         assert!(inputs.is_empty());

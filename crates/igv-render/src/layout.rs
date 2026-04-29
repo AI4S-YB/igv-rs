@@ -144,6 +144,7 @@ mod tests {
             bams: vec![],
             annotations: vec![],
             signals: vec![],
+            links: vec![],
             render_mode: RenderMode::DetailedReads,
         }
     }

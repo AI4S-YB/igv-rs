@@ -133,6 +133,7 @@ pub async fn collect_render_inputs(
         bams,
         annotations,
         signals,
+        links: Vec::new(),
         render_mode: mode,
     })
 }

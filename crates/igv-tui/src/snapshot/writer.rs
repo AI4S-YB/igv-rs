@@ -50,6 +50,7 @@ pub fn inputs_from_state(state: &AppState) -> RenderInputs {
         bams,
         annotations,
         signals,
+        links: Vec::new(),
         render_mode: state.render_mode(),
     }
 }
