@@ -38,6 +38,7 @@ const SECTIONS: &[Section] = &[
             ("+ / -", "grow / shrink alignment-track height"),
             ("] / [", "grow / shrink coverage-track height"),
             ("} / {", "grow / shrink signal-track height"),
+            ("< / >", "shrink / grow link-track height"),
             ("\\", "toggle signal shared / per-track Y-scale"),
         ],
     ),
