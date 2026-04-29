@@ -107,6 +107,7 @@ impl Theme {
         m.insert("BORDER".into(), Style::default().fg(Color::DarkGray));
         m.insert("COVERAGE".into(), Style::default().fg(Color::Cyan));
         m.insert("SIGNAL".into(), Style::default().fg(Color::Cyan));
+        m.insert("LINK".into(), Style::default().fg(Color::Magenta));
         m.insert("WARNING".into(), Style::default().fg(Color::Yellow));
         m.insert("ERROR".into(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
         m.insert("SUCCESS".into(), Style::default().fg(Color::Green));
@@ -152,6 +153,7 @@ impl Theme {
         m.insert("BORDER".into(), Style::default().fg(Color::Gray));
         m.insert("COVERAGE".into(), Style::default().fg(Color::Blue));
         m.insert("SIGNAL".into(), Style::default().fg(Color::Blue));
+        m.insert("LINK".into(), Style::default().fg(Color::Magenta));
         m.insert("WARNING".into(), Style::default().fg(Color::Rgb(180, 100, 0)));
         m.insert("ERROR".into(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
         m.insert("SUCCESS".into(), Style::default().fg(Color::Green));
@@ -211,6 +213,7 @@ impl Theme {
         m.insert("BORDER".into(), Style::default().fg(rule).bg(bg));
         m.insert("COVERAGE".into(), Style::default().fg(blue).bg(bg));
         m.insert("SIGNAL".into(), Style::default().fg(cyan).bg(bg));
+        m.insert("LINK".into(), Style::default().fg(magenta).bg(bg));
         m.insert("WARNING".into(), Style::default().fg(orange).bg(bg));
         m.insert("ERROR".into(), Style::default().fg(red).bg(bg).add_modifier(Modifier::BOLD));
         m.insert("SUCCESS".into(), Style::default().fg(green).bg(bg));
@@ -254,6 +257,7 @@ impl Theme {
         m.insert("BORDER".into(), Style::default().fg(base01));
         m.insert("COVERAGE".into(), Style::default().fg(blue));
         m.insert("SIGNAL".into(), Style::default().fg(cyan));
+        m.insert("LINK".into(), Style::default().fg(magenta));
         m.insert("WARNING".into(), Style::default().fg(orange));
         m.insert("ERROR".into(), Style::default().fg(red).add_modifier(Modifier::BOLD));
         m.insert("SUCCESS".into(), Style::default().fg(green));
@@ -297,6 +301,7 @@ impl Theme {
         m.insert("BORDER".into(), Style::default().fg(base1));
         m.insert("COVERAGE".into(), Style::default().fg(blue));
         m.insert("SIGNAL".into(), Style::default().fg(blue));
+        m.insert("LINK".into(), Style::default().fg(magenta));
         m.insert("WARNING".into(), Style::default().fg(orange));
         m.insert("ERROR".into(), Style::default().fg(red).add_modifier(Modifier::BOLD));
         m.insert("SUCCESS".into(), Style::default().fg(green));
@@ -340,6 +345,7 @@ impl Theme {
         m.insert("BORDER".into(), Style::default().fg(comment));
         m.insert("COVERAGE".into(), Style::default().fg(cyan));
         m.insert("SIGNAL".into(), Style::default().fg(purple));
+        m.insert("LINK".into(), Style::default().fg(pink));
         m.insert("WARNING".into(), Style::default().fg(yellow));
         m.insert("ERROR".into(), Style::default().fg(red).add_modifier(Modifier::BOLD));
         m.insert("SUCCESS".into(), Style::default().fg(green));
@@ -383,6 +389,7 @@ impl Theme {
         m.insert("BORDER".into(), Style::default().fg(gray));
         m.insert("COVERAGE".into(), Style::default().fg(aqua));
         m.insert("SIGNAL".into(), Style::default().fg(orange));
+        m.insert("LINK".into(), Style::default().fg(purple));
         m.insert("WARNING".into(), Style::default().fg(yellow));
         m.insert("ERROR".into(), Style::default().fg(red).add_modifier(Modifier::BOLD));
         m.insert("SUCCESS".into(), Style::default().fg(green));
@@ -540,7 +547,7 @@ mod tests {
             "MATCH_FWD", "MATCH_REV", "MISMATCH",
             "DELETION", "INSERTION", "VARIANT",
             "HEADER", "FOOTER", "OVERVIEW", "BORDER",
-            "COVERAGE", "SIGNAL",
+            "COVERAGE", "SIGNAL", "LINK",
             "WARNING", "ERROR", "SUCCESS",
             "ANNOTATION_EXON", "ANNOTATION_UTR", "ANNOTATION_INTRON",
             "ANNOTATION_NAME", "ANNOTATION_STRAND",
