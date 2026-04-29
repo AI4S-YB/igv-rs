@@ -12,12 +12,13 @@ use crate::alignment::assign_lanes;
 use crate::region::Region;
 use crate::render::RenderMode;
 use crate::render_inputs::{
-    AnnotationTrackSnapshot, BamTrackSnapshot, RenderInputs, SignalTrackSnapshot,
+    AnnotationTrackSnapshot, BamTrackSnapshot, LinkTrackSnapshot, RenderInputs, SignalTrackSnapshot,
 };
 use crate::source::{
     AnnotationSource, BamSource, FastaSource, FetchOpts, FetchSignalOpts, RefMeta,
     SignalSource, VcfSource,
 };
+use crate::source::link::{FetchLinkOpts, LinkSource};
 
 #[derive(Clone)]
 pub struct Sources {
@@ -26,6 +27,7 @@ pub struct Sources {
     pub bams: Vec<(String, Arc<dyn BamSource>)>,
     pub annotations: Vec<(String, Arc<dyn AnnotationSource>)>,
     pub signals: Vec<(String, Arc<dyn SignalSource>)>,
+    pub links: Vec<(String, Arc<dyn LinkSource>)>,
     pub references: Vec<RefMeta>,
 }
 
@@ -36,6 +38,7 @@ impl std::fmt::Debug for Sources {
             .field("bams", &self.bams.len())
             .field("annotations", &self.annotations.len())
             .field("signals", &self.signals.len())
+            .field("links", &self.links.len())
             .field("references", &self.references.len())
             .finish()
     }
@@ -45,6 +48,7 @@ impl std::fmt::Debug for Sources {
 pub struct CollectOpts {
     pub fetch_opts: FetchOpts,
     pub signal_opts: FetchSignalOpts,
+    pub link_opts: FetchLinkOpts,
     pub render_mode: RenderMode,
 }
 
@@ -53,6 +57,7 @@ impl Default for CollectOpts {
         Self {
             fetch_opts: FetchOpts::default(),
             signal_opts: FetchSignalOpts::default(),
+            link_opts: FetchLinkOpts::default(),
             render_mode: RenderMode::DetailedReads,
         }
     }
@@ -66,6 +71,7 @@ impl Default for CollectOpts {
 /// * BAM rows: only `PerBase` and `DetailedReads`.
 /// * Annotations: always fetched.
 /// * Signals: always fetched (bigWig zoom-pyramid handles it).
+/// * Links: always queried (in-memory IntervalMap is cheap at every zoom level).
 pub async fn collect_render_inputs(
     sources: &Sources,
     region: &Region,
@@ -125,6 +131,16 @@ pub async fn collect_render_inputs(
         });
     }
 
+    let mut links = Vec::with_capacity(sources.links.len());
+    for (display, src) in &sources.links {
+        let visible = src.query(region, &opts.link_opts).await?;
+        links.push(LinkTrackSnapshot {
+            display: display.clone(),
+            visible,
+            total_record_count: src.record_count(),
+        });
+    }
+
     Ok(RenderInputs {
         region: region.clone(),
         references: sources.references.clone(),
@@ -133,7 +149,7 @@ pub async fn collect_render_inputs(
         bams,
         annotations,
         signals,
-        links: Vec::new(),
+        links,
         render_mode: mode,
     })
 }

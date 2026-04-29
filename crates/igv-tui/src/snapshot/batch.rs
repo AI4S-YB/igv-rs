@@ -46,6 +46,7 @@ pub async fn run(
         bams,
         annotations,
         signals,
+        links: vec![],
         references: references.clone(),
     };
 
@@ -64,6 +65,7 @@ pub async fn run(
         let collect_opts = CollectOpts {
             fetch_opts: FetchOpts::default(),
             signal_opts: FetchSignalOpts::default(),
+            link_opts: igv_core::source::link::FetchLinkOpts::default(),
             render_mode: mode,
         };
         let inputs = match collect_render_inputs(&sources, &padded, &collect_opts).await {
