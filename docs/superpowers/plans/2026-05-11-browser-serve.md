@@ -8,6 +8,16 @@
 
 **Tech Stack:** axum 0.7, tower-http 0.5, tokio (broadcast / SSE), `webbrowser` 1.0, `serde_json`, `insta` (snapshot tests), `reqwest` 0.12 (test-only). Spec: `docs/superpowers/specs/2026-05-11-browser-serve-design.md`.
 
+**Performance non-negotiables (see spec §9a).** igv.js bombards the server
+with Range requests for hundreds of MB of BAM/bigWig data; a toy stack
+will stall. Every binary-file route MUST stream via
+`tower_http::services::ServeFile` (no `Vec<u8>` buffering). SSE MUST
+stream via axum's `Sse<Stream>` adapter. Handlers MUST be `async fn` —
+no `block_on`, no synchronous `std::fs::read`, no `Mutex` held across
+`.await`. The axum server runs on the existing multi-thread tokio
+runtime (`#[tokio::main]` default). HTTP/1.1 keep-alive (axum default)
+must remain on so igv.js can reuse one connection across many seeks.
+
 ---
 
 ## File map
