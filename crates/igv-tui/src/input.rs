@@ -87,6 +87,7 @@ impl InputState {
                 KeyCode::Char('{') => Action::ResizeSignal(-1),
                 KeyCode::Char('>') => Action::ResizeLink(1),
                 KeyCode::Char('<') => Action::ResizeLink(-1),
+                KeyCode::Char('B') => Action::OpenBrowser,
                 KeyCode::Char('S') => Action::SaveSnapshot {
                     path: None,
                     format: crate::app::action::SnapshotFormat::Svg,
@@ -256,5 +257,11 @@ mod tests {
     fn less_shrinks_link_track() {
         let mut s = InputState::default();
         assert!(matches!(s.map(&key('<'), false), Action::ResizeLink(-1)));
+    }
+
+    #[test]
+    fn capital_b_opens_browser() {
+        let mut s = InputState::default();
+        assert!(matches!(s.map(&key('B'), false), Action::OpenBrowser));
     }
 }

@@ -61,6 +61,8 @@ pub enum Action {
     CloseHelp,
     /// Quit the application.
     Quit,
+    /// Open a browser window showing the current view via igv-serve.
+    OpenBrowser,
     /// No-op (used as a sentinel).
     None,
 }

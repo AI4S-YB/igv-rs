@@ -471,6 +471,8 @@ impl AppState {
                 }
                 None
             }
+            // Handled by ServeController in the main event loop (Task 12).
+            Action::OpenBrowser => None,
             Action::None => None,
         }
     }
