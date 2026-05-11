@@ -28,6 +28,7 @@ use igv_core::source::link::{open_link, LinkFormat};
 
 use igv_tui::app::action::Action;
 use igv_tui::app::loader::{LoadResult, Loader};
+use igv_tui::app::serve::ServeController;
 use igv_tui::app::state::{
     AppState, BamTrack, LinkTrack, SignalTrack, StatusKind,
     ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT, LINK_DEFAULT_HEIGHT, SIGNAL_DEFAULT_HEIGHT,
@@ -320,6 +321,13 @@ async fn main() -> anyhow::Result<()> {
     let mut palette = CommandPalette::default();
     let mut events = EventStream::new();
 
+    let mut serve_controller = ServeController::new(
+        !args.no_browser,
+        args.serve_port,
+        args.fasta.clone(),
+        args.vcf.clone(),
+    );
+
     let result = run_loop(
         &mut terminal,
         &mut state,
@@ -328,12 +336,15 @@ async fn main() -> anyhow::Result<()> {
         &mut events,
         &mut input_state,
         &mut palette,
+        &mut serve_controller,
     )
     .await;
 
     disable_raw_mode().ok();
     execute!(terminal.backend_mut(), LeaveAlternateScreen).ok();
     terminal.show_cursor().ok();
+
+    serve_controller.shutdown().await;
 
     if let Err(e) = result {
         error!("fatal: {e}");
@@ -351,6 +362,7 @@ async fn run_loop(
     events: &mut EventStream,
     input_state: &mut InputState,
     palette: &mut CommandPalette,
+    serve_controller: &mut ServeController,
 ) -> anyhow::Result<()> {
     while !state.should_quit {
         terminal.draw(|f| draw(f, state))?;
@@ -395,7 +407,12 @@ async fn run_loop(
                         }
                         act
                     };
-                    if let Some(req) = state.apply(action) {
+                    if matches!(action, Action::OpenBrowser) {
+                        match serve_controller.open(state).await {
+                            Ok(url) => state.set_status(StatusKind::Info, format!("browser → {url}")),
+                            Err(e) => state.set_status(StatusKind::Error, format!("serve failed: {e}")),
+                        }
+                    } else if let Some(req) = state.apply(action) {
                         loader.dispatch(req);
                     }
                     drain_snapshot(state);
@@ -409,6 +426,7 @@ async fn run_loop(
                         state.loaded_count = state.loaded_count.saturating_add(1);
                         if state.loaded_count >= state.expected_loads() {
                             state.loading = false;
+                            serve_controller.notify_view(state);
                         }
                     }
                 }
