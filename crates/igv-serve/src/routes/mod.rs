@@ -8,6 +8,7 @@ pub mod features;
 pub mod file;
 pub mod index;
 pub mod jump;
+pub mod sse;
 
 pub fn build(state: ServerState) -> Router {
     Router::new()
@@ -17,5 +18,6 @@ pub fn build(state: ServerState) -> Router {
         .merge(features::router())
         .merge(file::router())
         .merge(jump::router())
+        .merge(sse::router())
         .with_state(state)
 }

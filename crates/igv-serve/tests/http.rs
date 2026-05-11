@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use futures::StreamExt;
 use igv_serve::{spawn, ServerConfig, TrackEntry, ViewEvent};
 
 pub async fn empty_config() -> (ServerConfig, tempfile::TempDir) {
@@ -233,5 +234,42 @@ async fn api_jump_unknown_gene_returns_404() {
         .await
         .unwrap();
     assert_eq!(resp.status(), reqwest::StatusCode::NOT_FOUND);
+    h.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn sse_emits_pushed_view_event() {
+    let (cfg, _dir) = empty_config().await;
+    let h = spawn(cfg).await.unwrap();
+    let url = format!("http://{}/api/sse", h.addr);
+    let client = reqwest::Client::new();
+    let mut stream = client.get(&url).send().await.unwrap().bytes_stream();
+    // Give the server a tick to attach the receiver.
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    h.push_view(ViewEvent { chrom: "chr2".into(), start: 5, end: 10 });
+    let mut got = String::new();
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() {
+            panic!("timed out waiting for SSE event; got so far={got:?}");
+        }
+        match tokio::time::timeout(remaining, stream.next()).await {
+            Ok(Some(Ok(chunk))) => {
+                got.push_str(&String::from_utf8_lossy(&chunk));
+                if got.contains("\"chrom\":\"chr2\"") {
+                    break;
+                }
+            }
+            Ok(Some(Err(e))) => panic!("SSE stream error: {e}"),
+            Ok(None) => panic!("SSE stream ended; got={got:?}"),
+            Err(_) => panic!("SSE timeout at 5s; got={got:?}"),
+        }
+    }
+    assert!(got.contains("event: view"));
+    assert!(got.contains(r#""start":5"#));
+    // Drop the SSE stream so graceful shutdown can complete; otherwise
+    // axum waits for the in-flight (infinite) connection to close.
+    drop(stream);
     h.shutdown().await;
 }
