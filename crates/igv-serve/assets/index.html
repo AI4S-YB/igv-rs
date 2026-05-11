@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>igv-rs browser view</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #fff; font-family: system-ui, sans-serif; }
+      #igv-root { height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <div id="igv-root"></div>
+    <script type="module">
+      import igv from "/assets/igv.esm.min.js";
+      const cfg = await fetch("/api/config").then(r => r.json());
+      const browser = await igv.createBrowser(document.getElementById("igv-root"), cfg);
+      const es = new EventSource("/api/sse");
+      es.addEventListener("view", e => {
+        const { chrom, start, end } = JSON.parse(e.data);
+        browser.search(`${chrom}:${start}-${end}`);
+      });
+    </script>
+  </body>
+</html>

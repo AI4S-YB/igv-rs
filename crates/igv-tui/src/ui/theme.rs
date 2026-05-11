@@ -75,93 +75,209 @@ pub struct Theme {
 impl Theme {
     pub fn dark() -> Self {
         let mut m = HashMap::new();
-        m.insert("A".into(), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
-        m.insert("C".into(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
-        m.insert("G".into(), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
-        m.insert("T".into(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
+        m.insert(
+            "A".into(),
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "C".into(),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "G".into(),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "T".into(),
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        );
         m.insert("N".into(), Style::default().fg(Color::White));
         m.insert("MATCH_FWD".into(), Style::default().fg(Color::Cyan));
         m.insert("MATCH_REV".into(), Style::default().fg(Color::Magenta));
         m.insert(
             "MISMATCH".into(),
-            Style::default().fg(Color::White).bg(Color::Red).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::White)
+                .bg(Color::Red)
+                .add_modifier(Modifier::BOLD),
         );
         m.insert(
             "DELETION".into(),
-            Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
         );
         m.insert(
             "INSERTION".into(),
-            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
         );
         m.insert(
             "VARIANT".into(),
-            Style::default().fg(Color::White).bg(Color::Green).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::White)
+                .bg(Color::Green)
+                .add_modifier(Modifier::BOLD),
         );
         m.insert(
             "HEADER".into(),
-            Style::default().fg(Color::White).bg(Color::DarkGray).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::White)
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
         );
-        m.insert("FOOTER".into(), Style::default().fg(Color::White).bg(Color::DarkGray));
+        m.insert(
+            "FOOTER".into(),
+            Style::default().fg(Color::White).bg(Color::DarkGray),
+        );
         m.insert("OVERVIEW".into(), Style::default().fg(Color::Yellow));
         m.insert("BORDER".into(), Style::default().fg(Color::DarkGray));
         m.insert("COVERAGE".into(), Style::default().fg(Color::Cyan));
         m.insert("SIGNAL".into(), Style::default().fg(Color::Cyan));
         m.insert("LINK".into(), Style::default().fg(Color::Magenta));
         m.insert("WARNING".into(), Style::default().fg(Color::Yellow));
-        m.insert("ERROR".into(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ERROR".into(),
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        );
         m.insert("SUCCESS".into(), Style::default().fg(Color::Green));
-        m.insert("ANNOTATION_EXON".into(), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_EXON".into(),
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        );
         m.insert("ANNOTATION_UTR".into(), Style::default().fg(Color::Green));
-        m.insert("ANNOTATION_INTRON".into(), Style::default().fg(Color::DarkGray));
-        m.insert("ANNOTATION_NAME".into(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
-        m.insert("ANNOTATION_STRAND".into(), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_INTRON".into(),
+            Style::default().fg(Color::DarkGray),
+        );
+        m.insert(
+            "ANNOTATION_NAME".into(),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "ANNOTATION_STRAND".into(),
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        );
         Self { map: m }
     }
 
     pub fn light() -> Self {
         let mut m = HashMap::new();
-        m.insert("A".into(), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
-        m.insert("C".into(), Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD));
-        m.insert("G".into(), Style::default().fg(Color::Rgb(180, 100, 0)).add_modifier(Modifier::BOLD));
-        m.insert("T".into(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
+        m.insert(
+            "A".into(),
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "C".into(),
+            Style::default()
+                .fg(Color::Blue)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "G".into(),
+            Style::default()
+                .fg(Color::Rgb(180, 100, 0))
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "T".into(),
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        );
         m.insert("N".into(), Style::default().fg(Color::Black));
         m.insert("MATCH_FWD".into(), Style::default().fg(Color::Blue));
         m.insert("MATCH_REV".into(), Style::default().fg(Color::Magenta));
         m.insert(
             "MISMATCH".into(),
-            Style::default().fg(Color::White).bg(Color::Red).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::White)
+                .bg(Color::Red)
+                .add_modifier(Modifier::BOLD),
         );
         m.insert(
             "DELETION".into(),
-            Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
         );
         m.insert(
             "INSERTION".into(),
-            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
         );
         m.insert(
             "VARIANT".into(),
-            Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         );
         m.insert(
             "HEADER".into(),
-            Style::default().fg(Color::Black).bg(Color::Green).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Green)
+                .add_modifier(Modifier::BOLD),
         );
-        m.insert("FOOTER".into(), Style::default().fg(Color::Black).bg(Color::Green));
-        m.insert("OVERVIEW".into(), Style::default().fg(Color::Rgb(200, 100, 0)));
+        m.insert(
+            "FOOTER".into(),
+            Style::default().fg(Color::Black).bg(Color::Green),
+        );
+        m.insert(
+            "OVERVIEW".into(),
+            Style::default().fg(Color::Rgb(200, 100, 0)),
+        );
         m.insert("BORDER".into(), Style::default().fg(Color::Gray));
         m.insert("COVERAGE".into(), Style::default().fg(Color::Blue));
         m.insert("SIGNAL".into(), Style::default().fg(Color::Blue));
         m.insert("LINK".into(), Style::default().fg(Color::Magenta));
-        m.insert("WARNING".into(), Style::default().fg(Color::Rgb(180, 100, 0)));
-        m.insert("ERROR".into(), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
+        m.insert(
+            "WARNING".into(),
+            Style::default().fg(Color::Rgb(180, 100, 0)),
+        );
+        m.insert(
+            "ERROR".into(),
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        );
         m.insert("SUCCESS".into(), Style::default().fg(Color::Green));
-        m.insert("ANNOTATION_EXON".into(), Style::default().fg(Color::Rgb(0, 100, 0)).add_modifier(Modifier::BOLD));
-        m.insert("ANNOTATION_UTR".into(), Style::default().fg(Color::Rgb(0, 100, 0)));
+        m.insert(
+            "ANNOTATION_EXON".into(),
+            Style::default()
+                .fg(Color::Rgb(0, 100, 0))
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "ANNOTATION_UTR".into(),
+            Style::default().fg(Color::Rgb(0, 100, 0)),
+        );
         m.insert("ANNOTATION_INTRON".into(), Style::default().fg(Color::Gray));
-        m.insert("ANNOTATION_NAME".into(), Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD));
-        m.insert("ANNOTATION_STRAND".into(), Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_NAME".into(),
+            Style::default()
+                .fg(Color::Blue)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "ANNOTATION_STRAND".into(),
+            Style::default()
+                .fg(Color::Blue)
+                .add_modifier(Modifier::BOLD),
+        );
         Self { map: m }
     }
 
@@ -196,18 +312,66 @@ impl Theme {
         let cyan = Color::Rgb(0x0e, 0x77, 0x90);
         let magenta = Color::Rgb(0xa6, 0x2c, 0x82);
         let mut m = HashMap::new();
-        m.insert("A".into(), Style::default().fg(green).bg(bg).add_modifier(Modifier::BOLD));
-        m.insert("C".into(), Style::default().fg(blue).bg(bg).add_modifier(Modifier::BOLD));
-        m.insert("G".into(), Style::default().fg(yellow).bg(bg).add_modifier(Modifier::BOLD));
-        m.insert("T".into(), Style::default().fg(red).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert(
+            "A".into(),
+            Style::default()
+                .fg(green)
+                .bg(bg)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "C".into(),
+            Style::default()
+                .fg(blue)
+                .bg(bg)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "G".into(),
+            Style::default()
+                .fg(yellow)
+                .bg(bg)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "T".into(),
+            Style::default().fg(red).bg(bg).add_modifier(Modifier::BOLD),
+        );
         m.insert("N".into(), Style::default().fg(ink).bg(bg));
         m.insert("MATCH_FWD".into(), Style::default().fg(blue).bg(bg));
         m.insert("MATCH_REV".into(), Style::default().fg(magenta).bg(bg));
-        m.insert("MISMATCH".into(), Style::default().fg(bg).bg(red).add_modifier(Modifier::BOLD));
-        m.insert("DELETION".into(), Style::default().fg(magenta).bg(bg).add_modifier(Modifier::BOLD));
-        m.insert("INSERTION".into(), Style::default().fg(green).bg(bg).add_modifier(Modifier::BOLD));
-        m.insert("VARIANT".into(), Style::default().fg(bg).bg(green).add_modifier(Modifier::BOLD));
-        m.insert("HEADER".into(), Style::default().fg(ink).bg(panel).add_modifier(Modifier::BOLD));
+        m.insert(
+            "MISMATCH".into(),
+            Style::default().fg(bg).bg(red).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "DELETION".into(),
+            Style::default()
+                .fg(magenta)
+                .bg(bg)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "INSERTION".into(),
+            Style::default()
+                .fg(green)
+                .bg(bg)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "VARIANT".into(),
+            Style::default()
+                .fg(bg)
+                .bg(green)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "HEADER".into(),
+            Style::default()
+                .fg(ink)
+                .bg(panel)
+                .add_modifier(Modifier::BOLD),
+        );
         m.insert("FOOTER".into(), Style::default().fg(ink).bg(panel));
         m.insert("OVERVIEW".into(), Style::default().fg(orange).bg(bg));
         m.insert("BORDER".into(), Style::default().fg(rule).bg(bg));
@@ -215,13 +379,37 @@ impl Theme {
         m.insert("SIGNAL".into(), Style::default().fg(cyan).bg(bg));
         m.insert("LINK".into(), Style::default().fg(magenta).bg(bg));
         m.insert("WARNING".into(), Style::default().fg(orange).bg(bg));
-        m.insert("ERROR".into(), Style::default().fg(red).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ERROR".into(),
+            Style::default().fg(red).bg(bg).add_modifier(Modifier::BOLD),
+        );
         m.insert("SUCCESS".into(), Style::default().fg(green).bg(bg));
-        m.insert("ANNOTATION_EXON".into(), Style::default().fg(green).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_EXON".into(),
+            Style::default()
+                .fg(green)
+                .bg(bg)
+                .add_modifier(Modifier::BOLD),
+        );
         m.insert("ANNOTATION_UTR".into(), Style::default().fg(green).bg(bg));
-        m.insert("ANNOTATION_INTRON".into(), Style::default().fg(muted).bg(bg));
-        m.insert("ANNOTATION_NAME".into(), Style::default().fg(blue).bg(bg).add_modifier(Modifier::BOLD));
-        m.insert("ANNOTATION_STRAND".into(), Style::default().fg(blue).bg(bg).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_INTRON".into(),
+            Style::default().fg(muted).bg(bg),
+        );
+        m.insert(
+            "ANNOTATION_NAME".into(),
+            Style::default()
+                .fg(blue)
+                .bg(bg)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "ANNOTATION_STRAND".into(),
+            Style::default()
+                .fg(blue)
+                .bg(bg)
+                .add_modifier(Modifier::BOLD),
+        );
         Self { map: m }
     }
 
@@ -240,18 +428,54 @@ impl Theme {
         let cyan = Color::Rgb(0x2a, 0xa1, 0x98);
         let green = Color::Rgb(0x85, 0x99, 0x00);
         let mut m = HashMap::new();
-        m.insert("A".into(), Style::default().fg(green).add_modifier(Modifier::BOLD));
-        m.insert("C".into(), Style::default().fg(cyan).add_modifier(Modifier::BOLD));
-        m.insert("G".into(), Style::default().fg(yellow).add_modifier(Modifier::BOLD));
-        m.insert("T".into(), Style::default().fg(red).add_modifier(Modifier::BOLD));
+        m.insert(
+            "A".into(),
+            Style::default().fg(green).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "C".into(),
+            Style::default().fg(cyan).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "G".into(),
+            Style::default().fg(yellow).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "T".into(),
+            Style::default().fg(red).add_modifier(Modifier::BOLD),
+        );
         m.insert("N".into(), Style::default().fg(base0));
         m.insert("MATCH_FWD".into(), Style::default().fg(cyan));
         m.insert("MATCH_REV".into(), Style::default().fg(magenta));
-        m.insert("MISMATCH".into(), Style::default().fg(base03).bg(red).add_modifier(Modifier::BOLD));
-        m.insert("DELETION".into(), Style::default().fg(magenta).add_modifier(Modifier::BOLD));
-        m.insert("INSERTION".into(), Style::default().fg(green).add_modifier(Modifier::BOLD));
-        m.insert("VARIANT".into(), Style::default().fg(base03).bg(green).add_modifier(Modifier::BOLD));
-        m.insert("HEADER".into(), Style::default().fg(base0).bg(base02).add_modifier(Modifier::BOLD));
+        m.insert(
+            "MISMATCH".into(),
+            Style::default()
+                .fg(base03)
+                .bg(red)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "DELETION".into(),
+            Style::default().fg(magenta).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "INSERTION".into(),
+            Style::default().fg(green).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "VARIANT".into(),
+            Style::default()
+                .fg(base03)
+                .bg(green)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "HEADER".into(),
+            Style::default()
+                .fg(base0)
+                .bg(base02)
+                .add_modifier(Modifier::BOLD),
+        );
         m.insert("FOOTER".into(), Style::default().fg(base0).bg(base02));
         m.insert("OVERVIEW".into(), Style::default().fg(yellow));
         m.insert("BORDER".into(), Style::default().fg(base01));
@@ -259,13 +483,25 @@ impl Theme {
         m.insert("SIGNAL".into(), Style::default().fg(cyan));
         m.insert("LINK".into(), Style::default().fg(magenta));
         m.insert("WARNING".into(), Style::default().fg(orange));
-        m.insert("ERROR".into(), Style::default().fg(red).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ERROR".into(),
+            Style::default().fg(red).add_modifier(Modifier::BOLD),
+        );
         m.insert("SUCCESS".into(), Style::default().fg(green));
-        m.insert("ANNOTATION_EXON".into(), Style::default().fg(green).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_EXON".into(),
+            Style::default().fg(green).add_modifier(Modifier::BOLD),
+        );
         m.insert("ANNOTATION_UTR".into(), Style::default().fg(green));
         m.insert("ANNOTATION_INTRON".into(), Style::default().fg(base01));
-        m.insert("ANNOTATION_NAME".into(), Style::default().fg(blue).add_modifier(Modifier::BOLD));
-        m.insert("ANNOTATION_STRAND".into(), Style::default().fg(blue).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_NAME".into(),
+            Style::default().fg(blue).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "ANNOTATION_STRAND".into(),
+            Style::default().fg(blue).add_modifier(Modifier::BOLD),
+        );
         Self { map: m }
     }
 
@@ -284,18 +520,54 @@ impl Theme {
         let cyan = Color::Rgb(0x2a, 0xa1, 0x98);
         let green = Color::Rgb(0x85, 0x99, 0x00);
         let mut m = HashMap::new();
-        m.insert("A".into(), Style::default().fg(green).add_modifier(Modifier::BOLD));
-        m.insert("C".into(), Style::default().fg(cyan).add_modifier(Modifier::BOLD));
-        m.insert("G".into(), Style::default().fg(yellow).add_modifier(Modifier::BOLD));
-        m.insert("T".into(), Style::default().fg(red).add_modifier(Modifier::BOLD));
+        m.insert(
+            "A".into(),
+            Style::default().fg(green).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "C".into(),
+            Style::default().fg(cyan).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "G".into(),
+            Style::default().fg(yellow).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "T".into(),
+            Style::default().fg(red).add_modifier(Modifier::BOLD),
+        );
         m.insert("N".into(), Style::default().fg(base00));
         m.insert("MATCH_FWD".into(), Style::default().fg(blue));
         m.insert("MATCH_REV".into(), Style::default().fg(magenta));
-        m.insert("MISMATCH".into(), Style::default().fg(Color::White).bg(red).add_modifier(Modifier::BOLD));
-        m.insert("DELETION".into(), Style::default().fg(magenta).add_modifier(Modifier::BOLD));
-        m.insert("INSERTION".into(), Style::default().fg(green).add_modifier(Modifier::BOLD));
-        m.insert("VARIANT".into(), Style::default().fg(base01).bg(yellow).add_modifier(Modifier::BOLD));
-        m.insert("HEADER".into(), Style::default().fg(base01).bg(base2).add_modifier(Modifier::BOLD));
+        m.insert(
+            "MISMATCH".into(),
+            Style::default()
+                .fg(Color::White)
+                .bg(red)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "DELETION".into(),
+            Style::default().fg(magenta).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "INSERTION".into(),
+            Style::default().fg(green).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "VARIANT".into(),
+            Style::default()
+                .fg(base01)
+                .bg(yellow)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "HEADER".into(),
+            Style::default()
+                .fg(base01)
+                .bg(base2)
+                .add_modifier(Modifier::BOLD),
+        );
         m.insert("FOOTER".into(), Style::default().fg(base01).bg(base2));
         m.insert("OVERVIEW".into(), Style::default().fg(orange));
         m.insert("BORDER".into(), Style::default().fg(base1));
@@ -303,13 +575,25 @@ impl Theme {
         m.insert("SIGNAL".into(), Style::default().fg(blue));
         m.insert("LINK".into(), Style::default().fg(magenta));
         m.insert("WARNING".into(), Style::default().fg(orange));
-        m.insert("ERROR".into(), Style::default().fg(red).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ERROR".into(),
+            Style::default().fg(red).add_modifier(Modifier::BOLD),
+        );
         m.insert("SUCCESS".into(), Style::default().fg(green));
-        m.insert("ANNOTATION_EXON".into(), Style::default().fg(green).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_EXON".into(),
+            Style::default().fg(green).add_modifier(Modifier::BOLD),
+        );
         m.insert("ANNOTATION_UTR".into(), Style::default().fg(green));
         m.insert("ANNOTATION_INTRON".into(), Style::default().fg(base1));
-        m.insert("ANNOTATION_NAME".into(), Style::default().fg(blue).add_modifier(Modifier::BOLD));
-        m.insert("ANNOTATION_STRAND".into(), Style::default().fg(blue).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_NAME".into(),
+            Style::default().fg(blue).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "ANNOTATION_STRAND".into(),
+            Style::default().fg(blue).add_modifier(Modifier::BOLD),
+        );
         Self { map: m }
     }
 
@@ -328,18 +612,51 @@ impl Theme {
         let red = Color::Rgb(0xff, 0x55, 0x55);
         let yellow = Color::Rgb(0xf1, 0xfa, 0x8c);
         let mut m = HashMap::new();
-        m.insert("A".into(), Style::default().fg(green).add_modifier(Modifier::BOLD));
-        m.insert("C".into(), Style::default().fg(cyan).add_modifier(Modifier::BOLD));
-        m.insert("G".into(), Style::default().fg(yellow).add_modifier(Modifier::BOLD));
-        m.insert("T".into(), Style::default().fg(red).add_modifier(Modifier::BOLD));
+        m.insert(
+            "A".into(),
+            Style::default().fg(green).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "C".into(),
+            Style::default().fg(cyan).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "G".into(),
+            Style::default().fg(yellow).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "T".into(),
+            Style::default().fg(red).add_modifier(Modifier::BOLD),
+        );
         m.insert("N".into(), Style::default().fg(fg));
         m.insert("MATCH_FWD".into(), Style::default().fg(cyan));
         m.insert("MATCH_REV".into(), Style::default().fg(pink));
-        m.insert("MISMATCH".into(), Style::default().fg(bg).bg(red).add_modifier(Modifier::BOLD));
-        m.insert("DELETION".into(), Style::default().fg(pink).add_modifier(Modifier::BOLD));
-        m.insert("INSERTION".into(), Style::default().fg(green).add_modifier(Modifier::BOLD));
-        m.insert("VARIANT".into(), Style::default().fg(bg).bg(green).add_modifier(Modifier::BOLD));
-        m.insert("HEADER".into(), Style::default().fg(bg).bg(purple).add_modifier(Modifier::BOLD));
+        m.insert(
+            "MISMATCH".into(),
+            Style::default().fg(bg).bg(red).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "DELETION".into(),
+            Style::default().fg(pink).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "INSERTION".into(),
+            Style::default().fg(green).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "VARIANT".into(),
+            Style::default()
+                .fg(bg)
+                .bg(green)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "HEADER".into(),
+            Style::default()
+                .fg(bg)
+                .bg(purple)
+                .add_modifier(Modifier::BOLD),
+        );
         m.insert("FOOTER".into(), Style::default().fg(fg).bg(current_line));
         m.insert("OVERVIEW".into(), Style::default().fg(orange));
         m.insert("BORDER".into(), Style::default().fg(comment));
@@ -347,13 +664,25 @@ impl Theme {
         m.insert("SIGNAL".into(), Style::default().fg(purple));
         m.insert("LINK".into(), Style::default().fg(pink));
         m.insert("WARNING".into(), Style::default().fg(yellow));
-        m.insert("ERROR".into(), Style::default().fg(red).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ERROR".into(),
+            Style::default().fg(red).add_modifier(Modifier::BOLD),
+        );
         m.insert("SUCCESS".into(), Style::default().fg(green));
-        m.insert("ANNOTATION_EXON".into(), Style::default().fg(green).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_EXON".into(),
+            Style::default().fg(green).add_modifier(Modifier::BOLD),
+        );
         m.insert("ANNOTATION_UTR".into(), Style::default().fg(green));
         m.insert("ANNOTATION_INTRON".into(), Style::default().fg(comment));
-        m.insert("ANNOTATION_NAME".into(), Style::default().fg(pink).add_modifier(Modifier::BOLD));
-        m.insert("ANNOTATION_STRAND".into(), Style::default().fg(pink).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_NAME".into(),
+            Style::default().fg(pink).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "ANNOTATION_STRAND".into(),
+            Style::default().fg(pink).add_modifier(Modifier::BOLD),
+        );
         Self { map: m }
     }
 
@@ -372,18 +701,54 @@ impl Theme {
         let aqua = Color::Rgb(0x8e, 0xc0, 0x7c);
         let orange = Color::Rgb(0xfe, 0x80, 0x19);
         let mut m = HashMap::new();
-        m.insert("A".into(), Style::default().fg(green).add_modifier(Modifier::BOLD));
-        m.insert("C".into(), Style::default().fg(aqua).add_modifier(Modifier::BOLD));
-        m.insert("G".into(), Style::default().fg(yellow).add_modifier(Modifier::BOLD));
-        m.insert("T".into(), Style::default().fg(red).add_modifier(Modifier::BOLD));
+        m.insert(
+            "A".into(),
+            Style::default().fg(green).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "C".into(),
+            Style::default().fg(aqua).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "G".into(),
+            Style::default().fg(yellow).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "T".into(),
+            Style::default().fg(red).add_modifier(Modifier::BOLD),
+        );
         m.insert("N".into(), Style::default().fg(fg1));
         m.insert("MATCH_FWD".into(), Style::default().fg(blue));
         m.insert("MATCH_REV".into(), Style::default().fg(purple));
-        m.insert("MISMATCH".into(), Style::default().fg(bg0).bg(red).add_modifier(Modifier::BOLD));
-        m.insert("DELETION".into(), Style::default().fg(purple).add_modifier(Modifier::BOLD));
-        m.insert("INSERTION".into(), Style::default().fg(green).add_modifier(Modifier::BOLD));
-        m.insert("VARIANT".into(), Style::default().fg(bg0).bg(yellow).add_modifier(Modifier::BOLD));
-        m.insert("HEADER".into(), Style::default().fg(bg0).bg(orange).add_modifier(Modifier::BOLD));
+        m.insert(
+            "MISMATCH".into(),
+            Style::default()
+                .fg(bg0)
+                .bg(red)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "DELETION".into(),
+            Style::default().fg(purple).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "INSERTION".into(),
+            Style::default().fg(green).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "VARIANT".into(),
+            Style::default()
+                .fg(bg0)
+                .bg(yellow)
+                .add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "HEADER".into(),
+            Style::default()
+                .fg(bg0)
+                .bg(orange)
+                .add_modifier(Modifier::BOLD),
+        );
         m.insert("FOOTER".into(), Style::default().fg(fg1).bg(bg2));
         m.insert("OVERVIEW".into(), Style::default().fg(orange));
         m.insert("BORDER".into(), Style::default().fg(gray));
@@ -391,13 +756,25 @@ impl Theme {
         m.insert("SIGNAL".into(), Style::default().fg(orange));
         m.insert("LINK".into(), Style::default().fg(purple));
         m.insert("WARNING".into(), Style::default().fg(yellow));
-        m.insert("ERROR".into(), Style::default().fg(red).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ERROR".into(),
+            Style::default().fg(red).add_modifier(Modifier::BOLD),
+        );
         m.insert("SUCCESS".into(), Style::default().fg(green));
-        m.insert("ANNOTATION_EXON".into(), Style::default().fg(green).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_EXON".into(),
+            Style::default().fg(green).add_modifier(Modifier::BOLD),
+        );
         m.insert("ANNOTATION_UTR".into(), Style::default().fg(green));
         m.insert("ANNOTATION_INTRON".into(), Style::default().fg(gray));
-        m.insert("ANNOTATION_NAME".into(), Style::default().fg(orange).add_modifier(Modifier::BOLD));
-        m.insert("ANNOTATION_STRAND".into(), Style::default().fg(orange).add_modifier(Modifier::BOLD));
+        m.insert(
+            "ANNOTATION_NAME".into(),
+            Style::default().fg(orange).add_modifier(Modifier::BOLD),
+        );
+        m.insert(
+            "ANNOTATION_STRAND".into(),
+            Style::default().fg(orange).add_modifier(Modifier::BOLD),
+        );
         Self { map: m }
     }
 
@@ -455,6 +832,38 @@ pub fn load_theme(
         theme.merge_overrides(&cfg.custom);
     }
     (preset, theme)
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ServeConfig {
+    #[serde(default = "default_auto_open")]
+    pub auto_open: bool,
+    #[serde(default)]
+    pub port: u16,
+}
+
+impl Default for ServeConfig {
+    fn default() -> Self {
+        Self {
+            auto_open: true,
+            port: 0,
+        }
+    }
+}
+
+fn default_auto_open() -> bool {
+    true
+}
+
+/// Load the `[serve]` section from the optional config TOML. Missing file,
+/// unparseable TOML, or missing section all fall back to defaults.
+pub fn load_serve_config(config_path: Option<&Path>) -> ServeConfig {
+    let parsed: Option<ServeConfig> = config_path
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| toml::from_str::<HashMap<String, toml::Value>>(&s).ok())
+        .and_then(|m| m.get("serve").cloned())
+        .and_then(|v| v.try_into().ok());
+    parsed.unwrap_or_default()
 }
 
 fn parse_style(s: &str) -> Option<Style> {
@@ -543,14 +952,32 @@ mod tests {
         // Widgets read these keys by name; a missing key would show up as the
         // default style. Guard all presets against accidentally dropping one.
         const REQUIRED: &[&str] = &[
-            "A", "C", "G", "T", "N",
-            "MATCH_FWD", "MATCH_REV", "MISMATCH",
-            "DELETION", "INSERTION", "VARIANT",
-            "HEADER", "FOOTER", "OVERVIEW", "BORDER",
-            "COVERAGE", "SIGNAL", "LINK",
-            "WARNING", "ERROR", "SUCCESS",
-            "ANNOTATION_EXON", "ANNOTATION_UTR", "ANNOTATION_INTRON",
-            "ANNOTATION_NAME", "ANNOTATION_STRAND",
+            "A",
+            "C",
+            "G",
+            "T",
+            "N",
+            "MATCH_FWD",
+            "MATCH_REV",
+            "MISMATCH",
+            "DELETION",
+            "INSERTION",
+            "VARIANT",
+            "HEADER",
+            "FOOTER",
+            "OVERVIEW",
+            "BORDER",
+            "COVERAGE",
+            "SIGNAL",
+            "LINK",
+            "WARNING",
+            "ERROR",
+            "SUCCESS",
+            "ANNOTATION_EXON",
+            "ANNOTATION_UTR",
+            "ANNOTATION_INTRON",
+            "ANNOTATION_NAME",
+            "ANNOTATION_STRAND",
         ];
         for &p in &ThemePreset::ALL {
             let theme = Theme::for_preset(p);
@@ -576,8 +1003,42 @@ mod tests {
             ThemePreset::parse("solarized_dark"),
             Some(ThemePreset::SolarizedDark)
         );
-        assert_eq!(ThemePreset::parse("gruvbox"), Some(ThemePreset::GruvboxDark));
+        assert_eq!(
+            ThemePreset::parse("gruvbox"),
+            Some(ThemePreset::GruvboxDark)
+        );
         assert_eq!(ThemePreset::parse("DRACULA"), Some(ThemePreset::Dracula));
         assert_eq!(ThemePreset::parse("nope"), None);
+    }
+
+    #[test]
+    fn missing_file_yields_defaults() {
+        let cfg = load_serve_config(Some(Path::new("/nonexistent/path.toml")));
+        assert!(cfg.auto_open);
+        assert_eq!(cfg.port, 0);
+    }
+
+    #[test]
+    fn missing_section_yields_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("c.toml");
+        std::fs::write(&p, "[theme]\npreset = \"dark\"\n").unwrap();
+        let cfg = load_serve_config(Some(&p));
+        assert!(cfg.auto_open);
+        assert_eq!(cfg.port, 0);
+    }
+
+    #[test]
+    fn reads_serve_table() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("c.toml");
+        let mut f = std::fs::File::create(&p).unwrap();
+        writeln!(f, "[serve]").unwrap();
+        writeln!(f, "auto_open = false").unwrap();
+        writeln!(f, "port = 9001").unwrap();
+        let cfg = load_serve_config(Some(&p));
+        assert!(!cfg.auto_open);
+        assert_eq!(cfg.port, 9001);
     }
 }

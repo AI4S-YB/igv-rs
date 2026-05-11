@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use igv_core::region::Region;
 use igv_core::render::{RenderMode, Thresholds};
-use igv_core::source::{BamSource, FastaSource, FetchOpts, RefMeta, VcfSource};
 use igv_core::source::bam::AlignmentRow;
 use igv_core::source::vcf::VariantRecord;
+use igv_core::source::{BamSource, FastaSource, FetchOpts, RefMeta, VcfSource};
 
 use crate::app::action::{Action, SnapshotFormat};
 use crate::app::loader::LoadRequest;
@@ -308,11 +308,9 @@ impl AppState {
                     .unwrap_or(0)
                     .saturating_sub(1);
                 if delta > 0 {
-                    self.bam_scroll =
-                        self.bam_scroll.saturating_add(delta as u16).min(cap);
+                    self.bam_scroll = self.bam_scroll.saturating_add(delta as u16).min(cap);
                 } else {
-                    self.bam_scroll =
-                        self.bam_scroll.saturating_sub((-delta) as u16);
+                    self.bam_scroll = self.bam_scroll.saturating_sub((-delta) as u16);
                 }
                 None
             }
@@ -359,10 +357,7 @@ impl AppState {
                 let trimmed = buf.trim();
                 if let Some((path, format)) = parse_snapshot_command(trimmed) {
                     if self.loading {
-                        self.set_status(
-                            StatusKind::Warning,
-                            "snapshot: still loading, try again",
-                        );
+                        self.set_status(StatusKind::Warning, "snapshot: still loading, try again");
                     } else {
                         self.pending_snapshot = Some(SnapshotJob {
                             path: Some(path),
@@ -376,9 +371,10 @@ impl AppState {
                 // only when the chromosome actually exists in the loaded
                 // references; otherwise fall through to gene-name lookup.
                 let parse = Region::parse(trimmed);
-                let parsed_known = parse.as_ref().ok().map(|r| {
-                    self.references.iter().any(|m| m.name == r.chrom)
-                });
+                let parsed_known = parse
+                    .as_ref()
+                    .ok()
+                    .map(|r| self.references.iter().any(|m| m.name == r.chrom));
                 match (parse, parsed_known) {
                     (Ok(r), Some(true)) => self.set_region_pending(r),
                     (parse_result, _) => match self.find_gene_region(trimmed) {
@@ -419,7 +415,11 @@ impl AppState {
             },
             Action::ToggleSignalSharedScale => {
                 self.signal_shared_scale = !self.signal_shared_scale;
-                let mode = if self.signal_shared_scale { "shared" } else { "per-track" };
+                let mode = if self.signal_shared_scale {
+                    "shared"
+                } else {
+                    "per-track"
+                };
                 self.set_status(StatusKind::Info, format!("signal scale: {mode}"));
                 None
             }
@@ -471,6 +471,8 @@ impl AppState {
                 }
                 None
             }
+            // Handled by ServeController in the main event loop (Task 12).
+            Action::OpenBrowser => None,
             Action::None => None,
         }
     }
@@ -481,35 +483,8 @@ impl AppState {
     /// transcripts on the same chromosome (so multi-isoform genes show all
     /// isoforms at once), plus a label suitable for the status line.
     fn find_gene_region(&self, query: &str) -> Option<(Region, String)> {
-        if query.is_empty() {
-            return None;
-        }
-        // First match wins; subsequent matches on the same chrom expand the
-        // span (matches across chromosomes are kept on the first chrom seen).
-        let mut chrom: Option<String> = None;
-        let mut span: Option<(u64, u64)> = None;
-        let mut label: Option<String> = None;
-        for track in &self.annotations {
-            for (c, tx) in track.source.find_by_name(query) {
-                let Some((s, e)) = tx.span() else { continue };
-                match &chrom {
-                    None => {
-                        chrom = Some(c);
-                        span = Some((s, e));
-                        label = Some(tx.name.clone());
-                    }
-                    Some(existing) if existing == &c => {
-                        let (cs, ce) = span.unwrap();
-                        span = Some((cs.min(s), ce.max(e)));
-                    }
-                    Some(_) => {}
-                }
-            }
-        }
-        let chrom = chrom?;
-        let (s, e) = span?;
-        let region = Region::new(chrom, s, e).ok()?;
-        let label = label.unwrap_or_else(|| query.to_string());
+        let sources: Vec<_> = self.annotations.iter().map(|t| t.source.clone()).collect();
+        let (region, label) = igv_core::source::annotation::find_by_name_union(&sources, query)?;
         let status = format!("{label} ({region})");
         Some((region, status))
     }
@@ -570,8 +545,8 @@ mod tests {
     #[test]
     fn signal_bins_for_width_clamps_low_and_high() {
         assert_eq!(signal_bins_for_width(0), 64);
-        assert_eq!(signal_bins_for_width(20), 64);     // 20*2=40 → clamped up
-        assert_eq!(signal_bins_for_width(80), 160);    // 80*2 sits in range
+        assert_eq!(signal_bins_for_width(20), 64); // 20*2=40 → clamped up
+        assert_eq!(signal_bins_for_width(80), 160); // 80*2 sits in range
         assert_eq!(signal_bins_for_width(200), 400);
         assert_eq!(signal_bins_for_width(4000), 4096); // 4000*2=8000 → clamped down
     }
@@ -649,16 +624,19 @@ mod tests {
 
     #[cfg(test)]
     fn test_state_with_links(n_links: usize) -> AppState {
-        use std::sync::Arc;
-        use igv_core::source::link::{FetchLinkOpts, LinkSource};
         use async_trait::async_trait;
+        use igv_core::source::link::{FetchLinkOpts, LinkSource};
+        use std::sync::Arc;
 
         #[derive(Debug)]
         struct StubFasta;
         #[async_trait]
         impl igv_core::source::FastaSource for StubFasta {
             async fn references(&self) -> igv_core::error::Result<Vec<igv_core::source::RefMeta>> {
-                Ok(vec![igv_core::source::RefMeta { name: "chr1".into(), length: 1_000_000 }])
+                Ok(vec![igv_core::source::RefMeta {
+                    name: "chr1".into(),
+                    length: 1_000_000,
+                }])
             }
             async fn fetch(&self, _r: &Region) -> igv_core::error::Result<Vec<u8>> {
                 Ok(Vec::new())
@@ -676,8 +654,12 @@ mod tests {
             ) -> igv_core::error::Result<Vec<igv_core::source::link::VisibleLink>> {
                 Ok(Vec::new())
             }
-            fn display_name(&self) -> &str { "stub" }
-            fn record_count(&self) -> usize { 0 }
+            fn display_name(&self) -> &str {
+                "stub"
+            }
+            fn record_count(&self) -> usize {
+                0
+            }
         }
 
         let mut links = Vec::new();
@@ -692,7 +674,10 @@ mod tests {
             fasta: Arc::new(StubFasta),
             vcf: None,
             bams: vec![],
-            references: vec![igv_core::source::RefMeta { name: "chr1".into(), length: 1_000_000 }],
+            references: vec![igv_core::source::RefMeta {
+                name: "chr1".into(),
+                length: 1_000_000,
+            }],
             region: Region::new("chr1", 1, 1000).unwrap(),
             reference_seq: vec![],
             variants: vec![],

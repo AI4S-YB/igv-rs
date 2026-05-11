@@ -53,8 +53,12 @@ const SECTIONS: &[Section] = &[
     (
         "Misc",
         &[
-            ("t", "cycle theme (dark / light / paper / solarized / dracula / gruvbox)"),
+            (
+                "t",
+                "cycle theme (dark / light / paper / solarized / dracula / gruvbox)",
+            ),
             ("S", "save SVG snapshot of current view"),
+            ("B", "open browser view (igv.js)"),
             ("?", "toggle this help"),
             ("q / Ctrl-C", "quit"),
         ],
@@ -94,10 +98,7 @@ fn build_lines(theme: &Theme) -> Vec<Line<'static>> {
         if i > 0 {
             lines.push(Line::from(""));
         }
-        lines.push(Line::from(Span::styled(
-            format!(" {title} "),
-            title_style,
-        )));
+        lines.push(Line::from(Span::styled(format!(" {title} "), title_style)));
         for (key, desc) in *entries {
             let pad = " ".repeat(key_w.saturating_sub(key.chars().count()));
             lines.push(Line::from(vec![
@@ -136,7 +137,12 @@ fn content_width() -> u16 {
 fn centered(area: Rect, w: u16, h: u16) -> Rect {
     let x = area.x + area.width.saturating_sub(w) / 2;
     let y = area.y + area.height.saturating_sub(h) / 2;
-    Rect { x, y, width: w, height: h }
+    Rect {
+        x,
+        y,
+        width: w,
+        height: h,
+    }
 }
 
 #[cfg(test)]

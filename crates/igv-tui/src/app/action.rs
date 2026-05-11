@@ -22,7 +22,10 @@ impl SnapshotFormat {
 #[derive(Debug, Clone)]
 pub enum Action {
     /// Save the current view to disk. `path = None` → auto-named in cwd.
-    SaveSnapshot { path: Option<std::path::PathBuf>, format: SnapshotFormat },
+    SaveSnapshot {
+        path: Option<std::path::PathBuf>,
+        format: SnapshotFormat,
+    },
     /// Move forward/backward. `large=false` shifts by 1/10 of the window
     /// (fine step, `h`/`l`); `large=true` shifts by a full window
     /// (page step, `a`/`d` and arrow keys).
@@ -61,6 +64,8 @@ pub enum Action {
     CloseHelp,
     /// Quit the application.
     Quit,
+    /// Open a browser window showing the current view via igv-serve.
+    OpenBrowser,
     /// No-op (used as a sentinel).
     None,
 }
