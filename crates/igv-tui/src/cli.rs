@@ -127,12 +127,7 @@ mod tests {
 
     #[test]
     fn no_browser_and_serve_port_parse() {
-        let cli = Cli::parse_from([
-            "igv-rs",
-            "ref.fa",
-            "--no-browser",
-            "--serve-port", "9001",
-        ]);
+        let cli = Cli::parse_from(["igv-rs", "ref.fa", "--no-browser", "--serve-port", "9001"]);
         assert!(cli.no_browser);
         assert_eq!(cli.serve_port, 9001);
     }

@@ -16,7 +16,10 @@ pub fn router() -> Router<ServerState> {
 async fn igvjs() -> Response {
     (
         [
-            (header::CONTENT_TYPE, "application/javascript; charset=utf-8"),
+            (
+                header::CONTENT_TYPE,
+                "application/javascript; charset=utf-8",
+            ),
             (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
         ],
         IGV_JS,

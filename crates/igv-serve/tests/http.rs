@@ -21,7 +21,11 @@ pub async fn empty_config() -> (ServerConfig, tempfile::TempDir) {
         annotations: vec![],
         signals: vec![],
         links: vec![],
-        initial: ViewEvent { chrom: "chr1".into(), start: 0, end: 4 },
+        initial: ViewEvent {
+            chrom: "chr1".into(),
+            start: 0,
+            end: 4,
+        },
         link_min_score: None,
     };
     (cfg, dir)
@@ -49,7 +53,12 @@ async fn assets_serves_igvjs() {
         .await
         .unwrap();
     assert!(resp.status().is_success());
-    let ct = resp.headers().get("content-type").unwrap().to_str().unwrap();
+    let ct = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(ct.starts_with("application/javascript"));
     assert!(resp.bytes().await.unwrap().len() > 1000);
     h.shutdown().await;
@@ -127,7 +136,10 @@ async fn config_with_bed(bed_body: &str) -> (ServerConfig, tempfile::TempDir, te
     (cfg, fa_dir, bed_dir)
 }
 
-async fn config_with_bedpe(body: &str, min_score: Option<f64>) -> (ServerConfig, tempfile::TempDir, tempfile::TempDir) {
+async fn config_with_bedpe(
+    body: &str,
+    min_score: Option<f64>,
+) -> (ServerConfig, tempfile::TempDir, tempfile::TempDir) {
     let (mut cfg, fa_dir) = empty_config().await;
     let bp_dir = tempfile::tempdir().unwrap();
     let bedpe = bp_dir.path().join("loops.bedpe");
@@ -190,7 +202,11 @@ async fn api_features_link_drops_below_min_score() {
     .await
     .unwrap();
     let arr = body.as_array().unwrap();
-    assert_eq!(arr.len(), 1, "expected only loop_b (score>=5.0), got: {body}");
+    assert_eq!(
+        arr.len(),
+        1,
+        "expected only loop_b (score>=5.0), got: {body}"
+    );
     assert_eq!(arr[0]["name"], "loop_b");
     h.shutdown().await;
 }
@@ -211,7 +227,10 @@ async fn api_jump_resolves_gene_name() {
     // Whatever shape comes back, the chrom must be chr1 and end must be > start.
     let start = body["start"].as_u64().expect("start should be u64");
     let end = body["end"].as_u64().expect("end should be u64");
-    assert!(end > start, "expected end > start, got start={start} end={end}");
+    assert!(
+        end > start,
+        "expected end > start, got start={start} end={end}"
+    );
     h.shutdown().await;
 }
 
@@ -246,7 +265,11 @@ async fn sse_emits_pushed_view_event() {
     let mut stream = client.get(&url).send().await.unwrap().bytes_stream();
     // Give the server a tick to attach the receiver.
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    h.push_view(ViewEvent { chrom: "chr2".into(), start: 5, end: 10 });
+    h.push_view(ViewEvent {
+        chrom: "chr2".into(),
+        start: 5,
+        end: 10,
+    });
     let mut got = String::new();
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {

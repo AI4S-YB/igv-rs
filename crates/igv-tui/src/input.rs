@@ -16,27 +16,19 @@ pub enum BookmarkOp {
 }
 
 impl InputState {
-    pub fn map(
-        &mut self,
-        event: &Event,
-        command_open: bool,
-    ) -> Action {
+    pub fn map(&mut self, event: &Event, command_open: bool) -> Action {
         self.map_with_help(event, command_open, false)
     }
 
-    pub fn map_with_help(
-        &mut self,
-        event: &Event,
-        command_open: bool,
-        help_open: bool,
-    ) -> Action {
-        if let Event::Key(KeyEvent { code, modifiers, .. }) = event {
+    pub fn map_with_help(&mut self, event: &Event, command_open: bool, help_open: bool) -> Action {
+        if let Event::Key(KeyEvent {
+            code, modifiers, ..
+        }) = event
+        {
             // While the help overlay is open, Ctrl-C still quits; any other
             // key dismisses the overlay (top-style any-key-to-close).
             if help_open {
-                if modifiers.contains(KeyModifiers::CONTROL)
-                    && matches!(code, KeyCode::Char('c'))
-                {
+                if modifiers.contains(KeyModifiers::CONTROL) && matches!(code, KeyCode::Char('c')) {
                     return Action::Quit;
                 }
                 return Action::CloseHelp;
@@ -66,14 +58,22 @@ impl InputState {
 
             return match code {
                 KeyCode::Char('q') => Action::Quit,
-                KeyCode::Char('a') | KeyCode::Left => {
-                    Action::Move { forward: false, large: true }
-                }
-                KeyCode::Char('d') | KeyCode::Right => {
-                    Action::Move { forward: true, large: true }
-                }
-                KeyCode::Char('h') => Action::Move { forward: false, large: false },
-                KeyCode::Char('l') => Action::Move { forward: true, large: false },
+                KeyCode::Char('a') | KeyCode::Left => Action::Move {
+                    forward: false,
+                    large: true,
+                },
+                KeyCode::Char('d') | KeyCode::Right => Action::Move {
+                    forward: true,
+                    large: true,
+                },
+                KeyCode::Char('h') => Action::Move {
+                    forward: false,
+                    large: false,
+                },
+                KeyCode::Char('l') => Action::Move {
+                    forward: true,
+                    large: false,
+                },
                 KeyCode::Char('w') | KeyCode::Up => Action::Zoom { zoom_in: true },
                 KeyCode::Char('s') | KeyCode::Down => Action::Zoom { zoom_in: false },
                 KeyCode::Char('j') => Action::ScrollAlignments(1),
@@ -129,7 +129,10 @@ mod tests {
         let mut s = InputState::default();
         assert!(matches!(
             s.map(&key('d'), false),
-            Action::Move { forward: true, large: true }
+            Action::Move {
+                forward: true,
+                large: true
+            }
         ));
     }
 
@@ -138,7 +141,10 @@ mod tests {
         let mut s = InputState::default();
         assert!(matches!(
             s.map(&key('l'), false),
-            Action::Move { forward: true, large: false }
+            Action::Move {
+                forward: true,
+                large: false
+            }
         ));
     }
 
@@ -147,21 +153,29 @@ mod tests {
         let mut s = InputState::default();
         assert!(matches!(
             s.map(&key('h'), false),
-            Action::Move { forward: false, large: false }
+            Action::Move {
+                forward: false,
+                large: false
+            }
         ));
     }
-
 
     #[test]
     fn j_scrolls_alignments_down() {
         let mut s = InputState::default();
-        assert!(matches!(s.map(&key('j'), false), Action::ScrollAlignments(1)));
+        assert!(matches!(
+            s.map(&key('j'), false),
+            Action::ScrollAlignments(1)
+        ));
     }
 
     #[test]
     fn plus_grows_alignments() {
         let mut s = InputState::default();
-        assert!(matches!(s.map(&key('+'), false), Action::ResizeAlignments(1)));
+        assert!(matches!(
+            s.map(&key('+'), false),
+            Action::ResizeAlignments(1)
+        ));
     }
 
     #[test]

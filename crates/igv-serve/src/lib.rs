@@ -96,7 +96,10 @@ pub async fn spawn(cfg: ServerConfig) -> Result<ServerHandle, ServeError> {
     let bind_addr = SocketAddr::new(cfg.bind, cfg.port);
     let listener = tokio::net::TcpListener::bind(bind_addr)
         .await
-        .map_err(|source| ServeError::BindFailed { addr: bind_addr, source })?;
+        .map_err(|source| ServeError::BindFailed {
+            addr: bind_addr,
+            source,
+        })?;
     let addr = listener.local_addr()?;
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
     let join = tokio::spawn(async move {
@@ -107,5 +110,10 @@ pub async fn spawn(cfg: ServerConfig) -> Result<ServerHandle, ServeError> {
             tracing::error!(?err, "igv-serve axum task ended with error");
         }
     });
-    Ok(ServerHandle { addr, events, join, shutdown: Some(shutdown_tx) })
+    Ok(ServerHandle {
+        addr,
+        events,
+        join,
+        shutdown: Some(shutdown_tx),
+    })
 }

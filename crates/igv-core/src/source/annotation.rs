@@ -10,8 +10,8 @@ use std::sync::Arc;
 use crate::error::{IgvError, Result};
 use crate::region::Region;
 
-pub mod gff;
 pub mod bed;
+pub mod gff;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Strand {
@@ -109,7 +109,11 @@ impl AnnotationFormat {
             .file_name()
             .and_then(|n| n.to_str())
             .map(|s| s.to_ascii_lowercase())?;
-        if lower.ends_with(".gff") || lower.ends_with(".gff3") || lower.ends_with(".gff.gz") || lower.ends_with(".gff3.gz") {
+        if lower.ends_with(".gff")
+            || lower.ends_with(".gff3")
+            || lower.ends_with(".gff.gz")
+            || lower.ends_with(".gff3.gz")
+        {
             return Some(Self::Gff3);
         }
         if lower.ends_with(".gtf") || lower.ends_with(".gtf.gz") {
@@ -235,9 +239,21 @@ mod tests {
             gene_id: None,
             strand: Strand::Forward,
             blocks: vec![
-                AnnotationBlock { start: 10, end: 20, kind: BlockKind::Cds },
-                AnnotationBlock { start: 50, end: 60, kind: BlockKind::Cds },
-                AnnotationBlock { start: 30, end: 40, kind: BlockKind::Cds },
+                AnnotationBlock {
+                    start: 10,
+                    end: 20,
+                    kind: BlockKind::Cds,
+                },
+                AnnotationBlock {
+                    start: 50,
+                    end: 60,
+                    kind: BlockKind::Cds,
+                },
+                AnnotationBlock {
+                    start: 30,
+                    end: 40,
+                    kind: BlockKind::Cds,
+                },
             ],
             kind: TranscriptKind::Mrna,
         };

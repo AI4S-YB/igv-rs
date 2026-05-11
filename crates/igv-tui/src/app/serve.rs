@@ -24,12 +24,7 @@ pub struct ServeController {
 }
 
 impl ServeController {
-    pub fn new(
-        auto_open: bool,
-        port: u16,
-        fasta_path: PathBuf,
-        vcf_path: Option<PathBuf>,
-    ) -> Self {
+    pub fn new(auto_open: bool, port: u16, fasta_path: PathBuf, vcf_path: Option<PathBuf>) -> Self {
         let vcf_display = vcf_path.as_ref().map(|p| {
             p.file_name()
                 .and_then(|n| n.to_str())

@@ -60,8 +60,16 @@ mod tests {
             kind: TranscriptKind::Other,
             strand: Strand::Forward,
             blocks: vec![
-                AnnotationBlock { start: 100, end: 200, kind: BlockKind::Exon },
-                AnnotationBlock { start: 300, end: 400, kind: BlockKind::Exon },
+                AnnotationBlock {
+                    start: 100,
+                    end: 200,
+                    kind: BlockKind::Exon,
+                },
+                AnnotationBlock {
+                    start: 300,
+                    end: 400,
+                    kind: BlockKind::Exon,
+                },
             ],
         }
     }
