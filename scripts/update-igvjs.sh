@@ -3,7 +3,8 @@
 set -euo pipefail
 IGVJS_VERSION="${IGVJS_VERSION:-3.0.5}"
 DEST="$(dirname "$0")/../crates/igv-serve/assets/igv.esm.min.js"
-curl -sSL \
+curl -fsSL \
   "https://cdn.jsdelivr.net/npm/igv@${IGVJS_VERSION}/dist/igv.esm.min.js" \
   -o "$DEST"
+echo "${IGVJS_VERSION}" >"${DEST}.version"
 echo "wrote $DEST (igv.js ${IGVJS_VERSION}, $(wc -c <"$DEST") bytes)"
