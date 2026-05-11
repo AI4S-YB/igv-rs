@@ -8,7 +8,21 @@ region annotations side-by-side in the terminal, with async non-blocking IO,
 adaptive zoom-level rendering, multi-track support, a vim-style command palette
 and bookmarks.
 
-## Build
+## Install
+
+```bash
+cargo install igv-rs
+```
+
+`cargo install` fetches the latest release from
+[crates.io](https://crates.io/crates/igv-rs) and places the `igv-rs`
+binary on your `PATH`. The browser-view companion (igv.js) is bundled
+into the binary, so no extra assets are needed.
+
+Pre-built binaries for Linux / macOS / Windows are also attached to
+each [GitHub Release](https://github.com/AI4S-YB/igv-rs/releases).
+
+### Build from source
 
 ```bash
 cargo build --release
@@ -203,12 +217,15 @@ limitations" below for which sections are wired up.
 
 - `crates/igv-core` — pure library: regions, async data sources, alignment
   expansion, coverage, render thresholds.
-- `crates/igv-tui` — `igv-rs` binary: clap CLI, ratatui custom widgets, tokio
-  main loop.
+- `crates/igv-render` — graphical (SVG / PNG) snapshot renderer.
+- `crates/igv-serve` — local HTTP server that bundles igv.js and mirrors
+  the TUI's view in a browser (loopback only).
+- `crates/igv-rs` — the `igv-rs` binary itself: clap CLI, ratatui custom
+  widgets, tokio main loop. Consumes the three sibling crates.
 - `crates/igv-core/src/source/signal.rs` — `SignalSource` trait + bigtools-backed `BigWigSignalSource`.
 - `crates/igv-core/src/source/link.rs` — `LinkSource` trait + `BedpeLinkSource`
   in-memory IntervalMap backend.
-- `crates/igv-tui/src/ui/widgets/link.rs` — adaptive arc / heatmap widget.
+- `crates/igv-rs/src/ui/widgets/link.rs` — adaptive arc / heatmap widget.
 - `crates/igv-render/src/svg/link.rs` — SVG painter (Bézier arcs +
   viridis-like color ramp).
 - `cligv/` — the project that inspired this work; kept locally as a reference
