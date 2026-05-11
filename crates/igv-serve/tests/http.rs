@@ -70,3 +70,44 @@ async fn api_config_emits_reference_and_locus() {
     assert!(body["tracks"].as_array().unwrap().is_empty());
     h.shutdown().await;
 }
+
+#[tokio::test]
+async fn file_fasta_supports_range() {
+    let (cfg, _dir) = empty_config().await;
+    let h = spawn(cfg).await.unwrap();
+    // empty_config writes ">chr1\nACGT\n" (11 bytes). Request a 4-byte
+    // range starting at offset 6 — that's "ACGT".
+    let resp = reqwest::Client::new()
+        .get(format!("http://{}/file/fasta", h.addr))
+        .header("Range", "bytes=6-9")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), reqwest::StatusCode::PARTIAL_CONTENT);
+    let body = resp.bytes().await.unwrap();
+    assert_eq!(&body[..], b"ACGT");
+    h.shutdown().await;
+}
+
+#[tokio::test]
+async fn file_fasta_index_returns_200() {
+    let (cfg, _dir) = empty_config().await;
+    let h = spawn(cfg).await.unwrap();
+    let resp = reqwest::get(format!("http://{}/file/fasta.fai", h.addr))
+        .await
+        .unwrap();
+    assert!(resp.status().is_success());
+    assert!(resp.bytes().await.unwrap().starts_with(b"chr1\t4"));
+    h.shutdown().await;
+}
+
+#[tokio::test]
+async fn file_unknown_kind_returns_404() {
+    let (cfg, _dir) = empty_config().await;
+    let h = spawn(cfg).await.unwrap();
+    let resp = reqwest::get(format!("http://{}/file/bam/0", h.addr))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), reqwest::StatusCode::NOT_FOUND);
+    h.shutdown().await;
+}

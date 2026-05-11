@@ -9,6 +9,7 @@ rust-version.workspace = true
 [dependencies]
 igv-core = { path = "../igv-core" }
 axum.workspace = true
+tower = { version = "0.5", features = ["util"] }
 tower-http.workspace = true
 tokio = { workspace = true, features = ["sync", "macros", "rt", "rt-multi-thread", "net", "fs"] }
 tokio-stream.workspace = true

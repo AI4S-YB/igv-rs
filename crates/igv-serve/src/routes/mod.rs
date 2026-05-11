@@ -4,6 +4,7 @@ use crate::state::ServerState;
 
 pub mod assets;
 pub mod config;
+pub mod file;
 pub mod index;
 
 pub fn build(state: ServerState) -> Router {
@@ -11,5 +12,6 @@ pub fn build(state: ServerState) -> Router {
         .merge(index::router())
         .merge(assets::router())
         .merge(config::router())
+        .merge(file::router())
         .with_state(state)
 }
