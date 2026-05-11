@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/igv-core", "crates/igv-render", "crates/igv-serve", "crates/igv-tui"]
 
 [workspace.package]
-version = "0.5.0"
+version = "0.7.0"
 edition = "2021"
 license = "MIT"
 authors = ["igv-rs contributors"]
