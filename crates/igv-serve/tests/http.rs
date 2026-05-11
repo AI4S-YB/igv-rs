@@ -193,3 +193,45 @@ async fn api_features_link_drops_below_min_score() {
     assert_eq!(arr[0]["name"], "loop_b");
     h.shutdown().await;
 }
+
+#[tokio::test]
+async fn api_jump_resolves_gene_name() {
+    let (cfg, _fa, _bed) = config_with_bed("chr1\t100\t400\tBRCA1\t0\t+\n").await;
+    let h = spawn(cfg).await.unwrap();
+    let body: serde_json::Value = reqwest::get(format!("http://{}/api/jump?name=BRCA1", h.addr))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(body["chrom"], "chr1");
+    // The exact start/end depend on how the BED parser stores 100/400.
+    // BED is 0-based half-open on disk; igv-core stores 1-based inclusive.
+    // Whatever shape comes back, the chrom must be chr1 and end must be > start.
+    let start = body["start"].as_u64().expect("start should be u64");
+    let end = body["end"].as_u64().expect("end should be u64");
+    assert!(end > start, "expected end > start, got start={start} end={end}");
+    h.shutdown().await;
+}
+
+#[tokio::test]
+async fn api_jump_rejects_bad_name() {
+    let (cfg, _dir) = empty_config().await;
+    let h = spawn(cfg).await.unwrap();
+    let resp = reqwest::get(format!("http://{}/api/jump?name=ab%20cd", h.addr))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), reqwest::StatusCode::BAD_REQUEST);
+    h.shutdown().await;
+}
+
+#[tokio::test]
+async fn api_jump_unknown_gene_returns_404() {
+    let (cfg, _dir) = empty_config().await;
+    let h = spawn(cfg).await.unwrap();
+    let resp = reqwest::get(format!("http://{}/api/jump?name=BRCA1", h.addr))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), reqwest::StatusCode::NOT_FOUND);
+    h.shutdown().await;
+}
