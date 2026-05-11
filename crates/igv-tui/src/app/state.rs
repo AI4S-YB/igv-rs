@@ -481,35 +481,8 @@ impl AppState {
     /// transcripts on the same chromosome (so multi-isoform genes show all
     /// isoforms at once), plus a label suitable for the status line.
     fn find_gene_region(&self, query: &str) -> Option<(Region, String)> {
-        if query.is_empty() {
-            return None;
-        }
-        // First match wins; subsequent matches on the same chrom expand the
-        // span (matches across chromosomes are kept on the first chrom seen).
-        let mut chrom: Option<String> = None;
-        let mut span: Option<(u64, u64)> = None;
-        let mut label: Option<String> = None;
-        for track in &self.annotations {
-            for (c, tx) in track.source.find_by_name(query) {
-                let Some((s, e)) = tx.span() else { continue };
-                match &chrom {
-                    None => {
-                        chrom = Some(c);
-                        span = Some((s, e));
-                        label = Some(tx.name.clone());
-                    }
-                    Some(existing) if existing == &c => {
-                        let (cs, ce) = span.unwrap();
-                        span = Some((cs.min(s), ce.max(e)));
-                    }
-                    Some(_) => {}
-                }
-            }
-        }
-        let chrom = chrom?;
-        let (s, e) = span?;
-        let region = Region::new(chrom, s, e).ok()?;
-        let label = label.unwrap_or_else(|| query.to_string());
+        let sources: Vec<_> = self.annotations.iter().map(|t| t.source.clone()).collect();
+        let (region, label) = igv_core::source::annotation::find_by_name_union(&sources, query)?;
         let status = format!("{label} ({region})");
         Some((region, status))
     }

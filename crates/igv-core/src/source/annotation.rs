@@ -154,6 +154,43 @@ pub async fn open_annotation(
     }
 }
 
+/// Multi-track gene-name → region resolver used by both the TUI command
+/// palette and the HTTP `/api/jump` endpoint. Returns the union span of
+/// all transcripts matching `query` on the first chromosome seen, plus a
+/// display label (the first matched transcript's `name`).
+pub fn find_by_name_union(
+    sources: &[std::sync::Arc<dyn AnnotationSource>],
+    query: &str,
+) -> Option<(crate::region::Region, String)> {
+    if query.is_empty() {
+        return None;
+    }
+    let mut chrom: Option<String> = None;
+    let mut span: Option<(u64, u64)> = None;
+    let mut label: Option<String> = None;
+    for src in sources {
+        for (c, tx) in src.find_by_name(query) {
+            let Some((s, e)) = tx.span() else { continue };
+            match &chrom {
+                None => {
+                    chrom = Some(c);
+                    span = Some((s, e));
+                    label = Some(tx.name.clone());
+                }
+                Some(existing) if existing == &c => {
+                    let (cs, ce) = span.unwrap();
+                    span = Some((cs.min(s), ce.max(e)));
+                }
+                Some(_) => {}
+            }
+        }
+    }
+    let chrom = chrom?;
+    let (s, e) = span?;
+    let region = crate::region::Region::new(chrom, s, e).ok()?;
+    Some((region, label.unwrap_or_else(|| query.to_string())))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,5 +255,74 @@ mod tests {
             kind: TranscriptKind::Other,
         };
         assert_eq!(t.span(), None);
+    }
+
+    use crate::region::Region;
+    use std::sync::Arc;
+
+    struct StubSource {
+        name: String,
+        rows: Vec<(String, AnnotationTranscript)>,
+    }
+
+    #[async_trait]
+    impl AnnotationSource for StubSource {
+        async fn fetch(&self, _region: &Region) -> crate::Result<Vec<AnnotationTranscript>> {
+            Ok(Vec::new())
+        }
+        fn display_name(&self) -> &str {
+            &self.name
+        }
+        fn find_by_name(&self, query: &str) -> Vec<(String, AnnotationTranscript)> {
+            let q = query.to_ascii_lowercase();
+            self.rows
+                .iter()
+                .filter(|(_, tx)| tx.name.to_ascii_lowercase() == q)
+                .cloned()
+                .collect()
+        }
+    }
+
+    fn tx(name: &str, blocks: &[(u64, u64)]) -> AnnotationTranscript {
+        AnnotationTranscript {
+            id: name.into(),
+            name: name.into(),
+            gene_id: None,
+            kind: TranscriptKind::Other,
+            strand: Strand::Forward,
+            blocks: blocks
+                .iter()
+                .map(|(s, e)| AnnotationBlock {
+                    start: *s,
+                    end: *e,
+                    kind: BlockKind::Exon,
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn find_by_name_union_unions_isoforms_on_same_chrom() {
+        let src: Arc<dyn AnnotationSource> = Arc::new(StubSource {
+            name: "stub".into(),
+            rows: vec![
+                ("chr1".into(), tx("BRCA1", &[(1000, 2000)])),
+                ("chr1".into(), tx("BRCA1", &[(1500, 3000)])),
+            ],
+        });
+        let (region, label) = find_by_name_union(&[src], "brca1").unwrap();
+        assert_eq!(region.chrom, "chr1");
+        assert_eq!(region.start, 1000);
+        assert_eq!(region.end, 3000);
+        assert_eq!(label, "BRCA1");
+    }
+
+    #[test]
+    fn find_by_name_union_misses_return_none() {
+        let src: Arc<dyn AnnotationSource> = Arc::new(StubSource {
+            name: "stub".into(),
+            rows: vec![],
+        });
+        assert!(find_by_name_union(&[src], "xyz").is_none());
     }
 }
