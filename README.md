@@ -144,8 +144,33 @@ column or the gene name when set).
   pure white.
 - `S` — save SVG snapshot of current view to
   `./snapshot_<chrom>_<s>_<e>.svg` (see "Snapshot export" above)
+- `B` — open browser view (igv.js); see "Browser view" above
 - `?` — toggle keybinding help overlay (any key closes it)
 - `q` / `Ctrl-C` — quit
+
+### Browser view (igv.js)
+
+Inside the TUI press `B` to launch a local HTTP server and open
+[igv.js](https://github.com/igvteam/igv.js) in your default browser. The
+browser starts at the TUI's current region and follows your navigation
+in real time:
+
+```bash
+igv-rs ref.fa -b sample.bam -g genes.gtf -l loops.bedpe
+# inside the TUI:
+#   B          → open browser view
+#   d/s/:gene  → browser tab follows
+#   q          → exits the TUI and shuts the server down
+```
+
+The server binds to `127.0.0.1` on an ephemeral port (override with
+`--serve-port`) and exposes only the tracks you passed on the CLI.
+Disable the keystroke entirely with `--no-browser`. No data leaves the
+loopback interface; there is no authentication and no remote-access
+support in v0.5 — use this for one-shot inspection on the same machine.
+
+`igv.js` itself is bundled into the binary, so the browser view works
+offline.
 
 ## Configuration
 
@@ -164,6 +189,10 @@ preset = "dark"
 "MISMATCH" = "bold white on red"
 "SIGNAL" = "cyan"
 "LINK" = "magenta"
+
+[serve]
+auto_open = true     # CLI --no-browser overrides
+port = 0             # CLI --serve-port overrides; 0 = ephemeral
 ```
 
 The full schema (with `[render]` and `[bookmarks]` tables) is described in
@@ -231,6 +260,8 @@ configuration knobs and refinements are tracked for follow-up:
 - **Per-window score normalization.** Adjacent panning frames may
   show slightly shifted colors for the same link as the visible
   score range moves. Acceptable for a no-config UX.
+- **Browser view is loopback-only.** Remote access (LAN / WAN), auth
+  tokens, and reverse browser → TUI sync are tracked as follow-up specs.
 
 ## Reference
 
