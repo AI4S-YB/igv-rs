@@ -17,6 +17,7 @@ use igv_core::source::{
 };
 
 pub mod error;
+pub mod feature_json;
 pub mod routes;
 pub mod state;
 pub mod view;

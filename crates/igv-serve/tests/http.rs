@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use igv_serve::{spawn, ServerConfig, ViewEvent};
+use igv_serve::{spawn, ServerConfig, TrackEntry, ViewEvent};
 
 pub async fn empty_config() -> (ServerConfig, tempfile::TempDir) {
     let dir = tempfile::tempdir().unwrap();
@@ -109,5 +109,87 @@ async fn file_unknown_kind_returns_404() {
         .await
         .unwrap();
     assert_eq!(resp.status(), reqwest::StatusCode::NOT_FOUND);
+    h.shutdown().await;
+}
+
+async fn config_with_bed(bed_body: &str) -> (ServerConfig, tempfile::TempDir, tempfile::TempDir) {
+    let (mut cfg, fa_dir) = empty_config().await;
+    let bed_dir = tempfile::tempdir().unwrap();
+    let bed = bed_dir.path().join("genes.bed");
+    std::fs::write(&bed, bed_body).unwrap();
+    let src = igv_core::source::open_annotation(&bed, None).await.unwrap();
+    cfg.annotations.push(TrackEntry {
+        source: src,
+        path: bed.clone(),
+        display: "genes.bed".into(),
+    });
+    (cfg, fa_dir, bed_dir)
+}
+
+async fn config_with_bedpe(body: &str, min_score: Option<f64>) -> (ServerConfig, tempfile::TempDir, tempfile::TempDir) {
+    let (mut cfg, fa_dir) = empty_config().await;
+    let bp_dir = tempfile::tempdir().unwrap();
+    let bedpe = bp_dir.path().join("loops.bedpe");
+    std::fs::write(&bedpe, body).unwrap();
+    let src = igv_core::source::open_link(&bedpe, None).await.unwrap();
+    cfg.links.push(TrackEntry {
+        source: src,
+        path: bedpe.clone(),
+        display: "loops.bedpe".into(),
+    });
+    cfg.link_min_score = min_score;
+    (cfg, fa_dir, bp_dir)
+}
+
+#[tokio::test]
+async fn api_features_annotation_returns_overlapping_records() {
+    // BED is 0-based half-open on disk; igv-core converts to 1-based inclusive
+    // internally, but the JSON we emit uses the source-native coordinates from
+    // the parsed record (start/end as returned by `span()`).
+    let (cfg, _fa, _bed) = config_with_bed(
+        "chr1\t100\t400\tBRCA1\t0\t+\n\
+         chr1\t1000\t2000\tFOO\t0\t-\n",
+    )
+    .await;
+    let h = spawn(cfg).await.unwrap();
+    let body: serde_json::Value = reqwest::get(format!(
+        "http://{}/api/features/annotation/0?chrom=chr1&start=0&end=500",
+        h.addr
+    ))
+    .await
+    .unwrap()
+    .json()
+    .await
+    .unwrap();
+    let arr = body.as_array().unwrap();
+    // Exactly one record (BRCA1) should overlap chr1:0-500. FOO at 1000-2000 is outside.
+    assert_eq!(arr.len(), 1, "expected one record, got: {body}");
+    assert_eq!(arr[0]["name"], "BRCA1");
+    assert_eq!(arr[0]["chr"], "chr1");
+    h.shutdown().await;
+}
+
+#[tokio::test]
+async fn api_features_link_drops_below_min_score() {
+    // BEDPE is 0-based half-open on disk. Two cis loops on chr1; score 1.0 vs 9.0.
+    let (cfg, _fa, _bp) = config_with_bedpe(
+        "chr1\t100\t200\tchr1\t300\t400\tloop_a\t1.0\n\
+         chr1\t500\t600\tchr1\t700\t800\tloop_b\t9.0\n",
+        Some(5.0),
+    )
+    .await;
+    let h = spawn(cfg).await.unwrap();
+    let body: serde_json::Value = reqwest::get(format!(
+        "http://{}/api/features/link/0?chrom=chr1&start=0&end=1000",
+        h.addr
+    ))
+    .await
+    .unwrap()
+    .json()
+    .await
+    .unwrap();
+    let arr = body.as_array().unwrap();
+    assert_eq!(arr.len(), 1, "expected only loop_b (score>=5.0), got: {body}");
+    assert_eq!(arr[0]["name"], "loop_b");
     h.shutdown().await;
 }
