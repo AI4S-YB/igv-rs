@@ -321,9 +321,12 @@ async fn main() -> anyhow::Result<()> {
     let mut palette = CommandPalette::default();
     let mut events = EventStream::new();
 
+    let serve_cfg = igv_tui::ui::theme::load_serve_config(args.config.as_deref());
+    let auto_open = !args.no_browser && serve_cfg.auto_open;
+    let port = if args.serve_port != 0 { args.serve_port } else { serve_cfg.port };
     let mut serve_controller = ServeController::new(
-        !args.no_browser,
-        args.serve_port,
+        auto_open,
+        port,
         args.fasta.clone(),
         args.vcf.clone(),
     );

@@ -55,6 +55,7 @@ const SECTIONS: &[Section] = &[
         &[
             ("t", "cycle theme (dark / light / paper / solarized / dracula / gruvbox)"),
             ("S", "save SVG snapshot of current view"),
+            ("B", "open browser view (igv.js)"),
             ("?", "toggle this help"),
             ("q / Ctrl-C", "quit"),
         ],

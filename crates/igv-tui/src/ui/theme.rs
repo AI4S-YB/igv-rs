@@ -457,6 +457,33 @@ pub fn load_theme(
     (preset, theme)
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct ServeConfig {
+    #[serde(default = "default_auto_open")]
+    pub auto_open: bool,
+    #[serde(default)]
+    pub port: u16,
+}
+
+impl Default for ServeConfig {
+    fn default() -> Self {
+        Self { auto_open: true, port: 0 }
+    }
+}
+
+fn default_auto_open() -> bool { true }
+
+/// Load the `[serve]` section from the optional config TOML. Missing file,
+/// unparseable TOML, or missing section all fall back to defaults.
+pub fn load_serve_config(config_path: Option<&Path>) -> ServeConfig {
+    let parsed: Option<ServeConfig> = config_path
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|s| toml::from_str::<HashMap<String, toml::Value>>(&s).ok())
+        .and_then(|m| m.get("serve").cloned())
+        .and_then(|v| v.try_into().ok());
+    parsed.unwrap_or_default()
+}
+
 fn parse_style(s: &str) -> Option<Style> {
     // Minimal parser: tokens separated by spaces. Recognized tokens:
     //   "bold", "dim", "italic", "underline"
@@ -579,5 +606,36 @@ mod tests {
         assert_eq!(ThemePreset::parse("gruvbox"), Some(ThemePreset::GruvboxDark));
         assert_eq!(ThemePreset::parse("DRACULA"), Some(ThemePreset::Dracula));
         assert_eq!(ThemePreset::parse("nope"), None);
+    }
+
+    #[test]
+    fn missing_file_yields_defaults() {
+        let cfg = load_serve_config(Some(Path::new("/nonexistent/path.toml")));
+        assert!(cfg.auto_open);
+        assert_eq!(cfg.port, 0);
+    }
+
+    #[test]
+    fn missing_section_yields_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("c.toml");
+        std::fs::write(&p, "[theme]\npreset = \"dark\"\n").unwrap();
+        let cfg = load_serve_config(Some(&p));
+        assert!(cfg.auto_open);
+        assert_eq!(cfg.port, 0);
+    }
+
+    #[test]
+    fn reads_serve_table() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("c.toml");
+        let mut f = std::fs::File::create(&p).unwrap();
+        writeln!(f, "[serve]").unwrap();
+        writeln!(f, "auto_open = false").unwrap();
+        writeln!(f, "port = 9001").unwrap();
+        let cfg = load_serve_config(Some(&p));
+        assert!(!cfg.auto_open);
+        assert_eq!(cfg.port, 9001);
     }
 }
