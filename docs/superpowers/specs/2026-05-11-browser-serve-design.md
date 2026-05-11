@@ -355,6 +355,42 @@ Server runs in `tokio::spawn`; panics never reach the TUI render loop.
 Out of scope: tokens, TLS, multi-tenant, remote-host workflows. Loopback
 single-user is the supported model.
 
+## 9a. Performance requirements
+
+igv.js is a real browser viewer doing real random access into multi-hundred-MB
+BAM / bigWig files, then re-fetching aggressively on every pan or zoom. The
+server cannot be a toy — `python -m http.server` and similar single-threaded
+blocking implementations would stall, drop ranges, and starve the browser
+under realistic loads. The following constraints are non-negotiable for v1:
+
+1. **Async, multi-threaded runtime.** axum 0.7 on the existing
+   `#[tokio::main]` multi-thread runtime. Each request runs on the tokio
+   thread pool; no request blocks another. No `block_on`, no synchronous
+   `std::fs::read` in handlers.
+2. **Streamed binary responses.** `/file/*` MUST use
+   `tower_http::services::ServeFile`, which streams the response body in
+   chunks and honors `Range` natively. No `Vec<u8>` buffering of full
+   files in memory.
+3. **Streamed SSE.** `/api/sse` uses axum's `Sse<Stream>` adapter wrapping
+   a `BroadcastStream`. Events flush as they arrive; no per-request
+   buffering.
+4. **Bounded JSON payloads.** `/api/features/*` only ever returns records
+   for a single visible window — the same `Region` bound the TUI uses.
+   Worst-case payload is therefore O(records-in-window), already limited
+   by igv-core's source semantics.
+5. **No global locks.** `ServerState` is `Clone` and made of `Arc`s
+   (`Arc<dyn FastaSource>` etc.). Handlers borrow Arcs, never hold a
+   `Mutex` across `.await`.
+6. **Broadcast back-pressure.** Capacity 32 on `broadcast::Sender`;
+   lagged subscribers drop the oldest events silently (only the latest
+   view matters).
+7. **Keep-alive enabled.** axum's default HTTP/1.1 keep-alive lets igv.js
+   reuse a connection across many Range fetches in one navigation —
+   crucial for BAM seek-heavy workloads.
+
+These are the same disciplines the existing async data layer in `igv-core`
+already follows; the HTTP layer just must not undo them.
+
 ## 10. Out of scope for v1
 
 These are deliberate non-goals; each becomes a separate spec if pursued:
