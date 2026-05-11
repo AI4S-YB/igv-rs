@@ -110,4 +110,37 @@ pub struct Cli {
     /// Snapshot color theme: `igv` (default) or `tui`.
     #[arg(long = "snapshot-theme", default_value = "igv")]
     pub snapshot_theme: String,
+
+    /// Disable the `B` keystroke / browser launch (CI, headless servers).
+    #[arg(long = "no-browser")]
+    pub no_browser: bool,
+
+    /// TCP port for the browser-view HTTP server. 0 picks any free port.
+    #[arg(long = "serve-port", default_value_t = 0)]
+    pub serve_port: u16,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    #[test]
+    fn no_browser_and_serve_port_parse() {
+        let cli = Cli::parse_from([
+            "igv-rs",
+            "ref.fa",
+            "--no-browser",
+            "--serve-port", "9001",
+        ]);
+        assert!(cli.no_browser);
+        assert_eq!(cli.serve_port, 9001);
+    }
+
+    #[test]
+    fn serve_port_defaults_to_zero() {
+        let cli = Cli::parse_from(["igv-rs", "ref.fa"]);
+        assert_eq!(cli.serve_port, 0);
+        assert!(!cli.no_browser);
+    }
 }
