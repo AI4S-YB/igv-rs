@@ -7,7 +7,7 @@ use igv_core::source::link::{
     FetchLinkOpts, LinkRecord, LinkScope, LinkSource, VisibleLink,
 };
 use igv_core::source::{FetchOpts, RefMeta};
-use igv_tui::app::loader::{LoadRequest, LoadResult, Loader};
+use igv_rs::app::loader::{LoadRequest, LoadResult, Loader};
 
 #[derive(Debug)]
 struct StubLink {

@@ -5,6 +5,12 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Pure async data layer for igv-rs: regions, source traits, alignment expansion, coverage, render thresholds. UI-free."
 
 [dependencies]
 async-trait.workspace = true

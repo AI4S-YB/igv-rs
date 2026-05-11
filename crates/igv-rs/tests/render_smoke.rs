@@ -15,14 +15,14 @@ fn empty_layout_does_not_panic() {
 // ---------------------------------------------------------------------------
 // Signal-track smoke test
 //
-// Uses the real production SignalWidget from igv-tui's library surface so
+// Uses the real production SignalWidget from igv-rs's library surface so
 // that changes or breakage in src/ui/widgets/signal.rs are caught here.
 // ---------------------------------------------------------------------------
 
 use igv_core::region::Region;
 use igv_core::source::signal::SignalBin;
-use igv_tui::ui::theme::Theme;
-use igv_tui::ui::widgets::signal::SignalWidget;
+use igv_rs::ui::theme::Theme;
+use igv_rs::ui::widgets::signal::SignalWidget;
 
 /// Helper: collect all cell symbols from a TestBackend buffer into a single
 /// String so assertions can use `contains`.

@@ -9,7 +9,7 @@ use igv_core::region::Region;
 use igv_core::source::{
     AnnotationBlock, AnnotationSource, AnnotationTranscript, BlockKind, Strand, TranscriptKind,
 };
-use igv_tui::snapshot::genes::resolve;
+use igv_rs::snapshot::genes::resolve;
 
 struct StubAnno;
 

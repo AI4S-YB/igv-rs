@@ -7,9 +7,9 @@ use async_trait::async_trait;
 use igv_core::region::Region;
 use igv_core::source::{FastaSource, RefMeta};
 use igv_render::GraphicalTheme;
-use igv_tui::app::action::SnapshotFormat;
-use igv_tui::snapshot::batch::{run, BatchOpts};
-use igv_tui::snapshot::regions::LabeledRegion;
+use igv_rs::app::action::SnapshotFormat;
+use igv_rs::snapshot::batch::{run, BatchOpts};
+use igv_rs::snapshot::regions::LabeledRegion;
 
 struct StubFasta;
 

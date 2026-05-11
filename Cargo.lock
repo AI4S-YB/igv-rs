@@ -1115,30 +1115,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "igv-serve"
-version = "0.7.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "futures",
- "igv-core",
- "insta",
- "mime_guess",
- "reqwest",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tower",
- "tower-http 0.5.2",
- "tracing",
-]
-
-[[package]]
-name = "igv-tui"
+name = "igv-rs"
 version = "0.7.0"
 dependencies = [
  "anyhow",
@@ -1162,6 +1139,29 @@ dependencies = [
  "tracing-subscriber",
  "tui-input",
  "webbrowser",
+]
+
+[[package]]
+name = "igv-serve"
+version = "0.7.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "futures",
+ "igv-core",
+ "insta",
+ "mime_guess",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tower",
+ "tower-http 0.5.2",
+ "tracing",
 ]
 
 [[package]]

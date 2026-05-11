@@ -1,19 +1,25 @@
 [package]
-name = "igv-tui"
+name = "igv-rs"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Interactive terminal genome viewer for FASTA / VCF / BAM / GFF / BED / bigWig / BEDPE. Includes a bundled-igv.js browser companion."
 
 [[bin]]
 name = "igv-rs"
 path = "src/main.rs"
 
 [dependencies]
-igv-core = { path = "../igv-core" }
-igv-render = { path = "../igv-render" }
-igv-serve = { path = "../igv-serve" }
+igv-core = { path = "../igv-core", version = "0.7.0" }
+igv-render = { path = "../igv-render", version = "0.7.0" }
+igv-serve = { path = "../igv-serve", version = "0.7.0" }
 webbrowser.workspace = true
 
 anyhow.workspace = true

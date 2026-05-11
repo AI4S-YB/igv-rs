@@ -1,4 +1,4 @@
-//! Pixel-based layout for one snapshot. Mirrors igv-tui's track order
+//! Pixel-based layout for one snapshot. Mirrors igv-rs's track order
 //! (ruler → annotations → variants → coverage → signal → alignments)
 //! but in px units rather than terminal cells.
 

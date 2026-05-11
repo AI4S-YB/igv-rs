@@ -1,4 +1,4 @@
-//! Library surface of `igv-tui` so integration tests can reach widgets,
+//! Library surface of `igv-rs` so integration tests can reach widgets,
 //! state, and the loader. The binary entrypoint lives in `main.rs` and
 //! consumes this same module tree.
 

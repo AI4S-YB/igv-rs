@@ -11,8 +11,8 @@ use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use futures::StreamExt;
-use igv_tui::cli;
-use igv_tui::logging;
+use igv_rs::cli;
+use igv_rs::logging;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 use tokio::sync::mpsc;
@@ -26,18 +26,18 @@ use igv_core::source::link::{open_link, LinkFormat};
 use igv_core::source::vcf::NoodlesVcfSource;
 use igv_core::source::{open_signal, SignalFormat};
 
-use igv_tui::app::action::Action;
-use igv_tui::app::loader::{LoadResult, Loader};
-use igv_tui::app::serve::ServeController;
-use igv_tui::app::state::{
+use igv_rs::app::action::Action;
+use igv_rs::app::loader::{LoadResult, Loader};
+use igv_rs::app::serve::ServeController;
+use igv_rs::app::state::{
     AppState, BamTrack, LinkTrack, SignalTrack, StatusKind, ALIGNMENT_DEFAULT_HEIGHT,
     COVERAGE_DEFAULT_HEIGHT, LINK_DEFAULT_HEIGHT, SIGNAL_DEFAULT_HEIGHT,
 };
-use igv_tui::command::CommandPalette;
-use igv_tui::input::InputState;
-use igv_tui::ui::layout::{compute, LayoutSpec};
-use igv_tui::ui::theme;
-use igv_tui::ui::widgets;
+use igv_rs::command::CommandPalette;
+use igv_rs::input::InputState;
+use igv_rs::ui::layout::{compute, LayoutSpec};
+use igv_rs::ui::theme;
+use igv_rs::ui::widgets;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -86,7 +86,7 @@ async fn main() -> anyhow::Result<()> {
         bam_sources.push(source);
     }
 
-    let mut annotations: Vec<igv_tui::app::state::AnnotationTrack> = Vec::new();
+    let mut annotations: Vec<igv_rs::app::state::AnnotationTrack> = Vec::new();
     let mut annotation_sources: Vec<std::sync::Arc<dyn igv_core::source::AnnotationSource>> =
         Vec::new();
     let format_override = args
@@ -95,7 +95,7 @@ async fn main() -> anyhow::Result<()> {
         .and_then(igv_core::source::AnnotationFormat::parse);
     for path in &args.annotations {
         let src = igv_core::source::open_annotation(path, format_override).await?;
-        annotations.push(igv_tui::app::state::AnnotationTrack {
+        annotations.push(igv_rs::app::state::AnnotationTrack {
             path: path.clone(),
             display: path
                 .file_name()
@@ -152,14 +152,14 @@ async fn main() -> anyhow::Result<()> {
                 "--snapshot-genes requires at least one -g/--annotation"
             ));
         }
-        let names = igv_tui::snapshot::genes::read_names(genes_path)?;
-        let regions = igv_tui::snapshot::genes::resolve(&names, &annotation_sources);
+        let names = igv_rs::snapshot::genes::read_names(genes_path)?;
+        let regions = igv_rs::snapshot::genes::resolve(&names, &annotation_sources);
         if regions.is_empty() {
             return Err(anyhow!("--snapshot-genes: no genes resolved"));
         }
-        let format = igv_tui::snapshot::batch::parse_format(&args.snapshot_format)?;
-        let theme = igv_tui::snapshot::batch::parse_theme(&args.snapshot_theme)?;
-        let batch = igv_tui::snapshot::batch::BatchOpts {
+        let format = igv_rs::snapshot::batch::parse_format(&args.snapshot_format)?;
+        let theme = igv_rs::snapshot::batch::parse_theme(&args.snapshot_theme)?;
+        let batch = igv_rs::snapshot::batch::BatchOpts {
             out_dir: args.snapshot_out.clone().unwrap(),
             format,
             width_px: args.snapshot_width,
@@ -182,7 +182,7 @@ async fn main() -> anyhow::Result<()> {
             .iter()
             .map(|t| (t.display.clone(), Arc::clone(&t.source)))
             .collect();
-        return igv_tui::snapshot::batch::run(
+        return igv_rs::snapshot::batch::run(
             fasta,
             vcf,
             bams_owned,
@@ -197,10 +197,10 @@ async fn main() -> anyhow::Result<()> {
     }
 
     if let Some(bed_path) = args.snapshot_bed.as_deref() {
-        let regions = igv_tui::snapshot::regions::parse_bed(bed_path)?;
-        let format = igv_tui::snapshot::batch::parse_format(&args.snapshot_format)?;
-        let theme = igv_tui::snapshot::batch::parse_theme(&args.snapshot_theme)?;
-        let batch = igv_tui::snapshot::batch::BatchOpts {
+        let regions = igv_rs::snapshot::regions::parse_bed(bed_path)?;
+        let format = igv_rs::snapshot::batch::parse_format(&args.snapshot_format)?;
+        let theme = igv_rs::snapshot::batch::parse_theme(&args.snapshot_theme)?;
+        let batch = igv_rs::snapshot::batch::BatchOpts {
             out_dir: args.snapshot_out.clone().unwrap(),
             format,
             width_px: args.snapshot_width,
@@ -223,7 +223,7 @@ async fn main() -> anyhow::Result<()> {
             .iter()
             .map(|t| (t.display.clone(), Arc::clone(&t.source)))
             .collect();
-        return igv_tui::snapshot::batch::run(
+        return igv_rs::snapshot::batch::run(
             fasta,
             vcf,
             bams_owned,
@@ -327,7 +327,7 @@ async fn main() -> anyhow::Result<()> {
     let mut palette = CommandPalette::default();
     let mut events = EventStream::new();
 
-    let serve_cfg = igv_tui::ui::theme::load_serve_config(args.config.as_deref());
+    let serve_cfg = igv_rs::ui::theme::load_serve_config(args.config.as_deref());
     let auto_open = !args.no_browser && serve_cfg.auto_open;
     let port = if args.serve_port != 0 {
         args.serve_port
@@ -385,7 +385,7 @@ async fn run_loop(
                     // threshold, so dragging the window edge by a column or two
                     // doesn't refetch every frame.
                     if let Event::Resize(w, _) = evt {
-                        use igv_tui::app::state::signal_bins_for_width;
+                        use igv_rs::app::state::signal_bins_for_width;
                         let prev = signal_bins_for_width(state.terminal_width);
                         let next = signal_bins_for_width(w);
                         state.terminal_width = w;
@@ -462,8 +462,8 @@ fn drain_snapshot(state: &mut AppState) {
     let path = job
         .path
         .clone()
-        .unwrap_or_else(|| igv_tui::snapshot::naming::auto_name(&state.region, job.format));
-    match igv_tui::snapshot::writer::write_snapshot(state, &path, job.format) {
+        .unwrap_or_else(|| igv_rs::snapshot::naming::auto_name(&state.region, job.format));
+    match igv_rs::snapshot::writer::write_snapshot(state, &path, job.format) {
         Ok(()) => state.set_status(StatusKind::Info, format!("snapshot → {}", path.display())),
         Err(e) => state.set_status(StatusKind::Error, format!("snapshot failed: {}", e)),
     }

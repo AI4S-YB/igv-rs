@@ -1,0 +1,153 @@
+name: Publish to crates.io
+
+# Auto-publishes the workspace to crates.io whenever the workspace version
+# in the root Cargo.toml is bumped on `main`. After publishing, creates the
+# matching `vX.Y.Z` tag and a GitHub Release — the existing `release.yml`
+# workflow listens for "release published" and attaches platform binaries.
+#
+# Secret required: `TOKEN` (a crates.io API token with publish-update-yank
+# scope, scoped to the `igv-*` packages).
+#
+# Manual trigger is also available via "Run workflow" — useful for re-trying
+# a failed publish without bumping the version.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Cargo.toml"
+      - "crates/**/Cargo.toml"
+      - ".github/workflows/publish.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # tag push + release create
+
+jobs:
+  detect:
+    name: Detect version change
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      should_release: ${{ steps.v.outputs.should_release }}
+    steps:
+      - name: Checkout (full history for tag check)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Read workspace version + compare to existing tags
+        id: v
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(awk '/^\[workspace\.package\]/{f=1} f && /^version[[:space:]]*=/{print $3; exit}' Cargo.toml \
+            | tr -d '"')
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not read [workspace.package] version from Cargo.toml"
+            exit 1
+          fi
+          echo "Detected workspace version: $VERSION"
+          TAG="v${VERSION}"
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag ${TAG} already exists — nothing to release."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    name: Publish ${{ needs.detect.outputs.version }}
+    needs: detect
+    if: needs.detect.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+      VERSION: ${{ needs.detect.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and target dir
+        uses: Swatinem/rust-cache@v2
+
+      - name: Verify build + tests pass before publishing
+        run: |
+          cargo build --workspace --locked --release
+          cargo test --workspace --locked
+
+      # Publish in dependency order. Each `publish-and-wait` step retries the
+      # downstream `cargo publish` until the just-published upstream crate
+      # appears in the crates.io index — sleeping 30 s up to 8 attempts
+      # (4 minutes max). This handles the index-propagation lag without
+      # arbitrary `sleep` calls.
+      - name: Publish igv-core
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.TOKEN }}
+        run: cargo publish -p igv-core --locked
+
+      - name: Wait for igv-core to appear in index
+        run: |
+          for i in $(seq 1 8); do
+            if cargo search igv-core --limit 1 2>&1 | grep -q "^igv-core = \"${VERSION}\""; then
+              echo "igv-core ${VERSION} visible in index."
+              exit 0
+            fi
+            echo "Attempt $i: igv-core ${VERSION} not yet indexed, sleeping 30s..."
+            sleep 30
+          done
+          echo "::error::Timed out waiting for igv-core ${VERSION} to appear on crates.io."
+          exit 1
+
+      - name: Publish igv-render
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.TOKEN }}
+        run: cargo publish -p igv-render --locked
+
+      - name: Publish igv-serve
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.TOKEN }}
+        run: cargo publish -p igv-serve --locked
+
+      - name: Wait for igv-render and igv-serve to appear in index
+        run: |
+          for crate in igv-render igv-serve; do
+            for i in $(seq 1 8); do
+              if cargo search "$crate" --limit 1 2>&1 | grep -q "^$crate = \"${VERSION}\""; then
+                echo "$crate ${VERSION} visible in index."
+                break
+              fi
+              echo "Attempt $i: $crate ${VERSION} not yet indexed, sleeping 30s..."
+              sleep 30
+              if [ "$i" = "8" ]; then
+                echo "::error::Timed out waiting for $crate ${VERSION} to appear on crates.io."
+                exit 1
+              fi
+            done
+          done
+
+      - name: Publish igv-rs (binary)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.TOKEN }}
+        run: cargo publish -p igv-rs --locked
+
+      - name: Tag and create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          git push origin "v${VERSION}"
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --generate-notes

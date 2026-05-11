@@ -1,5 +1,5 @@
 use clap::Parser;
-use igv_tui::cli::Cli;
+use igv_rs::cli::Cli;
 
 #[test]
 fn defaults_are_sensible() {

@@ -14,12 +14,12 @@ use igv_core::source::annotation::{
     AnnotationBlock, AnnotationSource, AnnotationTranscript, BlockKind, Strand, TranscriptKind,
 };
 use igv_core::source::{FastaSource, RefMeta};
-use igv_tui::app::action::Action;
-use igv_tui::app::state::{
+use igv_rs::app::action::Action;
+use igv_rs::app::state::{
     AnnotationTrack, AppState, ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT,
     LINK_DEFAULT_HEIGHT, SIGNAL_DEFAULT_HEIGHT,
 };
-use igv_tui::ui::theme::Theme;
+use igv_rs::ui::theme::Theme;
 
 struct MockFasta;
 
@@ -101,7 +101,7 @@ fn make_state(annotation: Arc<dyn AnnotationSource>) -> AppState {
         alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
         coverage_height: COVERAGE_DEFAULT_HEIGHT,
         theme: Theme::dark(),
-        theme_preset: igv_tui::ui::theme::ThemePreset::Dark,
+        theme_preset: igv_rs::ui::theme::ThemePreset::Dark,
         thresholds: Thresholds::default(),
         bookmarks: HashMap::new(),
         status: None,

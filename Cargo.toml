@@ -1,13 +1,17 @@
 [workspace]
 resolver = "2"
-members = ["crates/igv-core", "crates/igv-render", "crates/igv-serve", "crates/igv-tui"]
+members = ["crates/igv-core", "crates/igv-render", "crates/igv-serve", "crates/igv-rs"]
 
 [workspace.package]
 version = "0.7.0"
 edition = "2021"
 license = "MIT"
 authors = ["igv-rs contributors"]
-repository = "https://github.com/<owner>/igv-rs"
+repository = "https://github.com/AI4S-YB/igv-rs"
+homepage = "https://github.com/AI4S-YB/igv-rs"
+readme = "../../README.md"
+keywords = ["genomics", "bioinformatics", "tui", "viewer", "bam"]
+categories = ["command-line-utilities", "science::bioinformatics", "visualization"]
 rust-version = "1.75"
 
 [workspace.dependencies]

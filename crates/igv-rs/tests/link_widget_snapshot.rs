@@ -3,8 +3,8 @@ use std::sync::Arc;
 use igv_core::region::Region;
 use igv_core::source::annotation::Strand;
 use igv_core::source::link::{LinkRecord, LinkScope, VisibleLink};
-use igv_tui::ui::theme::Theme;
-use igv_tui::ui::widgets::link::LinkWidget;
+use igv_rs::ui::theme::Theme;
+use igv_rs::ui::widgets::link::LinkWidget;
 use ratatui::backend::TestBackend;
 use ratatui::Terminal;
 

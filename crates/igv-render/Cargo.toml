@@ -5,9 +5,15 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Graphical (SVG / PNG) snapshot renderer for igv-rs."
 
 [dependencies]
-igv-core = { path = "../igv-core" }
+igv-core = { path = "../igv-core", version = "0.7.0" }
 thiserror.workspace = true
 
 # PNG pipeline. Pure-Rust, no system deps.

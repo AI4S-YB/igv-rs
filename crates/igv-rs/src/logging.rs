@@ -13,7 +13,7 @@ pub fn setup(level: &str) -> anyhow::Result<WorkerGuard> {
     let (writer, guard) = tracing_appender::non_blocking(file_appender);
 
     let lvl = Level::from_str(&level.to_uppercase()).unwrap_or(Level::INFO);
-    let filter = EnvFilter::new(format!("igv_tui={lvl},igv_core={lvl}"));
+    let filter = EnvFilter::new(format!("igv_rs={lvl},igv_core={lvl}"));
 
     let subscriber = FmtSubscriber::builder()
         .with_env_filter(filter)

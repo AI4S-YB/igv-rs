@@ -9,7 +9,7 @@ use igv_core::region::Region;
 use igv_core::source::{
     FastaSource, FetchOpts, FetchSignalOpts, RefMeta, SignalBin, SignalSource,
 };
-use igv_tui::app::loader::{LoadRequest, LoadResult, Loader};
+use igv_rs::app::loader::{LoadRequest, LoadResult, Loader};
 use tokio::sync::mpsc;
 
 struct MockFasta;

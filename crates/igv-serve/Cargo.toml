@@ -5,9 +5,21 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Local HTTP server that mirrors the igv-rs TUI's view in igv.js."
+include = [
+    "src/**/*",
+    "assets/index.html",
+    "assets/igv.esm.min.js",
+    "assets/igv.esm.min.js.version",
+]
 
 [dependencies]
-igv-core = { path = "../igv-core" }
+igv-core = { path = "../igv-core", version = "0.7.0" }
 axum.workspace = true
 tower = { version = "0.5", features = ["util"] }
 tower-http.workspace = true
