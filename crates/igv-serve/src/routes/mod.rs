@@ -1,0 +1,13 @@
+use axum::Router;
+
+use crate::state::ServerState;
+
+pub mod assets;
+pub mod index;
+
+pub fn build(state: ServerState) -> Router {
+    Router::new()
+        .merge(index::router())
+        .merge(assets::router())
+        .with_state(state)
+}
