@@ -53,3 +53,20 @@ async fn assets_serves_igvjs() {
     assert!(resp.bytes().await.unwrap().len() > 1000);
     h.shutdown().await;
 }
+
+#[tokio::test]
+async fn api_config_emits_reference_and_locus() {
+    let (cfg, _dir) = empty_config().await;
+    let h = spawn(cfg).await.unwrap();
+    let body: serde_json::Value = reqwest::get(format!("http://{}/api/config", h.addr))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(body["reference"]["fastaURL"], "/file/fasta");
+    assert_eq!(body["reference"]["indexURL"], "/file/fasta.fai");
+    assert_eq!(body["locus"], "chr1:0-4");
+    assert!(body["tracks"].as_array().unwrap().is_empty());
+    h.shutdown().await;
+}
