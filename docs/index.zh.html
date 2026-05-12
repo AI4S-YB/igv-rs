@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>igv-rs — 交互式终端基因组浏览器</title>
+  <meta name="description" content="适用于 FASTA、VCF、BAM、GFF、BED、bigWig 和 BEDPE 的交互式终端基因组浏览器，使用 Rust 编写。">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="gh-nav">
+  <a class="logo" href="index.zh.html">
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+    </svg>
+    igv-rs
+  </a>
+  <div class="nav-links">
+    <a href="#features">功能</a>
+    <a href="#install">安装</a>
+    <a href="#usage">用法</a>
+    <a href="#keybindings">快捷键</a>
+    <a href="#config">配置</a>
+    <a href="#snapshot">截图</a>
+    <a href="#browser">浏览器</a>
+  </div>
+  <div class="spacer"></div>
+  <a class="lang-toggle" href="index.html">English</a>
+  <a class="gh-btn" href="https://github.com/AI4S-YB/igv-rs" target="_blank" rel="noopener">GitHub</a>
+</nav>
+
+<section class="hero">
+  <div class="badge">v0.7.0 · Rust</div>
+  <h1>igv-rs</h1>
+  <p class="tagline">适用于 FASTA · VCF · BAM · GFF · BED · bigWig · BEDPE 的交互式终端基因组浏览器</p>
+  <div class="install-box">
+    <span class="prompt">$</span>
+    <span>cargo install igv-rs</span>
+  </div>
+  <div class="hero-btns">
+    <a class="btn-primary" href="#install">快速开始</a>
+    <a class="btn-secondary" href="https://github.com/AI4S-YB/igv-rs" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+</section>
+
+<main class="content">
+
+<!-- 功能 -->
+<div class="section" id="features">
+  <div class="section-label">概览</div>
+  <h2>功能特性</h2>
+  <div class="features">
+    <div class="feature-card">
+      <div class="icon">🧬</div>
+      <h4>多轨道支持</h4>
+      <p>BAM · VCF · GFF · BED · bigWig · BEDPE — 在同一视图中同步显示。</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">⚡</div>
+      <h4>异步非阻塞 IO</h4>
+      <p>自适应缩放级别渲染，在任意比例下保持 TUI 响应流畅。</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🌐</div>
+      <h4>浏览器实时伴侣</h4>
+      <p>按 <code>B</code> 在浏览器中打开与 TUI 同步的 igv.js 视图。</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">📸</div>
+      <h4>快照导出</h4>
+      <p>发表级 SVG / PNG — 支持交互式保存和无头批量模式。</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🎨</div>
+      <h4>8 种内置主题</h4>
+      <p>dark · light · paper · solarized · dracula · gruvbox — 按 <code>t</code> 循环切换。</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🔖</div>
+      <h4>命令面板</h4>
+      <p>跳转到任意坐标或基因名称。Vim 风格书签 <code>m&lt;c&gt;</code> / <code>'&lt;c&gt;</code>。</p>
+    </div>
+  </div>
+</div>
+
+<!-- 安装 -->
+<div class="section" id="install">
+  <div class="section-label">快速开始</div>
+  <h2>安装</h2>
+  <p>从 <a href="https://crates.io/crates/igv-rs" target="_blank" rel="noopener">crates.io</a> 安装最新版本：</p>
+  <div class="code-block">
+    <span class="cmd"><span class="prompt">$</span> cargo install igv-rs</span>
+  </div>
+  <p>igv.js 浏览器伴侣已打包进二进制文件，无需额外资源。</p>
+  <p>Linux / macOS / Windows 预编译二进制文件可在
+    <a href="https://github.com/AI4S-YB/igv-rs/releases" target="_blank" rel="noopener">GitHub Releases</a>
+    页面下载。
+  </p>
+  <p>从源码构建：</p>
+  <div class="code-block">
+    <span class="cmd"><span class="prompt">$</span> git clone https://github.com/AI4S-YB/igv-rs</span>
+    <span class="cmd"><span class="prompt">$</span> cargo build --release</span>
+    <span class="cmd"><span class="comment"># 二进制文件位于 target/release/igv-rs</span></span>
+  </div>
+</div>
+
+<!-- 用法 -->
+<div class="section" id="usage">
+  <div class="section-label">命令行</div>
+  <h2>用法</h2>
+  <div class="code-block">
+    <span class="cmd"><span class="comment"># 仅参考序列</span></span>
+    <span class="cmd">igv-rs reference.fa</span>
+    <span class="cmd"></span>
+    <span class="cmd"><span class="comment"># 加载变异</span></span>
+    <span class="cmd">igv-rs reference.fa <span class="flag">-v</span> variants.vcf.gz</span>
+    <span class="cmd"></span>
+    <span class="cmd"><span class="comment"># 加载比对</span></span>
+    <span class="cmd">igv-rs reference.fa <span class="flag">-b</span> alignments.bam <span class="flag">-r</span> chr1:1000-2000</span>
+    <span class="cmd"></span>
+    <span class="cmd"><span class="comment"># 多 BAM 轨道</span></span>
+    <span class="cmd">igv-rs reference.fa <span class="flag">-b</span> sample1.bam <span class="flag">-b</span> sample2.bam</span>
+    <span class="cmd"></span>
+    <span class="cmd"><span class="comment"># 注释轨道（GFF/GTF/BED/narrowPeak 按扩展名自动识别）</span></span>
+    <span class="cmd">igv-rs reference.fa <span class="flag">-g</span> genes.gff3 <span class="flag">-b</span> sample.bam</span>
+    <span class="cmd"></span>
+    <span class="cmd"><span class="comment"># 信号轨道（bigWig）</span></span>
+    <span class="cmd">igv-rs reference.fa <span class="flag">-s</span> chip.bw <span class="flag">-s</span> input.bw <span class="flag">-r</span> chr1:1-10000000</span>
+    <span class="cmd"></span>
+    <span class="cmd"><span class="comment"># 染色质环（BEDPE）</span></span>
+    <span class="cmd">igv-rs reference.fa <span class="flag">-l</span> loops.bedpe <span class="flag">--link-min-score</span> 5.0</span>
+    <span class="cmd"></span>
+    <span class="cmd"><span class="comment"># 综合示例</span></span>
+    <span class="cmd">igv-rs reference.fa <span class="flag">-b</span> sample.bam <span class="flag">-g</span> genes.gff3 <span class="flag">-s</span> rna.bw <span class="flag">-l</span> loops.bedpe <span class="flag">-r</span> chr1:1000-2000</span>
+  </div>
+  <p>命令面板（<code>:</code> 或 <code>g</code>）支持坐标（<code>chr1:1000-2000</code>）和基因名称 — 输入已加载 GFF/GTF/BED 轨道中的 <code>gene_name</code>、<code>gene_id</code> 或 <code>transcript_id</code>，视图将跳转到所有匹配转录本的联合区间。</p>
+</div>
+
+<!-- 缩放行为 -->
+<div class="section" id="zoom">
+  <div class="section-label">渲染</div>
+  <h2>宽视图缩放行为</h2>
+  <p>在较宽的缩放级别下，igv-rs 会跳过高开销的数据获取以保持响应：</p>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>视图宽度</th>
+        <th>参考序列</th>
+        <th>比对读段</th>
+        <th>变异</th>
+        <th>注释</th>
+        <th>信号</th>
+        <th>环</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>≤ 50 kb（碱基级）</td>
+        <td class="yes">是</td>
+        <td class="yes">是</td>
+        <td class="yes">是</td>
+        <td>转录本</td>
+        <td class="yes">是</td>
+        <td class="yes">是</td>
+      </tr>
+      <tr>
+        <td>50 kb – 500 kb</td>
+        <td class="no">—</td>
+        <td class="no">—</td>
+        <td class="yes">是</td>
+        <td>转录本</td>
+        <td class="yes">是</td>
+        <td class="yes">是</td>
+      </tr>
+      <tr>
+        <td>500 kb – 5 Mb</td>
+        <td class="no">—</td>
+        <td class="no">—</td>
+        <td class="no">—</td>
+        <td>转录本</td>
+        <td class="yes">是</td>
+        <td class="yes">是</td>
+      </tr>
+      <tr>
+        <td>&gt; 5 Mb（概览）</td>
+        <td class="no">—</td>
+        <td class="no">—</td>
+        <td class="no">—</td>
+        <td>基因密度</td>
+        <td class="yes">是</td>
+        <td class="yes">是</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>当数据获取被限制时，页脚会显示黄色“概览”提示。bigWig 信号轨道在所有缩放级别下均可见。</p>
+</div>
+
+<!-- 快照导出 -->
+<div class="section" id="snapshot">
+  <div class="section-label">导出</div>
+  <h2>快照导出</h2>
+  <p>保存发表级 SVG 或 PNG 图像 — 支持交互式和无头批量两种模式。</p>
+  <p><strong>交互式（在 TUI 内）：</strong></p>
+  <div class="code-block">
+    <span class="cmd"><span class="comment"># 按 S 保存当前视图</span></span>
+    <span class="cmd">S  →  snapshot_chr1_1000_2000.svg</span>
+    <span class="cmd"></span>
+    <span class="cmd"><span class="comment"># 或通过命令面板指定路径 / 格式</span></span>
+    <span class="cmd">:snapshot path/to/figure.png</span>
+  </div>
+  <p><strong>无头批量（不打开 TUI）：</strong></p>
+  <div class="code-block">
+    <span class="cmd"><span class="comment"># 每个 BED 区域一张快照（第 4 列为文件名前缀）</span></span>
+    <span class="cmd">igv-rs ref.fa <span class="flag">-b</span> s.bam <span class="flag">--snapshot-bed</span> regions.bed <span class="flag">--snapshot-out</span> out/</span>
+    <span class="cmd"></span>
+    <span class="cmd"><span class="comment"># 每个基因名称一张快照（需要 -g 注释）</span></span>
+    <span class="cmd">igv-rs ref.fa <span class="flag">-b</span> s.bam <span class="flag">-g</span> genes.gtf <span class="flag">--snapshot-genes</span> list.txt <span class="flag">--snapshot-out</span> out/</span>
+  </div>
+  <p>常用参数：<code>--snapshot-format svg|png</code> · <code>--snapshot-width &lt;px&gt;</code> · <code>--snapshot-flank &lt;fraction&gt;</code> · <code>--snapshot-theme igv|tui</code></p>
+</div>
+
+<!-- 浏览器视图 -->
+<div class="section" id="browser">
+  <div class="section-label">实时预览</div>
+  <h2>浏览器视图（igv.js）</h2>
+  <p>在 TUI 内按 <code>B</code> 启动本地 HTTP 服务器，并在默认浏览器中打开 igv.js。浏览器标签页从 TUI 当前区域开始，并实时跟随导航。</p>
+  <div class="code-block">
+    <span class="cmd">igv-rs ref.fa <span class="flag">-b</span> sample.bam <span class="flag">-g</span> genes.gtf <span class="flag">-l</span> loops.bedpe</span>
+    <span class="cmd"><span class="comment"># 在 TUI 内：</span></span>
+    <span class="cmd"><span class="comment">#   B          → 打开浏览器标签页（igv.js）</span></span>
+    <span class="cmd"><span class="comment">#   d / s / :gene → 浏览器同步跟随</span></span>
+    <span class="cmd"><span class="comment">#   q          → 退出 TUI，关闭服务器</span></span>
+  </div>
+  <p>服务器绑定在 <code>127.0.0.1</code> 的临时端口（可通过 <code>--serve-port</code> 覆盖）。igv.js 已打包进二进制，离线可用。使用 <code>--no-browser</code> 禁用此功能。</p>
+</div>
+
+<!-- 快捷键 -->
+<div class="section" id="keybindings">
+  <div class="section-label">参考</div>
+  <h2>快捷键</h2>
+  <table class="data-table">
+    <thead><tr><th>按键</th><th>功能</th></tr></thead>
+    <tbody>
+      <tr><td><code>a</code> / <code>←</code></td><td>向前翻页（整个视窗）</td></tr>
+      <tr><td><code>d</code> / <code>→</code></td><td>向后翻页（整个视窗）</td></tr>
+      <tr><td><code>h</code></td><td>向前平移 1/10 视窗（精细）</td></tr>
+      <tr><td><code>l</code></td><td>向后平移 1/10 视窗（精细）</td></tr>
+      <tr><td><code>w</code> / <code>↑</code></td><td>放大</td></tr>
+      <tr><td><code>s</code> / <code>↓</code></td><td>缩小</td></tr>
+      <tr><td><code>j</code> / <code>k</code></td><td>比对泳道向下 / 向上滚动</td></tr>
+      <tr><td><code>+</code> / <code>-</code></td><td>增大 / 缩小比对轨道高度</td></tr>
+      <tr><td><code>]</code> / <code>[</code></td><td>增大 / 缩小覆盖度轨道高度</td></tr>
+      <tr><td><code>\</code></td><td>切换信号轨道共享 / 独立 Y 轴</td></tr>
+      <tr><td><code>}</code> / <code>{</code></td><td>增大 / 缩小信号轨道高度</td></tr>
+      <tr><td><code>&lt;</code> / <code>&gt;</code></td><td>缩小 / 增大环轨道高度</td></tr>
+      <tr><td><code>:</code> 或 <code>g</code></td><td>打开命令面板（坐标或基因名称）</td></tr>
+      <tr><td><code>m&lt;c&gt;</code></td><td>设置书签到字母 <em>c</em></td></tr>
+      <tr><td><code>'&lt;c&gt;</code></td><td>跳转到书签 <em>c</em></td></tr>
+      <tr><td><code>t</code></td><td>循环切换主题</td></tr>
+      <tr><td><code>S</code></td><td>保存当前视图 SVG 快照</td></tr>
+      <tr><td><code>B</code></td><td>打开浏览器视图（igv.js）</td></tr>
+      <tr><td><code>?</code></td><td>切换快捷键帮助覆盖层</td></tr>
+      <tr><td><code>q</code> / Ctrl-C</td><td>退出</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 配置 -->
+<div class="section" id="config">
+  <div class="section-label">配置</div>
+  <h2>配置文件</h2>
+  <p>启动时自动读取可选的 <code>~/.config/igv-rs/config.toml</code>：</p>
+  <div class="code-block">
+    <span class="cmd">[theme]</span>
+    <span class="cmd"><span class="comment"># "dark" | "light" | "paper" | "solarized-dark" | "solarized-light"</span></span>
+    <span class="cmd"><span class="comment"># | "dracula" | "gruvbox-dark"</span></span>
+    <span class="cmd">preset = "dark"</span>
+    <span class="cmd"></span>
+    <span class="cmd">[theme.custom]</span>
+    <span class="cmd"><span class="comment"># 覆盖单个样式键</span></span>
+    <span class="cmd">"A"        = "bold green"</span>
+    <span class="cmd">"MISMATCH" = "bold white on red"</span>
+    <span class="cmd">"SIGNAL"   = "cyan"</span>
+    <span class="cmd">"LINK"     = "magenta"</span>
+    <span class="cmd"></span>
+    <span class="cmd">[serve]</span>
+    <span class="cmd">auto_open = true   <span class="comment"># --no-browser 可覆盖</span></span>
+    <span class="cmd">port      = 0      <span class="comment"># 0 = 临时端口；--serve-port 可覆盖</span></span>
+  </div>
+</div>
+
+<!-- 已知限制 -->
+<div class="section" id="limitations">
+  <div class="section-label">注意事项</div>
+  <h2>已知限制</h2>
+  <ul class="limits-list">
+    <li><strong>长按按键去抖</strong>未实现 — 建议点击而非长按导航键。</li>
+    <li><strong><code>[render]</code> 配置键</strong>（zoom_factor、nav_overlap、阈值覆盖）尚未读取。</li>
+    <li><strong><code>[bookmarks]</code> 配置表</strong>未加载 — 会话内书签功能正常。</li>
+    <li><strong>宽视图覆盖度</strong>被隐藏而非热力图显示 — 染色体级别深度建议使用预计算 bigWig。</li>
+    <li><strong>BAM 标签显示</strong>按标签着色时使用 Rust 的 Debug 格式（如 <code>Int8(42)</code> 而非 <code>42</code>）。</li>
+    <li><strong>无信号轨道缓存</strong> — 每次区域变更均重新获取 bigWig 数据。</li>
+    <li><strong>单一信号色图</strong> — 所有 bigWig 轨道共用 <code>SIGNAL</code> 主题键。</li>
+    <li><strong>bigBed（<code>.bb</code>）</strong>暂不支持。</li>
+    <li><strong>环轨道无 tabix/pairix 支持</strong> — 超过 100 万条记录的 BEDPE 文件加载较慢。</li>
+    <li><strong>浏览器视图仅限本机回环</strong> — 不支持远程访问和认证令牌。</li>
+  </ul>
+</div>
+
+</main>
+
+<footer class="gh-footer">
+  <p>
+    igv-rs &nbsp;·&nbsp;
+    <a href="https://github.com/AI4S-YB/igv-rs" target="_blank" rel="noopener">GitHub</a> &nbsp;·&nbsp;
+    <a href="https://crates.io/crates/igv-rs" target="_blank" rel="noopener">crates.io</a> &nbsp;·&nbsp;
+    MIT 许可证
+  </p>
+</footer>
+
+</body>
+</html>
