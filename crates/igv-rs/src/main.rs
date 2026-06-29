@@ -329,13 +329,18 @@ async fn main() -> anyhow::Result<()> {
 
     let serve_cfg = igv_rs::ui::theme::load_serve_config(args.config.as_deref());
     let auto_open = !args.no_browser && serve_cfg.auto_open;
+    let host = if let Some(h) = args.serve_host {
+        h
+    } else {
+        serve_cfg.host
+    };
     let port = if args.serve_port != 0 {
         args.serve_port
     } else {
         serve_cfg.port
     };
     let mut serve_controller =
-        ServeController::new(auto_open, port, args.fasta.clone(), args.vcf.clone());
+        ServeController::new(auto_open, host, port, args.fasta.clone(), args.vcf.clone());
 
     let result = run_loop(
         &mut terminal,

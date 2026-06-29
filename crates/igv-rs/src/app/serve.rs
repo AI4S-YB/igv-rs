@@ -11,20 +11,43 @@ use igv_serve::{spawn, ServerConfig, ServerHandle, TrackEntry, ViewEvent};
 
 use crate::app::state::AppState;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ServeController {
     handle: Option<ServerHandle>,
     url: Option<String>,
     last_pushed: Option<ViewEvent>,
     pub auto_open: bool,
+    pub host: std::net::IpAddr,
     pub port: u16,
     pub fasta_path: PathBuf,
     pub vcf_path: Option<PathBuf>,
     pub vcf_display: Option<String>,
 }
 
+impl Default for ServeController {
+    fn default() -> Self {
+        Self {
+            handle: None,
+            url: None,
+            last_pushed: None,
+            auto_open: false,
+            host: std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
+            port: 0,
+            fasta_path: PathBuf::default(),
+            vcf_path: None,
+            vcf_display: None,
+        }
+    }
+}
+
 impl ServeController {
-    pub fn new(auto_open: bool, port: u16, fasta_path: PathBuf, vcf_path: Option<PathBuf>) -> Self {
+    pub fn new(
+        auto_open: bool,
+        host: std::net::IpAddr,
+        port: u16,
+        fasta_path: PathBuf,
+        vcf_path: Option<PathBuf>,
+    ) -> Self {
         let vcf_display = vcf_path.as_ref().map(|p| {
             p.file_name()
                 .and_then(|n| n.to_str())
@@ -36,6 +59,7 @@ impl ServeController {
             url: None,
             last_pushed: None,
             auto_open,
+            host,
             port,
             fasta_path,
             vcf_path,
@@ -128,7 +152,7 @@ impl ServeController {
         };
 
         ServerConfig {
-            bind: std::net::IpAddr::from([127, 0, 0, 1]),
+            bind: self.host,
             port: self.port,
             fasta: Arc::clone(&state.fasta),
             fasta_path: self.fasta_path.clone(),

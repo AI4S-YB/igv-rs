@@ -840,6 +840,8 @@ pub struct ServeConfig {
     pub auto_open: bool,
     #[serde(default)]
     pub port: u16,
+    #[serde(default = "default_host")]
+    pub host: std::net::IpAddr,
 }
 
 impl Default for ServeConfig {
@@ -847,12 +849,17 @@ impl Default for ServeConfig {
         Self {
             auto_open: true,
             port: 0,
+            host: default_host(),
         }
     }
 }
 
 fn default_auto_open() -> bool {
     true
+}
+
+fn default_host() -> std::net::IpAddr {
+    std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1))
 }
 
 /// Load the `[serve]` section from the optional config TOML. Missing file,
@@ -1016,6 +1023,7 @@ mod tests {
         let cfg = load_serve_config(Some(Path::new("/nonexistent/path.toml")));
         assert!(cfg.auto_open);
         assert_eq!(cfg.port, 0);
+        assert_eq!(cfg.host, std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
     }
 
     #[test]
@@ -1026,6 +1034,7 @@ mod tests {
         let cfg = load_serve_config(Some(&p));
         assert!(cfg.auto_open);
         assert_eq!(cfg.port, 0);
+        assert_eq!(cfg.host, std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
     }
 
     #[test]
@@ -1037,8 +1046,10 @@ mod tests {
         writeln!(f, "[serve]").unwrap();
         writeln!(f, "auto_open = false").unwrap();
         writeln!(f, "port = 9001").unwrap();
+        writeln!(f, "host = \"0.0.0.0\"").unwrap();
         let cfg = load_serve_config(Some(&p));
         assert!(!cfg.auto_open);
         assert_eq!(cfg.port, 9001);
+        assert_eq!(cfg.host, std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)));
     }
 }
