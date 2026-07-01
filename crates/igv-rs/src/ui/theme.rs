@@ -858,8 +858,11 @@ fn default_auto_open() -> bool {
     true
 }
 
-fn default_host() -> std::net::IpAddr {
-    std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1))
+/// Canonical default bind host for the browser-view HTTP server (loopback).
+/// Shared by the serde default and `ServeController`'s `Default` impl so the
+/// loopback value lives in exactly one place.
+pub(crate) fn default_host() -> std::net::IpAddr {
+    std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)
 }
 
 /// Load the `[serve]` section from the optional config TOML. Missing file,
@@ -1023,7 +1026,7 @@ mod tests {
         let cfg = load_serve_config(Some(Path::new("/nonexistent/path.toml")));
         assert!(cfg.auto_open);
         assert_eq!(cfg.port, 0);
-        assert_eq!(cfg.host, std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
+        assert_eq!(cfg.host, std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
     }
 
     #[test]
@@ -1034,7 +1037,7 @@ mod tests {
         let cfg = load_serve_config(Some(&p));
         assert!(cfg.auto_open);
         assert_eq!(cfg.port, 0);
-        assert_eq!(cfg.host, std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)));
+        assert_eq!(cfg.host, std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
     }
 
     #[test]
@@ -1050,6 +1053,9 @@ mod tests {
         let cfg = load_serve_config(Some(&p));
         assert!(!cfg.auto_open);
         assert_eq!(cfg.port, 9001);
-        assert_eq!(cfg.host, std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)));
+        assert_eq!(
+            cfg.host,
+            std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED)
+        );
     }
 }
