@@ -177,11 +177,13 @@ igv-rs ref.fa -b sample.bam -g genes.gtf -l loops.bedpe
 #   q          → exits the TUI and shuts the server down
 ```
 
-The server binds to `127.0.0.1` on an ephemeral port (override with
-`--serve-port`) and exposes only the tracks you passed on the CLI.
-Disable the keystroke entirely with `--no-browser`. No data leaves the
-loopback interface; there is no authentication and no remote-access
-support in v0.5 — use this for one-shot inspection on the same machine.
+The server binds to `127.0.0.1` on an ephemeral port by default (override
+with `--serve-port` and `--serve-host`) and exposes only the tracks you
+passed on the CLI. Disable the keystroke entirely with `--no-browser`. By
+default nothing leaves the loopback interface and there is no authentication;
+binding a non-loopback address (e.g. `--serve-host 0.0.0.0`) exposes the
+view — and the genomic data behind it — to anyone on the network, so do
+this only on a trusted network.
 
 `igv.js` itself is bundled into the binary, so the browser view works
 offline.
@@ -207,6 +209,7 @@ preset = "dark"
 [serve]
 auto_open = true     # CLI --no-browser overrides
 port = 0             # CLI --serve-port overrides; 0 = ephemeral
+host = "127.0.0.1"   # CLI --serve-host overrides; "0.0.0.0" exposes to LAN
 ```
 
 The full schema (with `[render]` and `[bookmarks]` tables) is described in

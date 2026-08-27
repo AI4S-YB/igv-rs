@@ -118,6 +118,14 @@ pub struct Cli {
     /// TCP port for the browser-view HTTP server. 0 picks any free port.
     #[arg(long = "serve-port", default_value_t = 0)]
     pub serve_port: u16,
+
+    /// Host/IP address for the browser-view HTTP server (default 127.0.0.1).
+    ///
+    /// A non-loopback address (e.g. 0.0.0.0) exposes the view — and the
+    /// genomic data behind it — to the network with no authentication; use
+    /// only on a trusted network.
+    #[arg(long = "serve-host")]
+    pub serve_host: Option<std::net::IpAddr>,
 }
 
 #[cfg(test)]
@@ -137,5 +145,20 @@ mod tests {
         let cli = Cli::parse_from(["igv-rs", "ref.fa"]);
         assert_eq!(cli.serve_port, 0);
         assert!(!cli.no_browser);
+    }
+
+    #[test]
+    fn serve_host_parse() {
+        let cli = Cli::parse_from(["igv-rs", "ref.fa", "--serve-host", "0.0.0.0"]);
+        assert_eq!(
+            cli.serve_host,
+            Some(std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED))
+        );
+    }
+
+    #[test]
+    fn serve_host_defaults_to_none() {
+        let cli = Cli::parse_from(["igv-rs", "ref.fa"]);
+        assert_eq!(cli.serve_host, None);
     }
 }

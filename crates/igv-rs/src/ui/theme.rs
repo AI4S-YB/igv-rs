@@ -840,6 +840,8 @@ pub struct ServeConfig {
     pub auto_open: bool,
     #[serde(default)]
     pub port: u16,
+    #[serde(default = "default_host")]
+    pub host: std::net::IpAddr,
 }
 
 impl Default for ServeConfig {
@@ -847,12 +849,20 @@ impl Default for ServeConfig {
         Self {
             auto_open: true,
             port: 0,
+            host: default_host(),
         }
     }
 }
 
 fn default_auto_open() -> bool {
     true
+}
+
+/// Canonical default bind host for the browser-view HTTP server (loopback).
+/// Shared by the serde default and `ServeController`'s `Default` impl so the
+/// loopback value lives in exactly one place.
+pub(crate) fn default_host() -> std::net::IpAddr {
+    std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)
 }
 
 /// Load the `[serve]` section from the optional config TOML. Missing file,
@@ -1016,6 +1026,7 @@ mod tests {
         let cfg = load_serve_config(Some(Path::new("/nonexistent/path.toml")));
         assert!(cfg.auto_open);
         assert_eq!(cfg.port, 0);
+        assert_eq!(cfg.host, std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
     }
 
     #[test]
@@ -1026,6 +1037,7 @@ mod tests {
         let cfg = load_serve_config(Some(&p));
         assert!(cfg.auto_open);
         assert_eq!(cfg.port, 0);
+        assert_eq!(cfg.host, std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
     }
 
     #[test]
@@ -1037,8 +1049,13 @@ mod tests {
         writeln!(f, "[serve]").unwrap();
         writeln!(f, "auto_open = false").unwrap();
         writeln!(f, "port = 9001").unwrap();
+        writeln!(f, "host = \"0.0.0.0\"").unwrap();
         let cfg = load_serve_config(Some(&p));
         assert!(!cfg.auto_open);
         assert_eq!(cfg.port, 9001);
+        assert_eq!(
+            cfg.host,
+            std::net::IpAddr::V4(std::net::Ipv4Addr::UNSPECIFIED)
+        );
     }
 }
