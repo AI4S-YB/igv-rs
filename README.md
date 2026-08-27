@@ -280,6 +280,24 @@ configuration knobs and refinements are tracked for follow-up:
 - **Browser view is loopback-only.** Remote access (LAN / WAN), auth
   tokens, and reverse browser → TUI sync are tracked as follow-up specs.
 
+## Citation
+
+If you use this software, please cite:
+
+Xu ZG, Qin G. 2026. LLM-assisted development of Rust for high-performance bioinformatics software: practices, workflows, and boundaries. *Genomics Communications* 3: e018 doi: [10.48130/gcomm-0026-0018](https://doi.org/10.48130/gcomm-0026-0018)
+
+```bibtex
+@article{xu2026llm,
+  author  = {Xu, Zhou-Geng and Qin, Guihui},
+  title   = {LLM-assisted development of {Rust} for high-performance bioinformatics software: practices, workflows, and boundaries},
+  journal = {Genomics Communications},
+  volume  = {3},
+  pages   = {e018},
+  year    = {2026},
+  doi     = {10.48130/gcomm-0026-0018}
+}
+```
+
 ## Reference
 
 - Initial design spec: `docs/superpowers/specs/2026-04-26-igv-rs-rust-rewrite-design.md`
