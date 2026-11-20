@@ -11,6 +11,7 @@ use crate::error::{IgvError, Result};
 use crate::region::Region;
 
 pub mod bed;
+pub mod bigbed;
 pub mod gff;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,6 +93,7 @@ pub enum AnnotationFormat {
     Gff3,
     Gtf,
     Bed,
+    BigBed,
 }
 
 impl AnnotationFormat {
@@ -100,6 +102,7 @@ impl AnnotationFormat {
             "gff" | "gff3" => Some(Self::Gff3),
             "gtf" => Some(Self::Gtf),
             "bed" | "narrowpeak" | "broadpeak" => Some(Self::Bed),
+            "bb" | "bigbed" | "biggenepred" | "bigrepmsk" => Some(Self::BigBed),
             _ => None,
         }
     }
@@ -109,6 +112,10 @@ impl AnnotationFormat {
             .file_name()
             .and_then(|n| n.to_str())
             .map(|s| s.to_ascii_lowercase())?;
+        Self::from_name(&lower)
+    }
+
+    pub fn from_name(lower: &str) -> Option<Self> {
         if lower.ends_with(".gff")
             || lower.ends_with(".gff3")
             || lower.ends_with(".gff.gz")
@@ -128,6 +135,13 @@ impl AnnotationFormat {
         {
             return Some(Self::Bed);
         }
+        if lower.ends_with(".bb")
+            || lower.ends_with(".bigbed")
+            || lower.ends_with(".biggenepred")
+            || lower.ends_with(".bigrepmsk")
+        {
+            return Some(Self::BigBed);
+        }
         None
     }
 }
@@ -138,21 +152,35 @@ pub async fn open_annotation(
     path: &Path,
     format_override: Option<AnnotationFormat>,
 ) -> Result<Arc<dyn AnnotationSource>> {
+    let loc = crate::io::Location::Local(path.to_path_buf());
+    open_annotation_location(&loc, format_override, None).await
+}
+
+/// Open a local or remote annotation source (GFF3, GTF, BED, narrowPeak/broadPeak, bigBed).
+pub async fn open_annotation_location(
+    location: &crate::io::Location,
+    format_override: Option<AnnotationFormat>,
+    auth_token: Option<&str>,
+) -> Result<Arc<dyn AnnotationSource>> {
     let format = format_override
-        .or_else(|| AnnotationFormat::from_path(path))
+        .or_else(|| AnnotationFormat::from_name(&location.lowercase_name()))
         .ok_or_else(|| {
             IgvError::Other(format!(
                 "cannot determine annotation format for '{}'; pass --annotation-format",
-                path.display()
+                location.as_str()
             ))
         })?;
     match format {
         AnnotationFormat::Gff3 | AnnotationFormat::Gtf => {
-            let src = gff::NoodlesGffSource::open(path, format).await?;
+            let src = gff::NoodlesGffSource::open_location(location, format, auth_token).await?;
             Ok(Arc::new(src))
         }
         AnnotationFormat::Bed => {
-            let src = bed::NoodlesBedSource::open(path).await?;
+            let src = bed::NoodlesBedSource::open_location(location, auth_token).await?;
+            Ok(Arc::new(src))
+        }
+        AnnotationFormat::BigBed => {
+            let src = bigbed::BigBedAnnotationSource::open_location(location, auth_token).await?;
             Ok(Arc::new(src))
         }
     }

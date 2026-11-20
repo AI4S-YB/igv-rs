@@ -1,54 +1,63 @@
-//! Synchronous-await collector for `RenderInputs`.
-//!
-//! Used by the headless snapshot batch path. Issues each source's
-//! `fetch` in sequence and assembles the result. Does **not** use the
-//! TUI loader's mpsc/generation machinery — that exists for
-//! cancellation during interactive use, which the batch path doesn't
-//! need.
+//! Synchronous-await collector for `RenderInputs` (used by headless batch
+//! and inline terminal pixel snapshots).
 
 use std::sync::Arc;
 
-use crate::alignment::assign_lanes;
+use crate::alignment::{downsample_reads, group_and_pack, sort_rows, AlignmentRenderOpts};
+use crate::genome::Cytoband;
 use crate::region::Region;
 use crate::render::RenderMode;
 use crate::render_inputs::{
-    AnnotationTrackSnapshot, BamTrackSnapshot, LinkTrackSnapshot, RenderInputs, SignalTrackSnapshot,
+    AnnotationTrackSnapshot, BamTrackSnapshot, GwasTrackSnapshot, LinkTrackSnapshot, RenderInputs,
+    SegTrackSnapshot, SequenceRenderOpts, SignalTrackSnapshot, VcfTrackSnapshot,
 };
-use crate::source::{
-    AnnotationSource, BamSource, FastaSource, FetchOpts, FetchSignalOpts, RefMeta,
-    SignalSource, VcfSource,
-};
+use crate::sashimi::extract_splice_junctions;
+use crate::sequence::search_iupac_motif;
 use crate::source::link::{FetchLinkOpts, LinkSource};
+use crate::source::{
+    AnnotationSource, BamSource, FastaSource, FetchOpts, FetchSignalOpts, GwasSource, RefMeta,
+    SegSource, SignalSource, VcfSource,
+};
 
 #[derive(Clone)]
 pub struct Sources {
     pub fasta: Arc<dyn FastaSource>,
+    /// Legacy single-VCF field; also combined with `vcfs`.
     pub vcf: Option<Arc<dyn VcfSource>>,
+    pub vcfs: Vec<(String, Arc<dyn VcfSource>)>,
     pub bams: Vec<(String, Arc<dyn BamSource>)>,
     pub annotations: Vec<(String, Arc<dyn AnnotationSource>)>,
     pub signals: Vec<(String, Arc<dyn SignalSource>)>,
     pub links: Vec<(String, Arc<dyn LinkSource>)>,
+    pub segs: Vec<(String, Arc<dyn SegSource>)>,
+    pub gwas: Vec<(String, Arc<dyn GwasSource>)>,
     pub references: Vec<RefMeta>,
+    pub cytobands: Vec<Cytoband>,
 }
 
 impl std::fmt::Debug for Sources {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Sources")
             .field("vcf", &self.vcf.is_some())
+            .field("vcfs", &self.vcfs.len())
             .field("bams", &self.bams.len())
             .field("annotations", &self.annotations.len())
             .field("signals", &self.signals.len())
             .field("links", &self.links.len())
+            .field("segs", &self.segs.len())
+            .field("gwas", &self.gwas.len())
             .field("references", &self.references.len())
             .finish()
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CollectOpts {
     pub fetch_opts: FetchOpts,
     pub signal_opts: FetchSignalOpts,
     pub link_opts: FetchLinkOpts,
+    pub alignment_opts: AlignmentRenderOpts,
+    pub sequence_opts: SequenceRenderOpts,
     pub render_mode: RenderMode,
 }
 
@@ -58,20 +67,13 @@ impl Default for CollectOpts {
             fetch_opts: FetchOpts::default(),
             signal_opts: FetchSignalOpts::default(),
             link_opts: FetchLinkOpts::default(),
+            alignment_opts: AlignmentRenderOpts::default(),
+            sequence_opts: SequenceRenderOpts::default(),
             render_mode: RenderMode::DetailedReads,
         }
     }
 }
 
-/// Collect all data needed to render one region. Skips heavy fetches
-/// at wide zoom levels (matches the loader's gating policy):
-///
-/// * Reference sequence: only `PerBase` and `DetailedReads`.
-/// * Variants: skipped at `OverviewOnly`.
-/// * BAM rows: only `PerBase` and `DetailedReads`.
-/// * Annotations: always fetched.
-/// * Signals: always fetched (bigWig zoom-pyramid handles it).
-/// * Links: always queried (in-memory IntervalMap is cheap at every zoom level).
 pub async fn collect_render_inputs(
     sources: &Sources,
     region: &Region,
@@ -85,31 +87,79 @@ pub async fn collect_render_inputs(
         Vec::new()
     };
 
-    let variants = if let Some(vcf) = &sources.vcf {
-        if !matches!(mode, RenderMode::OverviewOnly) {
-            vcf.fetch(region).await?
-        } else {
-            Vec::new()
+    let mut sequence_opts = opts.sequence_opts.clone();
+    if let Some(pat) = &sequence_opts.motif_pattern {
+        if !reference_seq.is_empty() {
+            sequence_opts.motif_hits = search_iupac_motif(pat, &reference_seq, region.start)
+                .unwrap_or_default();
         }
-    } else {
-        Vec::new()
-    };
+    }
 
+    let mut vcf_tracks = Vec::new();
+    let mut legacy_variants = Vec::new();
+    if !matches!(mode, RenderMode::OverviewOnly) {
+        if let Some(vcf) = &sources.vcf {
+            let recs = vcf.fetch(region).await?;
+            legacy_variants = recs.clone();
+            if sources.vcfs.is_empty() {
+                vcf_tracks.push(VcfTrackSnapshot {
+                    display: vcf.display_name().to_string(),
+                    sample_names: vcf.sample_names(),
+                    records: recs,
+                });
+            }
+        }
+        for (display, vcf) in &sources.vcfs {
+            let recs = vcf.fetch(region).await?;
+            if legacy_variants.is_empty() {
+                legacy_variants = recs.clone();
+            }
+            vcf_tracks.push(VcfTrackSnapshot {
+                display: display.clone(),
+                sample_names: vcf.sample_names(),
+                records: recs,
+            });
+        }
+    }
+
+    let center_bp = region.start + region.width() / 2;
     let mut bams = Vec::with_capacity(sources.bams.len());
     for (display, src) in &sources.bams {
-        let rows = if matches!(mode, RenderMode::PerBase | RenderMode::DetailedReads) {
+        let mut rows = if matches!(mode, RenderMode::PerBase | RenderMode::DetailedReads) {
             src.fetch(region, &opts.fetch_opts).await?
         } else {
             Vec::new()
         };
-        let lanes = assign_lanes(&rows);
-        let total_lanes_u32 = lanes.iter().copied().max().map(|m| m + 1).unwrap_or(0);
-        let total_lanes = total_lanes_u32.min(u16::MAX as u32) as u16;
+        let mut downsampled = 0usize;
+        if let Some(cap) = opts.alignment_opts.max_depth {
+            if cap > 0 {
+                let (kept, dropped) = downsample_reads(rows, cap, 200, 1);
+                rows = kept;
+                downsampled = dropped;
+            }
+        }
+        sort_rows(
+            &mut rows,
+            opts.alignment_opts.sort_mode,
+            center_bp,
+            &reference_seq,
+            region.start,
+        );
+        let junctions = extract_splice_junctions(&rows, 1);
+        let packed = group_and_pack(
+            &rows,
+            opts.alignment_opts.group_mode,
+            opts.alignment_opts.view_as_pairs,
+        );
         bams.push(BamTrackSnapshot {
             display: display.clone(),
             rows,
-            lanes,
-            total_lanes,
+            lanes: packed.lanes,
+            total_lanes: packed.total_lanes,
+            bands: packed.bands,
+            mate_links: packed.mate_links,
+            downsampled,
+            junctions,
         });
     }
 
@@ -141,15 +191,40 @@ pub async fn collect_render_inputs(
         });
     }
 
+    let mut segs = Vec::with_capacity(sources.segs.len());
+    for (display, src) in &sources.segs {
+        let data = src.fetch(region).await?;
+        segs.push(SegTrackSnapshot {
+            display: display.clone(),
+            samples: data.samples,
+            segments: data.segments,
+        });
+    }
+
+    let mut gwas = Vec::with_capacity(sources.gwas.len());
+    for (display, src) in &sources.gwas {
+        let points = src.fetch(region).await?;
+        gwas.push(GwasTrackSnapshot {
+            display: display.clone(),
+            points,
+        });
+    }
+
     Ok(RenderInputs {
         region: region.clone(),
         references: sources.references.clone(),
+        cytobands: sources.cytobands.clone(),
         reference_seq,
-        variants,
+        sequence_opts,
+        variants: legacy_variants,
+        vcf_tracks,
         bams,
+        alignment_opts: opts.alignment_opts.clone(),
         annotations,
         signals,
         links,
+        segs,
+        gwas,
         render_mode: mode,
     })
 }

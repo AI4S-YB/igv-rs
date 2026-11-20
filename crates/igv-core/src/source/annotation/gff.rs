@@ -1,29 +1,19 @@
-//! GFF3 / GTF annotation source. Loads the entire file into memory on
-//! `open` and serves range queries from a per-chromosome sorted index.
-//! Fine for typical gene-annotation files (≤ a few hundred MB on disk).
-//!
-//! ## Implementation note
-//!
-//! The plan was authored against noodles-gff 0.56's `feature::record_buf`
-//! API, but the workspace pins `noodles = "0.85"` which resolves to
-//! noodles-gff 0.39 (different module layout: `gff::Record`, no
-//! `feature::record_buf`, `gff::Line` instead of `gff::LineBuf`).
-//! Worse, noodles-gff 0.39 only parses GFF3 (rejects GTF
-//! `key "value"` attribute syntax) and rejects CDS records lacking a
-//! phase. To support both GFF3 and GTF cleanly, this implementation
-//! hand-parses each line into the same 9-column structure rather than
-//! using noodles' parser. The strategy preserves the plan's behavior:
-//! group by transcript id, classify blocks by feature type, resolve
-//! strand and label.
+//! GFF3 / GTF annotation source supporting tabix-indexed `.gff3.gz`/`.gtf.gz`
+//! streaming as well as gzipped/plain local & remote in-memory indexing.
 
 use std::collections::HashMap;
-use std::io::BufRead;
-use std::path::{Path, PathBuf};
+use std::io::{BufRead, BufReader, Cursor};
+use std::path::Path;
+use std::sync::Arc;
 
 use async_trait::async_trait;
+use noodles::csi::{self, BinningIndex};
+use noodles::tabix;
 use tracing::warn;
 
 use crate::error::{IgvError, Result};
+use crate::genome::resolve_chrom_name;
+use crate::io::{fetch_bytes, location_exists, maybe_gunzip, Location, SeekableStream};
 use crate::region::Region;
 
 use super::{
@@ -32,35 +22,130 @@ use super::{
 };
 
 #[derive(Debug)]
+enum GffBackend {
+    InMemory {
+        by_chrom: HashMap<String, Vec<AnnotationTranscript>>,
+        chroms: Vec<String>,
+    },
+    TabixTbi {
+        location: Location,
+        remote_stream: Option<SeekableStream>,
+        index: Arc<tabix::Index>,
+        chroms: Vec<String>,
+        format: AnnotationFormat,
+    },
+    TabixCsi {
+        location: Location,
+        remote_stream: Option<SeekableStream>,
+        index: Arc<csi::Index>,
+        chroms: Vec<String>,
+        format: AnnotationFormat,
+    },
+}
+
+#[derive(Debug)]
 pub struct NoodlesGffSource {
-    #[allow(dead_code)]
-    path: PathBuf,
     display: String,
-    #[allow(dead_code)]
-    format: AnnotationFormat,
-    /// chrom → sorted (by span_start) transcripts
-    by_chrom: HashMap<String, Vec<AnnotationTranscript>>,
+    backend: GffBackend,
 }
 
 impl NoodlesGffSource {
     pub async fn open(path: &Path, format: AnnotationFormat) -> Result<Self> {
-        let p = path.to_path_buf();
-        let fmt = format;
+        let loc = Location::Local(path.to_path_buf());
+        Self::open_location(&loc, format, None).await
+    }
+
+    pub async fn open_location(
+        location: &Location,
+        format: AnnotationFormat,
+        auth_token: Option<&str>,
+    ) -> Result<Self> {
+        let display = location.display_name();
+        let tbi_loc = location.sibling("tbi");
+        let csi_loc = location.sibling("csi");
+
+        if location_exists(&tbi_loc, auth_token).await {
+            let idx_bytes = fetch_bytes(&tbi_loc, auth_token).await?;
+            let index = tokio::task::spawn_blocking(move || {
+                let mut r = tabix::io::Reader::new(Cursor::new(idx_bytes));
+                r.read_index().map_err(IgvError::noodles)
+            })
+            .await
+            .map_err(|e| IgvError::Other(e.to_string()))??;
+            let remote_stream = if location.is_remote() {
+                Some(SeekableStream::open(location, auth_token).await?)
+            } else {
+                None
+            };
+            let chroms = index
+                .header()
+                .map(|h| {
+                    h.reference_sequence_names()
+                        .iter()
+                        .map(|s| String::from_utf8_lossy(s.as_ref()).into_owned())
+                        .collect()
+                })
+                .unwrap_or_default();
+            return Ok(Self {
+                display,
+                backend: GffBackend::TabixTbi {
+                    location: location.clone(),
+                    remote_stream,
+                    index: Arc::new(index),
+                    chroms,
+                    format,
+                },
+            });
+        }
+
+        if location_exists(&csi_loc, auth_token).await {
+            let idx_bytes = fetch_bytes(&csi_loc, auth_token).await?;
+            let index = tokio::task::spawn_blocking(move || {
+                let mut r = csi::io::Reader::new(Cursor::new(idx_bytes));
+                r.read_index().map_err(IgvError::noodles)
+            })
+            .await
+            .map_err(|e| IgvError::Other(e.to_string()))??;
+            let remote_stream = if location.is_remote() {
+                Some(SeekableStream::open(location, auth_token).await?)
+            } else {
+                None
+            };
+            let chroms = index
+                .header()
+                .map(|h| {
+                    h.reference_sequence_names()
+                        .iter()
+                        .map(|s| String::from_utf8_lossy(s.as_ref()).into_owned())
+                        .collect()
+                })
+                .unwrap_or_default();
+            return Ok(Self {
+                display,
+                backend: GffBackend::TabixCsi {
+                    location: location.clone(),
+                    remote_stream,
+                    index: Arc::new(index),
+                    chroms,
+                    format,
+                },
+            });
+        }
+
+        let raw = fetch_bytes(location, auth_token).await?;
         let by_chrom = tokio::task::spawn_blocking(move || -> Result<_> {
-            load_all(&p, fmt)
+            let plain = maybe_gunzip(raw)?;
+            let reader = BufReader::new(Cursor::new(plain));
+            let lines = reader.lines().map_while(|r| r.ok());
+            Ok(assemble_gff_lines(lines, format))
         })
         .await
         .map_err(|e| IgvError::Other(e.to_string()))??;
 
+        let chroms = by_chrom.keys().cloned().collect();
         Ok(Self {
-            path: path.to_path_buf(),
-            display: path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("annotation")
-                .to_string(),
-            format,
-            by_chrom,
+            display,
+            backend: GffBackend::InMemory { by_chrom, chroms },
         })
     }
 }
@@ -68,20 +153,87 @@ impl NoodlesGffSource {
 #[async_trait]
 impl AnnotationSource for NoodlesGffSource {
     async fn fetch(&self, region: &Region) -> Result<Vec<AnnotationTranscript>> {
-        let bucket = match self.by_chrom.get(&region.chrom) {
-            Some(v) => v,
-            None => return Ok(Vec::new()),
-        };
-        // Linear scan: small chromosomes (≤ 100k transcripts) — fine.
-        let mut out = Vec::new();
-        for tx in bucket {
-            if let Some((s, e)) = tx.span() {
-                if e >= region.start && s <= region.end {
-                    out.push(tx.clone());
+        match &self.backend {
+            GffBackend::InMemory { by_chrom, chroms } => {
+                let Some(chrom) = resolve_chrom_name(&region.chrom, chroms) else {
+                    return Ok(Vec::new());
+                };
+                let Some(bucket) = by_chrom.get(chrom) else {
+                    return Ok(Vec::new());
+                };
+                let mut out = Vec::new();
+                for tx in bucket {
+                    if let Some((s, e)) = tx.span() {
+                        if e >= region.start && s <= region.end {
+                            out.push(tx.clone());
+                        }
+                    }
                 }
+                Ok(out)
+            }
+            GffBackend::TabixTbi {
+                location,
+                remote_stream,
+                index,
+                chroms,
+                format,
+            } => {
+                let Some(resolved) = resolve_chrom_name(&region.chrom, chroms).map(str::to_string)
+                else {
+                    return Ok(Vec::new());
+                };
+                let stream = open_stream(location, remote_stream.as_ref())?;
+                let index = Arc::clone(index);
+                let fmt = *format;
+                let region_str = format!("{resolved}:{}-{}", region.start, region.end);
+                tokio::task::spawn_blocking(move || -> Result<Vec<AnnotationTranscript>> {
+                    let r: noodles::core::Region = region_str
+                        .parse()
+                        .map_err(|_| IgvError::InvalidRegion(region_str))?;
+                    let mut reader = csi::io::IndexedReader::new(stream, index.as_ref().clone());
+                    let mut lines = Vec::new();
+                    for res in reader.query(&r).map_err(IgvError::noodles)? {
+                        let rec = res.map_err(IgvError::noodles)?;
+                        lines.push(rec.as_ref().to_string());
+                    }
+                    let mut map = assemble_gff_lines(lines.into_iter(), fmt);
+                    Ok(map.remove(&resolved).unwrap_or_default())
+                })
+                .await
+                .map_err(|e| IgvError::Other(e.to_string()))?
+            }
+            GffBackend::TabixCsi {
+                location,
+                remote_stream,
+                index,
+                chroms,
+                format,
+            } => {
+                let Some(resolved) = resolve_chrom_name(&region.chrom, chroms).map(str::to_string)
+                else {
+                    return Ok(Vec::new());
+                };
+                let stream = open_stream(location, remote_stream.as_ref())?;
+                let index = Arc::clone(index);
+                let fmt = *format;
+                let region_str = format!("{resolved}:{}-{}", region.start, region.end);
+                tokio::task::spawn_blocking(move || -> Result<Vec<AnnotationTranscript>> {
+                    let r: noodles::core::Region = region_str
+                        .parse()
+                        .map_err(|_| IgvError::InvalidRegion(region_str))?;
+                    let mut reader = csi::io::IndexedReader::new(stream, index.as_ref().clone());
+                    let mut lines = Vec::new();
+                    for res in reader.query(&r).map_err(IgvError::noodles)? {
+                        let rec = res.map_err(IgvError::noodles)?;
+                        lines.push(rec.as_ref().to_string());
+                    }
+                    let mut map = assemble_gff_lines(lines.into_iter(), fmt);
+                    Ok(map.remove(&resolved).unwrap_or_default())
+                })
+                .await
+                .map_err(|e| IgvError::Other(e.to_string()))?
             }
         }
-        Ok(out)
     }
 
     fn display_name(&self) -> &str {
@@ -93,8 +245,11 @@ impl AnnotationSource for NoodlesGffSource {
         if q.is_empty() {
             return Vec::new();
         }
+        let GffBackend::InMemory { by_chrom, .. } = &self.backend else {
+            return Vec::new();
+        };
         let mut out = Vec::new();
-        for (chrom, bucket) in &self.by_chrom {
+        for (chrom, bucket) in by_chrom {
             for tx in bucket {
                 let gene_match = tx
                     .gene_id
@@ -112,16 +267,23 @@ impl AnnotationSource for NoodlesGffSource {
     }
 }
 
-fn load_all(
-    path: &Path,
-    format: AnnotationFormat,
-) -> Result<HashMap<String, Vec<AnnotationTranscript>>> {
-    let file = std::fs::File::open(path).map_err(|e| IgvError::io(path, e))?;
-    let reader = std::io::BufReader::new(file);
+fn open_stream(
+    location: &Location,
+    remote_stream: Option<&SeekableStream>,
+) -> Result<SeekableStream> {
+    match (location, remote_stream) {
+        (Location::Local(p), _) => SeekableStream::open_local(p),
+        (Location::Remote(_), Some(rs)) => rs
+            .clone_handle()
+            .map_err(|e| IgvError::Other(e.to_string())),
+        (Location::Remote(u), None) => Err(IgvError::Other(format!("no stream for {u}"))),
+    }
+}
 
-    // Group records by transcript id and gene id.
-    // For GFF3: child records carry `Parent` listing transcript IDs.
-    // For GTF: lines carry `transcript_id` directly.
+pub(crate) fn assemble_gff_lines(
+    lines: impl Iterator<Item = String>,
+    format: AnnotationFormat,
+) -> HashMap<String, Vec<AnnotationTranscript>> {
     struct Pending {
         gene_name: String,
         transcript_id: String,
@@ -132,19 +294,10 @@ fn load_all(
         seen_exon: bool,
     }
     let mut pending: HashMap<String, Pending> = HashMap::new();
-    // GFF3: track gene_id → gene_name lookup so we can label transcripts.
     let mut gene_name_by_id: HashMap<String, String> = HashMap::new();
-    // GFF3: track tx_id → gene_id so we can resolve a parent gene's name.
     let mut gene_id_by_tx: HashMap<String, String> = HashMap::new();
 
-    for (lineno, line_res) in reader.lines().enumerate() {
-        let line = match line_res {
-            Ok(l) => l,
-            Err(e) => {
-                warn!("gff read error at line {}: {e}", lineno + 1);
-                continue;
-            }
-        };
+    for (lineno, line) in lines.enumerate() {
         let trimmed = line.trim_end_matches('\r');
         if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
@@ -167,11 +320,7 @@ fn load_all(
             AnnotationFormat::Gff3 => {
                 let id = record.attrs.get("ID").cloned();
                 let parent = record.attrs.get("Parent").cloned();
-                let name = record
-                    .attrs
-                    .get("Name")
-                    .cloned()
-                    .or_else(|| id.clone());
+                let name = record.attrs.get("Name").cloned().or_else(|| id.clone());
                 (id, None, parent, name)
             }
             AnnotationFormat::Gtf => {
@@ -184,7 +333,7 @@ fn load_all(
                     .or_else(|| gid.clone());
                 (gid, tid, None, name)
             }
-            AnnotationFormat::Bed => unreachable!(),
+            AnnotationFormat::Bed | AnnotationFormat::BigBed => unreachable!(),
         };
 
         match kind.as_str() {
@@ -203,7 +352,7 @@ fn load_all(
                         Some(id) => id,
                         None => continue,
                     },
-                    AnnotationFormat::Bed => unreachable!(),
+                    _ => unreachable!(),
                 };
                 let gene_for_tx = match format {
                     AnnotationFormat::Gff3 => parent_attr
@@ -235,7 +384,7 @@ fn load_all(
                         Some(id) => vec![id],
                         None => continue,
                     },
-                    AnnotationFormat::Bed => unreachable!(),
+                    _ => unreachable!(),
                 };
                 let block_kind = match kind.as_str() {
                     "exon" => BlockKind::Exon,
@@ -271,20 +420,14 @@ fn load_all(
         }
     }
 
-    // Resolve gene names where possible (GFF3: Parent points to a gene id).
     let mut by_chrom: HashMap<String, Vec<AnnotationTranscript>> = HashMap::new();
     for (_, mut p) in pending {
-        // If there's a CDS, drop bare exon blocks: CDS + UTR already cover
-        // the visible extent, and overlaying generic exon would
-        // double-render.
         if p.has_cds {
             p.blocks.retain(|b| !matches!(b.kind, BlockKind::Exon));
         } else if !p.seen_exon {
-            // No exon and no CDS — nothing to render. Skip.
             continue;
         }
         let parent_gene = gene_id_by_tx.get(&p.transcript_id).cloned();
-        // Improve label using gene_name lookup (GFF3 Parent → gene name).
         let label = match &parent_gene {
             Some(g) => gene_name_by_id.get(g).cloned().unwrap_or(p.gene_name),
             None => p.gene_name,
@@ -303,7 +446,7 @@ fn load_all(
     for v in by_chrom.values_mut() {
         v.sort_by_key(|t| t.span().map(|(s, _)| s).unwrap_or(0));
     }
-    Ok(by_chrom)
+    by_chrom
 }
 
 struct GffRecord {
@@ -318,16 +461,12 @@ struct GffRecord {
 fn parse_record(line: &str, format: AnnotationFormat) -> std::result::Result<GffRecord, String> {
     let cols: Vec<&str> = line.split('\t').collect();
     if cols.len() < 8 {
-        return Err(format!("expected ≥8 tab-separated columns, got {}", cols.len()));
+        return Err(format!("expected >=8 tab-separated columns, got {}", cols.len()));
     }
     let chrom = cols[0].to_string();
     let ty = cols[2].to_string();
-    let start: u64 = cols[3]
-        .parse()
-        .map_err(|e| format!("invalid start: {e}"))?;
-    let end: u64 = cols[4]
-        .parse()
-        .map_err(|e| format!("invalid end: {e}"))?;
+    let start: u64 = cols[3].parse().map_err(|e| format!("invalid start: {e}"))?;
+    let end: u64 = cols[4].parse().map_err(|e| format!("invalid end: {e}"))?;
     let strand = match cols[6] {
         "+" => Strand::Forward,
         "-" => Strand::Reverse,
@@ -337,7 +476,7 @@ fn parse_record(line: &str, format: AnnotationFormat) -> std::result::Result<Gff
     let attrs = match format {
         AnnotationFormat::Gff3 => parse_gff3_attrs(attrs_col),
         AnnotationFormat::Gtf => parse_gtf_attrs(attrs_col),
-        AnnotationFormat::Bed => unreachable!(),
+        _ => unreachable!(),
     };
     Ok(GffRecord {
         chrom,
@@ -370,7 +509,6 @@ fn parse_gtf_attrs(s: &str) -> HashMap<String, String> {
         if part.is_empty() {
             continue;
         }
-        // GTF format: key "value" or key value
         let mut iter = part.splitn(2, char::is_whitespace);
         let key = match iter.next() {
             Some(k) => k.trim(),

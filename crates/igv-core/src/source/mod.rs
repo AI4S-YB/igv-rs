@@ -1,10 +1,16 @@
-//! Async data-source traits and noodles-backed implementations.
+//! Async data-source traits and format backends.
 
 pub mod annotation;
-pub mod signal;
-pub mod link;
 pub mod bam;
+pub mod bcf;
+pub mod cram;
 pub mod fasta;
+pub mod gwas;
+pub mod link;
+pub mod paf;
+pub mod sam;
+pub mod seg;
+pub mod signal;
 pub mod vcf;
 
 use async_trait::async_trait;
@@ -24,16 +30,24 @@ pub trait FastaSource: Send + Sync {
     async fn fetch(&self, region: &Region) -> Result<Vec<u8>>;
 }
 
-pub use fasta::NoodlesFastaSource;
-pub use vcf::{NoodlesVcfSource, VariantRecord, VcfSource};
-pub use bam::{AlignmentRow, BamSource, FetchOpts, NoodlesBamSource};
 pub use annotation::{
-    AnnotationBlock, AnnotationFormat, AnnotationSource, AnnotationTranscript, BlockKind,
-    Strand, TranscriptKind, open_annotation,
+    open_annotation, open_annotation_location, AnnotationBlock, AnnotationFormat,
+    AnnotationSource, AnnotationTranscript, BlockKind, Strand, TranscriptKind,
 };
-pub use signal::{
-    open_signal, FetchSignalOpts, SignalBin, SignalFormat, SignalSource, SignalSummary,
-};
+pub use bam::{AlignmentRow, BamSource, FetchOpts, NoodlesBamSource};
+pub use bcf::NoodlesBcfSource;
+pub use cram::NoodlesCramSource;
+pub use fasta::NoodlesFastaSource;
+pub use gwas::{FileGwasSource, GwasPoint, GwasSource};
 pub use link::{
-    open_link, FetchLinkOpts, LinkFormat, LinkRecord, LinkScope, LinkSource, VisibleLink,
+    open_link, open_link_location, BigInteractLinkSource, FetchLinkOpts, LinkFormat, LinkRecord,
+    LinkScope, LinkSource, VisibleLink,
 };
+pub use paf::PafAlignmentSource;
+pub use sam::{open_alignment, SamMemorySource};
+pub use seg::{FileSegSource, SegInterval, SegSource, SegTrackData};
+pub use signal::{
+    open_signal, open_signal_location, FetchSignalOpts, SignalBin, SignalFormat, SignalSource,
+    SignalSummary,
+};
+pub use vcf::{open_variant, GenotypeCall, NoodlesVcfSource, SampleGenotype, VariantRecord, VcfSource};
