@@ -1,24 +1,50 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>igv-rs browser view</title>
-    <style>
-      html, body { margin: 0; height: 100%; background: #fff; font-family: system-ui, sans-serif; }
-      #igv-root { height: 100vh; }
-    </style>
-  </head>
-  <body>
-    <div id="igv-root"></div>
-    <script type="module">
-      import igv from "/assets/igv.esm.min.js";
-      const cfg = await fetch("/api/config").then(r => r.json());
-      const browser = await igv.createBrowser(document.getElementById("igv-root"), cfg);
-      const es = new EventSource("/api/sse");
-      es.addEventListener("view", e => {
-        const { chrom, start, end } = JSON.parse(e.data);
-        browser.search(`${chrom}:${start}-${end}`);
-      });
-    </script>
-  </body>
+<head>
+<meta charset="utf-8">
+<title>igv-rs</title>
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  #igv-div { width: 100%; height: 100vh; }
+</style>
+</head>
+<body>
+<div id="igv-div"></div>
+<script type="module">
+import igv from '/assets/igv.esm.min.js';
+
+const cfg = await (await fetch('/api/config')).json();
+const browser = await igv.createBrowser(document.getElementById('igv-div'), cfg);
+let suppressingSync = false;
+let debounceTimer = null;
+
+browser.on('locuschange', (referenceFrameList) => {
+  if (suppressingSync || !referenceFrameList || referenceFrameList.length === 0) return;
+  const rf = referenceFrameList[0];
+  if (!rf || !rf.chr) return;
+  const s = Math.max(1, Math.floor(rf.start) + 1);
+  const e = Math.max(s, Math.ceil(rf.end));
+  const locus = `${rf.chr}:${s}-${e}`;
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    fetch('/api/locus', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locus }),
+    }).catch(() => {});
+  }, 150);
+});
+
+const es = new EventSource('/api/sse');
+es.addEventListener('view', async (e) => {
+  const ev = JSON.parse(e.data);
+  suppressingSync = true;
+  try {
+    await browser.search(`${ev.chrom}:${ev.start}-${ev.end}`);
+  } finally {
+    setTimeout(() => { suppressingSync = false; }, 200);
+  }
+});
+</script>
+</body>
 </html>

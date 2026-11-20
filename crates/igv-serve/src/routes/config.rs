@@ -11,28 +11,46 @@ async fn handler(State(state): State<ServerState>) -> Json<Value> {
     let mut tracks: Vec<Value> = Vec::new();
 
     for (idx, t) in state.bams.iter().enumerate() {
+        let lower = t.path.to_string_lossy().to_ascii_lowercase();
+        let (fmt, idx_ext) = if lower.ends_with(".cram") {
+            ("cram", "crai")
+        } else {
+            ("bam", "bai")
+        };
         tracks.push(json!({
             "name": t.display,
             "type": "alignment",
-            "format": "bam",
+            "format": fmt,
             "url": format!("/file/bam/{idx}"),
-            "indexURL": format!("/file/bam/{idx}.bai"),
+            "indexURL": format!("/file/bam/{idx}.{idx_ext}"),
         }));
     }
     for (idx, t) in state.vcfs.iter().enumerate() {
+        let lower = t.path.to_string_lossy().to_ascii_lowercase();
+        let (fmt, idx_ext) = if lower.ends_with(".bcf") {
+            ("bcf", "csi")
+        } else {
+            ("vcf", "tbi")
+        };
         tracks.push(json!({
             "name": t.display,
             "type": "variant",
-            "format": "vcf",
+            "format": fmt,
             "url": format!("/file/vcf/{idx}"),
-            "indexURL": format!("/file/vcf/{idx}.tbi"),
+            "indexURL": format!("/file/vcf/{idx}.{idx_ext}"),
         }));
     }
     for (idx, t) in state.signals.iter().enumerate() {
+        let lower = t.path.to_string_lossy().to_ascii_lowercase();
+        let fmt = if lower.ends_with(".bw") || lower.ends_with(".bigwig") {
+            "bigwig"
+        } else {
+            "wig"
+        };
         tracks.push(json!({
             "name": t.display,
             "type": "wig",
-            "format": "bigwig",
+            "format": fmt,
             "url": format!("/file/signal/{idx}"),
         }));
     }
@@ -54,6 +72,28 @@ async fn handler(State(state): State<ServerState>) -> Json<Value> {
             "sourceType": "custom",
             "source": {
                 "url": format!("/api/features/link/{idx}"),
+                "queryable": true,
+            }
+        }));
+    }
+    for (idx, t) in state.segs.iter().enumerate() {
+        tracks.push(json!({
+            "name": t.display,
+            "type": "seg",
+            "sourceType": "custom",
+            "source": {
+                "url": format!("/api/features/seg/{idx}"),
+                "queryable": true,
+            }
+        }));
+    }
+    for (idx, t) in state.gwas.iter().enumerate() {
+        tracks.push(json!({
+            "name": t.display,
+            "type": "gwas",
+            "sourceType": "custom",
+            "source": {
+                "url": format!("/api/features/gwas/{idx}"),
                 "queryable": true,
             }
         }));

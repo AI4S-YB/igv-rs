@@ -3,6 +3,8 @@
 
 use serde_json::{json, Value};
 
+use igv_core::source::gwas::GwasPoint;
+use igv_core::source::seg::SegInterval;
 use igv_core::source::{AnnotationTranscript, BlockKind, LinkRecord, Strand};
 
 pub fn annotation_to_json(chrom: &str, tx: &AnnotationTranscript) -> Value {
@@ -45,6 +47,27 @@ pub fn link_to_json(rec: &LinkRecord) -> Value {
         v["name"] = json!(name);
     }
     v
+}
+
+pub fn seg_to_json(seg: &SegInterval) -> Value {
+    json!({
+        "chr": seg.chrom,
+        "start": seg.start.saturating_sub(1),
+        "end": seg.end,
+        "sample": seg.sample,
+        "value": seg.value,
+    })
+}
+
+pub fn gwas_to_json(chrom: &str, pt: &GwasPoint) -> Value {
+    json!({
+        "chr": chrom,
+        "start": pt.pos.saturating_sub(1),
+        "end": pt.pos,
+        "name": pt.snp_id,
+        "value": pt.neg_log10_p,
+        "p": pt.p_raw,
+    })
 }
 
 #[cfg(test)]
