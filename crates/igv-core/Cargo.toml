@@ -15,19 +15,26 @@ description = "Pure async data layer for igv-rs: regions, source traits, alignme
 [dependencies]
 async-trait.workspace = true
 bigtools = { version = "0.5", default-features = false, features = ["read"] }
+byteorder.workspace = true
 flate2 = "1"
 futures.workspace = true
 iset = "0.3"
+lru.workspace = true
 noodles = { workspace = true, features = [
-    "async", "core", "fasta", "bam", "sam", "vcf", "csi", "tabix", "bgzf",
+    "async", "core", "fasta", "bam", "sam", "cram", "vcf", "bcf", "csi", "tabix", "bgzf",
     "gff", "bed",
 ] }
-serde = { workspace = true, optional = true }
+regex.workspace = true
+reqwest.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["fs", "io-util", "sync"] }
+tokio = { workspace = true, features = ["fs", "io-util", "sync", "rt"] }
 tracing.workspace = true
 
 [dev-dependencies]
+axum.workspace = true
 bigtools = { version = "0.5", default-features = false, features = ["read", "write"] }
 tempfile.workspace = true
-tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "net"] }
+tower-http.workspace = true

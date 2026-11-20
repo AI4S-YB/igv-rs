@@ -1090,15 +1090,22 @@ name = "igv-core"
 version = "0.7.0"
 dependencies = [
  "async-trait",
+ "axum",
  "bigtools",
+ "byteorder",
  "flate2",
  "futures",
  "iset",
+ "lru",
  "noodles",
+ "regex",
+ "reqwest",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
+ "tower-http 0.5.2",
  "tracing",
 ]
 
@@ -1106,6 +1113,7 @@ dependencies = [
 name = "igv-render"
 version = "0.7.0"
 dependencies = [
+ "base64",
  "igv-core",
  "insta",
  "resvg",
@@ -1129,7 +1137,9 @@ dependencies = [
  "igv-serve",
  "insta",
  "ratatui 0.29.0",
+ "reqwest",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -2138,6 +2148,18 @@ dependencies = [
  "getrandom 0.2.17",
  "libredox",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "regex"
+version = "1.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e10754a14b9137dd7b1e3e5b0493cc9171fdd105e0ab477f51b72e7f3ac0e276"
+dependencies = [
+ "aho-corasick",
+ "memchr",
+ "regex-automata",
+ "regex-syntax",
 ]
 
 [[package]]

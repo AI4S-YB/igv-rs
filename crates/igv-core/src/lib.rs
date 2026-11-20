@@ -7,9 +7,12 @@ pub mod alignment;
 pub mod collect;
 pub mod coverage;
 pub mod error;
+pub mod genome;
+pub mod io;
 pub mod region;
 pub mod render;
 pub mod render_inputs;
+pub mod sequence;
 pub mod source;
 
 pub use collect::{collect_render_inputs, CollectOpts, Sources};

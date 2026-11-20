@@ -14,6 +14,7 @@ description = "Graphical (SVG / PNG) snapshot renderer for igv-rs."
 
 [dependencies]
 igv-core = { path = "../igv-core", version = "0.7.0" }
+base64.workspace = true
 thiserror.workspace = true
 
 # PNG pipeline. Pure-Rust, no system deps.

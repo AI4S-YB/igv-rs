@@ -29,10 +29,12 @@ crossterm.workspace = true
 directories.workspace = true
 futures.workspace = true
 ratatui.workspace = true
+reqwest.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = [
-    "fs", "io-util", "macros", "rt-multi-thread", "sync", "time", "signal",
+    "fs", "io-util", "macros", "rt-multi-thread", "sync", "time", "signal", "net",
 ] }
 toml.workspace = true
 tracing.workspace = true
