@@ -179,7 +179,10 @@ mod tests {
 
     #[tokio::test]
     async fn parses_igv_hub_fixture_if_present() {
-        let p = std::path::Path::new("/Users/zhanxw/Downloads/igv-main/test/data/hubs/hub.txt");
+        let base = std::env::var_os("IGV_TEST_DATA")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../test/data"));
+        let p = base.join("hubs/hub.txt");
         if p.exists() {
             let hub = parse_hub(p.to_str().unwrap(), None).await.unwrap();
             assert_eq!(hub.genome_id.as_deref(), Some("GCF_000186305.1"));

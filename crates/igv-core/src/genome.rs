@@ -1019,8 +1019,11 @@ mod tests {
 
     #[tokio::test]
     async fn twobit_matches_igv_fixture_if_present() {
-        let fixture_2bit = std::path::Path::new("/Users/zhanxw/Downloads/igv-main/test/data/twobit/foo.2bit");
-        let fixture_fa = std::path::Path::new("/Users/zhanxw/Downloads/igv-main/test/data/twobit/foo.2bit.fa");
+        let base = std::env::var_os("IGV_TEST_DATA")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../test/data"));
+        let fixture_2bit = base.join("twobit/foo.2bit");
+        let fixture_fa = base.join("twobit/foo.2bit.fa");
         if fixture_2bit.exists() && fixture_fa.exists() {
             let src = TwoBitFastaSource::open(&Location::Local(fixture_2bit.to_path_buf()), None, None)
                 .await

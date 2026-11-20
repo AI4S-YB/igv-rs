@@ -1,5 +1,12 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+fn igv_fixture(rel: &str) -> PathBuf {
+    let base = std::env::var_os("IGV_TEST_DATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../test/data"));
+    base.join(rel)
+}
 
 use igv_core::pedigree::Pedigree;
 use igv_core::region::Region;
@@ -12,10 +19,10 @@ use igv_core::io::Location;
 
 #[tokio::test]
 async fn loads_cram_fixture_if_present() {
-    let cram_path = Path::new("/Users/zhanxw/Downloads/igv-main/test/data/cram/cram_with_crai_index.cram");
-    let fa_path = Path::new("/Users/zhanxw/Downloads/igv-main/test/data/cram/hg19mini.fasta");
+    let cram_path = igv_fixture("cram/cram_with_crai_index.cram");
+    let fa_path = igv_fixture("cram/hg19mini.fasta");
     if cram_path.exists() && fa_path.exists() {
-        let fasta = Arc::new(NoodlesFastaSource::open(fa_path).await.unwrap());
+        let fasta = Arc::new(NoodlesFastaSource::open(&fa_path).await.unwrap());
         let err = open_alignment(cram_path.to_str().unwrap(), fasta, None, None)
             .await
             .err()
@@ -143,7 +150,7 @@ async fn loads_bcf_fixture_if_present() {
     }
 
     // Legacy BCF 2.1 fixture omitting INFO/FORMAT Description returns a clean error rather than panicking
-    let legacy = Path::new("/Users/zhanxw/Downloads/igv-main/test/data/bcf/ex2.bcf");
+    let legacy = igv_fixture("bcf/ex2.bcf");
     if legacy.exists() {
         assert!(open_variant(legacy.to_str().unwrap(), None, None)
             .await
@@ -153,9 +160,9 @@ async fn loads_bcf_fixture_if_present() {
 
 #[tokio::test]
 async fn loads_bigbed_and_biginteract_fixtures_if_present() {
-    let bb_path = Path::new("/Users/zhanxw/Downloads/igv-main/test/data/bb/myBigBed2.bb");
+    let bb_path = igv_fixture("bb/myBigBed2.bb");
     if bb_path.exists() {
-        let src = open_annotation(bb_path, Some(AnnotationFormat::BigBed))
+        let src = open_annotation(&bb_path, Some(AnnotationFormat::BigBed))
             .await
             .unwrap();
         let txs = src
@@ -164,9 +171,9 @@ async fn loads_bigbed_and_biginteract_fixtures_if_present() {
             .unwrap();
         assert!(!txs.is_empty());
     }
-    let bi_path = Path::new("/Users/zhanxw/Downloads/igv-main/test/data/bb/interactExample3.inter.bb");
+    let bi_path = igv_fixture("bb/interactExample3.inter.bb");
     if bi_path.exists() {
-        let src = open_link(bi_path, Some(LinkFormat::BigInteract))
+        let src = open_link(&bi_path, Some(LinkFormat::BigInteract))
             .await
             .unwrap();
         let links = src
@@ -179,7 +186,7 @@ async fn loads_bigbed_and_biginteract_fixtures_if_present() {
 
 #[tokio::test]
 async fn loads_paf_seg_gwas_wig_fixtures_if_present() {
-    let paf_path = Path::new("/Users/zhanxw/Downloads/igv-main/test/data/paf/sample.paf");
+    let paf_path = igv_fixture("paf/sample.paf");
     if paf_path.exists() {
         let fasta = Arc::new(
             NoodlesFastaSource::open(Path::new("tests/data/sample.fa"))
@@ -196,9 +203,9 @@ async fn loads_paf_seg_gwas_wig_fixtures_if_present() {
         assert!(!rows.is_empty());
     }
 
-    let seg_path = Path::new("/Users/zhanxw/Downloads/igv-main/test/data/seg/canFam2_hg18.seg");
+    let seg_path = igv_fixture("seg/canFam2_hg18.seg");
     if seg_path.exists() {
-        let src = FileSegSource::open_location(&Location::Local(seg_path.to_path_buf()), None)
+        let src = FileSegSource::open_location(&Location::Local(seg_path), None)
             .await
             .unwrap();
         use igv_core::source::SegSource;
@@ -210,9 +217,9 @@ async fn loads_paf_seg_gwas_wig_fixtures_if_present() {
         assert!(!data.segments.is_empty());
     }
 
-    let gwas_path = Path::new("/Users/zhanxw/Downloads/igv-main/test/data/gwas/smallp.gwas");
+    let gwas_path = igv_fixture("gwas/smallp.gwas");
     if gwas_path.exists() {
-        let src = FileGwasSource::open_location(&Location::Local(gwas_path.to_path_buf()), None)
+        let src = FileGwasSource::open_location(&Location::Local(gwas_path), None)
             .await
             .unwrap();
         use igv_core::source::GwasSource;
@@ -223,9 +230,9 @@ async fn loads_paf_seg_gwas_wig_fixtures_if_present() {
         assert!(!pts.is_empty());
     }
 
-    let wig_path = Path::new("/Users/zhanxw/Downloads/igv-main/test/data/wig/test_fixedStep.wig");
+    let wig_path = igv_fixture("wig/test_fixedStep.wig");
     if wig_path.exists() {
-        let src = open_signal(wig_path, None).await.unwrap();
+        let src = open_signal(&wig_path, None).await.unwrap();
         let bins = src
             .fetch(
                 &Region::new("chr19", 1, 100_000_000).unwrap(),
