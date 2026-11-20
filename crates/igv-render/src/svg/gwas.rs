@@ -75,7 +75,7 @@ pub fn draw(
             Rgb(0x3b, 0x82, 0xf6)
         };
         doc.circle(px, py, if sig { 3.0 } else { 2.0 }, fill);
-        if top_point.is_none_or(|t| pt.neg_log10_p > t.2) {
+        if top_point.map_or(true, |t| pt.neg_log10_p > t.2) {
             top_point = Some((px, py, pt.neg_log10_p, &pt.snp_id));
         }
     }

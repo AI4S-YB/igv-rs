@@ -27,6 +27,12 @@ pub struct NoodlesBcfSource {
     pedigree: Option<Arc<Pedigree>>,
 }
 
+type BcfLoadOutput = (
+    Vec<String>,
+    Vec<VariantRecord>,
+    HashMap<String, IntervalMap<u64, usize>>,
+);
+
 #[derive(Debug)]
 enum BcfBackend {
     Indexed {
@@ -101,7 +107,7 @@ impl NoodlesBcfSource {
         let mut stream = SeekableStream::open(location, auth_token).await?;
         let ped_clone = pedigree.clone();
         let (sample_names, records, trees) = tokio::task::spawn_blocking(
-            move || -> Result<(Vec<String>, Vec<VariantRecord>, HashMap<String, IntervalMap<u64, usize>>)> {
+            move || -> Result<BcfLoadOutput> {
                 let mut magic = [0u8; 2];
                 let is_bgzf = stream.read_exact(&mut magic).is_ok() && magic == [0x1f, 0x8b];
                 stream
@@ -223,11 +229,7 @@ impl VcfSource for NoodlesBcfSource {
 fn read_all_bcf_records<R: std::io::Read>(
     reader: &mut bcf::io::Reader<R>,
     pedigree: Option<&Pedigree>,
-) -> Result<(
-    Vec<String>,
-    Vec<VariantRecord>,
-    HashMap<String, IntervalMap<u64, usize>>,
-)> {
+) -> Result<BcfLoadOutput> {
     let header = reader.read_header().map_err(IgvError::noodles)?;
     let raw_samples: Vec<String> = header.sample_names().iter().cloned().collect();
     let ordered = reorder_sample_names(&raw_samples, pedigree);

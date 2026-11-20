@@ -200,8 +200,13 @@ impl NoodlesVcfSource {
             .await
             .map_err(|e| IgvError::Other(e.to_string()))??;
         let ped_clone = pedigree.clone();
+        type VcfLoadOutput = (
+            Vec<String>,
+            Vec<VariantRecord>,
+            HashMap<String, IntervalMap<u64, usize>>,
+        );
         let (sample_names, records, trees) = tokio::task::spawn_blocking(
-            move || -> Result<(Vec<String>, Vec<VariantRecord>, HashMap<String, IntervalMap<u64, usize>>)> {
+            move || -> Result<VcfLoadOutput> {
                 let mut reader = vcf::io::Reader::new(BufReader::new(Cursor::new(plain)));
                 let header = reader.read_header().map_err(IgvError::noodles)?;
                 let raw_samples: Vec<String> = header.sample_names().iter().cloned().collect();
@@ -304,59 +309,57 @@ pub(crate) fn extract_variant_record<R: VariantRecordTrait>(
     let info = rec.info();
     let mut info_parts = Vec::new();
     let mut allele_freq: Option<f32> = None;
-    for entry in info.iter(header) {
-        if let Ok((k, val_opt)) = entry {
-            let val_s = match val_opt {
-                None | Some(InfoValue::Flag) => String::new(),
-                Some(InfoValue::Integer(n)) => n.to_string(),
-                Some(InfoValue::Float(f)) => {
-                    if k == "AF" && allele_freq.is_none() {
-                        allele_freq = Some(f);
-                    }
-                    format!("{f:.4}")
+    for (k, val_opt) in info.iter(header).flatten() {
+        let val_s = match val_opt {
+            None | Some(InfoValue::Flag) => String::new(),
+            Some(InfoValue::Integer(n)) => n.to_string(),
+            Some(InfoValue::Float(f)) => {
+                if k == "AF" && allele_freq.is_none() {
+                    allele_freq = Some(f);
                 }
-                Some(InfoValue::Character(c)) => c.to_string(),
-                Some(InfoValue::String(s)) => s.into_owned(),
-                Some(InfoValue::Array(arr)) => {
-                    use noodles::vcf::variant::record::info::field::value::Array as InfoArray;
-                    match arr {
-                        InfoArray::Float(vs) => {
-                            let collected: Vec<Option<f32>> = vs.iter().filter_map(|r| r.ok()).collect();
-                            if k == "AF" && allele_freq.is_none() {
-                                allele_freq = collected.iter().flatten().copied().next();
-                            }
-                            collected
-                                .iter()
-                                .map(|o| o.map(|x| format!("{x:.4}")).unwrap_or_else(|| ".".into()))
-                                .collect::<Vec<_>>()
-                                .join(",")
-                        }
-                        InfoArray::Integer(vs) => vs
-                            .iter()
-                            .filter_map(|r| r.ok())
-                            .map(|o| o.map(|x| x.to_string()).unwrap_or_else(|| ".".into()))
-                            .collect::<Vec<_>>()
-                            .join(","),
-                        InfoArray::String(vs) => vs
-                            .iter()
-                            .filter_map(|r| r.ok())
-                            .map(|o| o.map(|s| s.into_owned()).unwrap_or_else(|| ".".into()))
-                            .collect::<Vec<_>>()
-                            .join(","),
-                        InfoArray::Character(vs) => vs
-                            .iter()
-                            .filter_map(|r| r.ok())
-                            .map(|o| o.map(|c| c.to_string()).unwrap_or_else(|| ".".into()))
-                            .collect::<Vec<_>>()
-                            .join(","),
-                    }
-                }
-            };
-            if val_s.is_empty() {
-                info_parts.push(k.to_string());
-            } else {
-                info_parts.push(format!("{k}={val_s}"));
+                format!("{f:.4}")
             }
+            Some(InfoValue::Character(c)) => c.to_string(),
+            Some(InfoValue::String(s)) => s.into_owned(),
+            Some(InfoValue::Array(arr)) => {
+                use noodles::vcf::variant::record::info::field::value::Array as InfoArray;
+                match arr {
+                    InfoArray::Float(vs) => {
+                        let collected: Vec<Option<f32>> = vs.iter().filter_map(|r| r.ok()).collect();
+                        if k == "AF" && allele_freq.is_none() {
+                            allele_freq = collected.iter().flatten().copied().next();
+                        }
+                        collected
+                            .iter()
+                            .map(|o| o.map(|x| format!("{x:.4}")).unwrap_or_else(|| ".".into()))
+                            .collect::<Vec<_>>()
+                            .join(",")
+                    }
+                    InfoArray::Integer(vs) => vs
+                        .iter()
+                        .filter_map(|r| r.ok())
+                        .map(|o| o.map(|x| x.to_string()).unwrap_or_else(|| ".".into()))
+                        .collect::<Vec<_>>()
+                        .join(","),
+                    InfoArray::String(vs) => vs
+                        .iter()
+                        .filter_map(|r| r.ok())
+                        .map(|o| o.map(|s| s.into_owned()).unwrap_or_else(|| ".".into()))
+                        .collect::<Vec<_>>()
+                        .join(","),
+                    InfoArray::Character(vs) => vs
+                        .iter()
+                        .filter_map(|r| r.ok())
+                        .map(|o| o.map(|c| c.to_string()).unwrap_or_else(|| ".".into()))
+                        .collect::<Vec<_>>()
+                        .join(","),
+                }
+            }
+        };
+        if val_s.is_empty() {
+            info_parts.push(k.to_string());
+        } else {
+            info_parts.push(format!("{k}={val_s}"));
         }
     }
     let info_raw = info_parts.join(";");
@@ -372,12 +375,10 @@ pub(crate) fn extract_variant_record<R: VariantRecordTrait>(
         let mut alleles = Vec::new();
         let mut phased = false;
         if let Some(Ok(Some(SampleValue::Genotype(gt)))) = sample.get(header, "GT") {
-            for item in gt.iter() {
-                if let Ok((a_opt, p)) = item {
-                    alleles.push(a_opt);
-                    if p == Phasing::Phased {
-                        phased = true;
-                    }
+            for (a_opt, p) in gt.iter().flatten() {
+                alleles.push(a_opt);
+                if p == Phasing::Phased {
+                    phased = true;
                 }
             }
         }
@@ -461,12 +462,10 @@ pub(crate) fn extract_variant_record<R: VariantRecordTrait>(
         let mut alt_count = 0u32;
         let mut total_alleles = 0u32;
         for g in &genotypes {
-            for a in &g.alleles {
-                if let Some(idx) = a {
-                    total_alleles += 1;
-                    if *idx > 0 {
-                        alt_count += 1;
-                    }
+            for idx in g.alleles.iter().flatten() {
+                total_alleles += 1;
+                if *idx > 0 {
+                    alt_count += 1;
                 }
             }
         }

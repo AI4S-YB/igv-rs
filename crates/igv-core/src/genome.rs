@@ -276,8 +276,14 @@ impl TwoBitFastaSource {
         let is_remote = loc.is_remote();
         let known_lengths_owned = known_lengths.cloned().unwrap_or_default();
 
+        type TwoBitLoadResult = (
+            SeekableStream,
+            TwoBitEndian,
+            HashMap<String, TwoBitEntry>,
+            Vec<RefMeta>,
+        );
         let (stream, endian, entries_map, refs) = tokio::task::spawn_blocking(
-            move || -> Result<(SeekableStream, TwoBitEndian, HashMap<String, TwoBitEntry>, Vec<RefMeta>)> {
+            move || -> Result<TwoBitLoadResult> {
                 stream
                     .seek(SeekFrom::Start(0))
                     .map_err(|e| IgvError::Other(format!("2bit seek: {e}")))?;
@@ -1035,7 +1041,7 @@ mod tests {
         let avail = vec!["1".to_string(), "MT".to_string()];
         assert_eq!(a.resolve("chr1", &avail), Some("1"));
         assert_eq!(a.resolve("chrM", &avail), Some("MT"));
-        assert_eq!(a.resolve("NC_000001.11", &vec!["chr1".into()]), Some("chr1"));
+        assert_eq!(a.resolve("NC_000001.11", &["chr1".into()]), Some("chr1"));
     }
 
     #[test]

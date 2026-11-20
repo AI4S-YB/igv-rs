@@ -43,8 +43,9 @@ impl SamMemorySource {
             .await
             .map_err(|e| IgvError::Other(e.to_string()))??;
 
+        type SamLoadOutput = (Vec<AlignmentRow>, HashMap<String, IntervalMap<u64, usize>>);
         let (records, trees) = tokio::task::spawn_blocking(
-            move || -> Result<(Vec<AlignmentRow>, HashMap<String, IntervalMap<u64, usize>>)> {
+            move || -> Result<SamLoadOutput> {
                 let mut reader = sam::io::Reader::new(BufReader::new(&plain[..]));
                 let header = reader.read_header().map_err(IgvError::noodles)?;
                 let mut records = Vec::new();

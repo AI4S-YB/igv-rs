@@ -249,6 +249,10 @@ impl HttpRangeBackend {
         self.len
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     fn fetch_page(&self, page_idx: u64) -> io::Result<Arc<Vec<u8>>> {
         {
             let mut guard = self
