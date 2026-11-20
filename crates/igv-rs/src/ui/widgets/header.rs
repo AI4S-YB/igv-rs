@@ -14,23 +14,42 @@ pub struct HeaderWidget<'a> {
 impl Widget for HeaderWidget<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let region_text = self.state.region.to_string();
-        let line = Line::from(vec![
+        let mut spans = vec![
             Span::styled(" igv-rs ", self.theme.get("HEADER")),
             Span::raw("  "),
-            Span::styled(region_text, self.theme.get("OVERVIEW")),
-            Span::raw("  "),
-            Span::styled(
-                format!("({} bp)", self.state.region.width()),
-                self.theme.get("WARNING"),
-            ),
-            Span::raw("  "),
-            Span::styled(
-                if self.state.loading { "loading…" } else { "" },
-                self.theme.get("WARNING"),
-            ),
-        ]);
-        Paragraph::new(line)
-            .block(Block::default().borders(Borders::BOTTOM).style(self.theme.get("BORDER")))
+        ];
+        if let Some(g) = &self.state.genome_id {
+            spans.push(Span::styled(format!("[{g}]"), self.theme.get("SUCCESS")));
+            spans.push(Span::raw("  "));
+        }
+        spans.push(Span::styled(region_text, self.theme.get("OVERVIEW")));
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            format!("({} bp)", self.state.region.width()),
+            self.theme.get("WARNING"),
+        ));
+        if self.state.panes.len() > 1 {
+            spans.push(Span::raw("  "));
+            spans.push(Span::styled(
+                format!("pane {}/{}", self.state.active_pane + 1, self.state.panes.len()),
+                self.theme.get("SUCCESS"),
+            ));
+        }
+        if self.state.show_sashimi {
+            spans.push(Span::styled("  [sashimi]", self.theme.get("HEADER")));
+        }
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            if self.state.loading { "loading…" } else { "" },
+            self.theme.get("WARNING"),
+        ));
+
+        Paragraph::new(Line::from(spans))
+            .block(
+                Block::default()
+                    .borders(Borders::BOTTOM)
+                    .style(self.theme.get("BORDER")),
+            )
             .render(area, buf);
     }
 }

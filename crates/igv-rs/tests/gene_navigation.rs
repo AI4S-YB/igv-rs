@@ -3,7 +3,6 @@
 //! transcript_id, and the resulting region is the union span of all matched
 //! transcripts on the same chromosome.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -15,11 +14,7 @@ use igv_core::source::annotation::{
 };
 use igv_core::source::{FastaSource, RefMeta};
 use igv_rs::app::action::Action;
-use igv_rs::app::state::{
-    AnnotationTrack, AppState, ALIGNMENT_DEFAULT_HEIGHT, COVERAGE_DEFAULT_HEIGHT,
-    LINK_DEFAULT_HEIGHT, SIGNAL_DEFAULT_HEIGHT,
-};
-use igv_rs::ui::theme::Theme;
+use igv_rs::app::state::{AnnotationTrack, AppState};
 
 struct MockFasta;
 
@@ -74,46 +69,17 @@ fn make_tx(name: &str, id: &str, gene_id: Option<&str>, start: u64, end: u64) ->
 fn make_state(annotation: Arc<dyn AnnotationSource>) -> AppState {
     AppState {
         fasta: Arc::new(MockFasta),
-        vcf: None,
-        bams: Vec::new(),
         references: vec![RefMeta { name: "chr1".into(), length: 100_000 }],
         region: Region::new("chr1", 1, 250).unwrap(),
-        reference_seq: Vec::new(),
-        variants: Vec::new(),
-        bam_rows: Vec::new(),
-        bam_lanes: Vec::new(),
-        bam_total_lanes: Vec::new(),
-        bam_scroll: 0,
+        panes: vec![Region::new("chr1", 1, 250).unwrap()],
         annotations: vec![AnnotationTrack {
             path: std::path::PathBuf::from("mock.gff3"),
             display: "mock".into(),
             source: annotation,
         }],
         annotation_rows: vec![Vec::new()],
-        signals: Vec::new(),
-        signal_bins: Vec::new(),
-        signal_shared_scale: false,
-        signal_track_height: SIGNAL_DEFAULT_HEIGHT,
-        links: Vec::new(),
-        link_records: Vec::new(),
-        link_track_height: LINK_DEFAULT_HEIGHT,
-        link_min_score: None,
-        alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
-        coverage_height: COVERAGE_DEFAULT_HEIGHT,
-        theme: Theme::dark(),
-        theme_preset: igv_rs::ui::theme::ThemePreset::Dark,
         thresholds: Thresholds::default(),
-        bookmarks: HashMap::new(),
-        status: None,
-        command_open: false,
-        command_buffer: String::new(),
-        help_open: false,
-        terminal_width: 0,
-        pending_snapshot: None,
-        generation: 0,
-        loaded_count: 0,
-        loading: false,
-        should_quit: false,
+        ..AppState::default()
     }
 }
 

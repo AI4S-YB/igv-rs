@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
 use igv_core::region::Region;
-use igv_core::source::bam::AlignmentRow;
-use igv_core::source::vcf::VariantRecord;
 use igv_core::render::RenderMode;
-use igv_core::source::{BamSource, FastaSource, FetchOpts, VcfSource};
-use igv_core::source::{FetchSignalOpts, SignalBin, SignalSource};
+use igv_core::source::bam::AlignmentRow;
+use igv_core::source::gwas::{GwasPoint, GwasSource};
 use igv_core::source::link::{FetchLinkOpts, LinkSource, VisibleLink};
+use igv_core::source::seg::{SegSource, SegTrackData};
+use igv_core::source::vcf::VariantRecord;
+use igv_core::source::{BamSource, FastaSource, FetchOpts, SignalSummary, VcfSource};
+use igv_core::source::{FetchSignalOpts, SignalBin, SignalSource};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::warn;
@@ -16,15 +18,8 @@ pub struct LoadRequest {
     pub generation: u64,
     pub region: Region,
     pub fetch_opts: FetchOpts,
-    /// Max bins to request from each signal source for this fetch. Driven by
-    /// terminal width so zoom-level selection roughly matches what the widget
-    /// can actually render.
     pub signal_max_bins: u32,
-    /// Min score filter passed to LinkSource::query; None = no filter.
     pub link_min_score: Option<f64>,
-    /// Current render mode (derived from view width + thresholds). Drives
-    /// loader-side gating: at wide zoom we skip reference / BAM / VCF fetches
-    /// entirely so chromosome-scale views don't OOM.
     pub render_mode: RenderMode,
 }
 
@@ -37,6 +32,11 @@ pub enum LoadResult {
     },
     Variants {
         generation: u64,
+        records: Vec<VariantRecord>,
+    },
+    VcfTrack {
+        generation: u64,
+        track_index: usize,
         records: Vec<VariantRecord>,
     },
     Bam {
@@ -60,6 +60,16 @@ pub enum LoadResult {
         visible: Vec<VisibleLink>,
         total_record_count: usize,
     },
+    Seg {
+        generation: u64,
+        track_index: usize,
+        data: SegTrackData,
+    },
+    Gwas {
+        generation: u64,
+        track_index: usize,
+        points: Vec<GwasPoint>,
+    },
     Error {
         generation: u64,
         message: String,
@@ -71,10 +81,13 @@ impl LoadResult {
         match self {
             LoadResult::Reference { generation, .. }
             | LoadResult::Variants { generation, .. }
+            | LoadResult::VcfTrack { generation, .. }
             | LoadResult::Bam { generation, .. }
             | LoadResult::Annotation { generation, .. }
             | LoadResult::Signal { generation, .. }
             | LoadResult::Link { generation, .. }
+            | LoadResult::Seg { generation, .. }
+            | LoadResult::Gwas { generation, .. }
             | LoadResult::Error { generation, .. } => *generation,
         }
     }
@@ -83,15 +96,21 @@ impl LoadResult {
 pub struct Loader {
     pub fasta: Arc<dyn FastaSource>,
     pub vcf: Option<Arc<dyn VcfSource>>,
+    pub vcfs: Vec<Arc<dyn VcfSource>>,
     pub bams: Vec<Arc<dyn BamSource>>,
-    pub annotations: Vec<std::sync::Arc<dyn igv_core::source::AnnotationSource>>,
+    pub annotations: Vec<Arc<dyn igv_core::source::AnnotationSource>>,
     pub signals: Vec<Arc<dyn SignalSource>>,
     pub links: Vec<Arc<dyn LinkSource>>,
+    pub segs: Vec<Arc<dyn SegSource>>,
+    pub gwas: Vec<Arc<dyn GwasSource>>,
+    pub signal_summary: SignalSummary,
     pub tx: mpsc::Sender<LoadResult>,
     pub current: Vec<JoinHandle<()>>,
 }
 
 impl Loader {
+    /// Signature retained for integration tests; extra track collections default
+    /// to empty and can be configured via builder/mutators.
     pub fn new(
         fasta: Arc<dyn igv_core::source::FastaSource>,
         vcf: Option<Arc<dyn igv_core::source::VcfSource>>,
@@ -104,13 +123,30 @@ impl Loader {
         Self {
             fasta,
             vcf,
+            vcfs: Vec::new(),
             bams,
             annotations,
             signals,
             links,
+            segs: Vec::new(),
+            gwas: Vec::new(),
+            signal_summary: SignalSummary::Max,
             tx,
             current: Vec::new(),
         }
+    }
+
+    pub fn set_extra_tracks(
+        &mut self,
+        vcfs: Vec<Arc<dyn VcfSource>>,
+        segs: Vec<Arc<dyn SegSource>>,
+        gwas: Vec<Arc<dyn GwasSource>>,
+        signal_summary: SignalSummary,
+    ) {
+        self.vcfs = vcfs;
+        self.segs = segs;
+        self.gwas = gwas;
+        self.signal_summary = signal_summary;
     }
 
     /// Cancel any in-flight tasks and dispatch fresh ones for `req`.
@@ -119,16 +155,12 @@ impl Loader {
             h.abort();
         }
 
-        // Render-mode gates: at wide zoom, skip per-base fetches that would
-        // otherwise pull hundreds of MB of reference / millions of reads.
         let needs_per_base = matches!(
             req.render_mode,
             RenderMode::PerBase | RenderMode::DetailedReads
         );
         let suppress_overview = matches!(req.render_mode, RenderMode::OverviewOnly);
 
-        // Reference fetch — only at zoom levels where the sequence widget can
-        // actually render bases (widget gates on the same modes).
         if needs_per_base {
             let fasta = Arc::clone(&self.fasta);
             let tx = self.tx.clone();
@@ -155,9 +187,6 @@ impl Loader {
                 }
             }));
         } else {
-            // Send an empty reference result so any state machine waiting on a
-            // reference response settles (and stale bytes from a prior fetch
-            // are explicitly cleared).
             let tx = self.tx.clone();
             let r = req.clone();
             self.current.push(tokio::spawn(async move {
@@ -171,70 +200,64 @@ impl Loader {
             }));
         }
 
-        // VCF fetch — variants widget hides itself in OverviewOnly, so skip.
         if !suppress_overview {
-        if let Some(vcf) = &self.vcf {
-            let vcf = Arc::clone(vcf);
-            let tx = self.tx.clone();
-            let r = req.clone();
-            self.current.push(tokio::spawn(async move {
-                match vcf.fetch(&r.region).await {
-                    Ok(records) => {
-                        let _ = tx
-                            .send(LoadResult::Variants {
-                                generation: r.generation,
-                                records,
-                            })
-                            .await;
-                    }
-                    Err(e) => {
+            if let Some(vcf) = &self.vcf {
+                let vcf = Arc::clone(vcf);
+                let tx = self.tx.clone();
+                let r = req.clone();
+                self.current.push(tokio::spawn(async move {
+                    let records = vcf.fetch(&r.region).await.unwrap_or_else(|e| {
                         warn!("vcf fetch failed: {e}");
-                        let _ = tx
-                            .send(LoadResult::Variants {
-                                generation: r.generation,
-                                records: Vec::new(),
-                            })
-                            .await;
-                    }
-                }
-            }));
-        }
+                        Vec::new()
+                    });
+                    let _ = tx
+                        .send(LoadResult::Variants {
+                            generation: r.generation,
+                            records,
+                        })
+                        .await;
+                }));
+            }
+            for (idx, vcf) in self.vcfs.iter().enumerate() {
+                let vcf = Arc::clone(vcf);
+                let tx = self.tx.clone();
+                let r = req.clone();
+                self.current.push(tokio::spawn(async move {
+                    let records = vcf.fetch(&r.region).await.unwrap_or_else(|e| {
+                        warn!("vcf[{idx}] fetch failed: {e}");
+                        Vec::new()
+                    });
+                    let _ = tx
+                        .send(LoadResult::VcfTrack {
+                            generation: r.generation,
+                            track_index: idx,
+                            records,
+                        })
+                        .await;
+                }));
+            }
         }
 
-        // BAM fetches — alignments widget can't render at wider modes anyway,
-        // and a chr-scale BAM fetch would pull millions of reads.
         if needs_per_base {
-        for (idx, bam) in self.bams.iter().enumerate() {
-            let bam = Arc::clone(bam);
-            let tx = self.tx.clone();
-            let r = req.clone();
-            self.current.push(tokio::spawn(async move {
-                match bam.fetch(&r.region, &r.fetch_opts).await {
-                    Ok(rows) => {
-                        let _ = tx
-                            .send(LoadResult::Bam {
-                                generation: r.generation,
-                                bam_index: idx,
-                                rows,
-                            })
-                            .await;
-                    }
-                    Err(e) => {
+            for (idx, bam) in self.bams.iter().enumerate() {
+                let bam = Arc::clone(bam);
+                let tx = self.tx.clone();
+                let r = req.clone();
+                self.current.push(tokio::spawn(async move {
+                    let rows = bam.fetch(&r.region, &r.fetch_opts).await.unwrap_or_else(|e| {
                         warn!("bam fetch failed: {e}");
-                        let _ = tx
-                            .send(LoadResult::Bam {
-                                generation: r.generation,
-                                bam_index: idx,
-                                rows: Vec::new(),
-                            })
-                            .await;
-                    }
-                }
-            }));
-        }
+                        Vec::new()
+                    });
+                    let _ = tx
+                        .send(LoadResult::Bam {
+                            generation: r.generation,
+                            bam_index: idx,
+                            rows,
+                        })
+                        .await;
+                }));
+            }
         } else {
-            // Clear stale rows so the alignments widget doesn't show old data
-            // after zooming out past the BAM gate.
             for idx in 0..self.bams.len() {
                 let tx = self.tx.clone();
                 let r = req.clone();
@@ -250,37 +273,26 @@ impl Loader {
             }
         }
 
-        // Annotations always fetch — at OverviewOnly the widget renders gene
-        // density, not individual transcripts.
         for (idx, ann) in self.annotations.iter().enumerate() {
-            let ann = std::sync::Arc::clone(ann);
+            let ann = Arc::clone(ann);
             let tx = self.tx.clone();
             let r = req.clone();
             self.current.push(tokio::spawn(async move {
-                match ann.fetch(&r.region).await {
-                    Ok(transcripts) => {
-                        let _ = tx
-                            .send(LoadResult::Annotation {
-                                generation: r.generation,
-                                track_index: idx,
-                                transcripts,
-                            })
-                            .await;
-                    }
-                    Err(e) => {
-                        tracing::warn!("annotation fetch failed: {e}");
-                        let _ = tx
-                            .send(LoadResult::Annotation {
-                                generation: r.generation,
-                                track_index: idx,
-                                transcripts: Vec::new(),
-                            })
-                            .await;
-                    }
-                }
+                let transcripts = ann.fetch(&r.region).await.unwrap_or_else(|e| {
+                    warn!("annotation fetch failed: {e}");
+                    Vec::new()
+                });
+                let _ = tx
+                    .send(LoadResult::Annotation {
+                        generation: r.generation,
+                        track_index: idx,
+                        transcripts,
+                    })
+                    .await;
             }));
         }
 
+        let summary = self.signal_summary;
         for (idx, sig) in self.signals.iter().enumerate() {
             let sig = Arc::clone(sig);
             let tx = self.tx.clone();
@@ -288,29 +300,19 @@ impl Loader {
             self.current.push(tokio::spawn(async move {
                 let opts = FetchSignalOpts {
                     max_bins: r.signal_max_bins.max(1),
-                    ..FetchSignalOpts::default()
+                    summary,
                 };
-                match sig.fetch(&r.region, &opts).await {
-                    Ok(bins) => {
-                        let _ = tx
-                            .send(LoadResult::Signal {
-                                generation: r.generation,
-                                track_index: idx,
-                                bins,
-                            })
-                            .await;
-                    }
-                    Err(e) => {
-                        tracing::warn!("signal fetch failed: {e}");
-                        let _ = tx
-                            .send(LoadResult::Signal {
-                                generation: r.generation,
-                                track_index: idx,
-                                bins: Vec::new(),
-                            })
-                            .await;
-                    }
-                }
+                let bins = sig.fetch(&r.region, &opts).await.unwrap_or_else(|e| {
+                    warn!("signal fetch failed: {e}");
+                    Vec::new()
+                });
+                let _ = tx
+                    .send(LoadResult::Signal {
+                        generation: r.generation,
+                        track_index: idx,
+                        bins,
+                    })
+                    .await;
             }));
         }
 
@@ -319,31 +321,60 @@ impl Loader {
             let tx = self.tx.clone();
             let r = req.clone();
             self.current.push(tokio::spawn(async move {
-                let opts = FetchLinkOpts { min_score: r.link_min_score };
-                match lk.query(&r.region, &opts).await {
-                    Ok(visible) => {
-                        let count = lk.record_count();
-                        let _ = tx
-                            .send(LoadResult::Link {
-                                generation: r.generation,
-                                track_index: idx,
-                                visible,
-                                total_record_count: count,
-                            })
-                            .await;
-                    }
-                    Err(e) => {
-                        tracing::warn!("link query failed: {e}");
-                        let _ = tx
-                            .send(LoadResult::Link {
-                                generation: r.generation,
-                                track_index: idx,
-                                visible: Vec::new(),
-                                total_record_count: 0,
-                            })
-                            .await;
-                    }
-                }
+                let opts = FetchLinkOpts {
+                    min_score: r.link_min_score,
+                };
+                let visible = lk.query(&r.region, &opts).await.unwrap_or_else(|e| {
+                    warn!("link query failed: {e}");
+                    Vec::new()
+                });
+                let count = lk.record_count();
+                let _ = tx
+                    .send(LoadResult::Link {
+                        generation: r.generation,
+                        track_index: idx,
+                        visible,
+                        total_record_count: count,
+                    })
+                    .await;
+            }));
+        }
+
+        for (idx, seg) in self.segs.iter().enumerate() {
+            let seg = Arc::clone(seg);
+            let tx = self.tx.clone();
+            let r = req.clone();
+            self.current.push(tokio::spawn(async move {
+                let data = seg.fetch(&r.region).await.unwrap_or_else(|e| {
+                    warn!("seg fetch failed: {e}");
+                    SegTrackData::default()
+                });
+                let _ = tx
+                    .send(LoadResult::Seg {
+                        generation: r.generation,
+                        track_index: idx,
+                        data,
+                    })
+                    .await;
+            }));
+        }
+
+        for (idx, gw) in self.gwas.iter().enumerate() {
+            let gw = Arc::clone(gw);
+            let tx = self.tx.clone();
+            let r = req.clone();
+            self.current.push(tokio::spawn(async move {
+                let points = gw.fetch(&r.region).await.unwrap_or_else(|e| {
+                    warn!("gwas fetch failed: {e}");
+                    Vec::new()
+                });
+                let _ = tx
+                    .send(LoadResult::Gwas {
+                        generation: r.generation,
+                        track_index: idx,
+                        points,
+                    })
+                    .await;
             }));
         }
     }

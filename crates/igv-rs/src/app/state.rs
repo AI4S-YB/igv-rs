@@ -2,11 +2,24 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use async_trait::async_trait;
+use igv_core::alignment::{
+    downsample_reads, group_and_pack, sort_rows, AlignmentBand, AlignmentColorMode,
+    AlignmentRenderOpts, MateLink,
+};
+use igv_core::genome::{ChromAliases, Cytoband};
+use igv_core::pedigree::Pedigree;
 use igv_core::region::Region;
 use igv_core::render::{RenderMode, Thresholds};
+use igv_core::render_inputs::{RenderInputs, SequenceRenderOpts};
+use igv_core::sashimi::{extract_splice_junctions, SpliceJunction};
+use igv_core::sequence::search_iupac_motif;
 use igv_core::source::bam::AlignmentRow;
+use igv_core::source::gwas::{GwasPoint, GwasSource};
+use igv_core::source::seg::{SegSource, SegTrackData};
 use igv_core::source::vcf::VariantRecord;
-use igv_core::source::{BamSource, FastaSource, FetchOpts, RefMeta, VcfSource};
+use igv_core::source::{BamSource, FastaSource, FetchOpts, RefMeta, SignalSummary, VcfSource};
+use igv_render::TerminalGraphicsProtocol;
 
 use crate::app::action::{Action, SnapshotFormat};
 use crate::app::loader::LoadRequest;
@@ -14,8 +27,23 @@ use crate::ui::theme::{Theme, ThemePreset};
 
 #[derive(Debug, Clone)]
 pub struct SnapshotJob {
-    pub path: Option<std::path::PathBuf>,
+    pub path: Option<PathBuf>,
     pub format: SnapshotFormat,
+}
+
+#[derive(Debug, Clone)]
+pub enum AsyncCommand {
+    LoadTrack(String),
+    LoadGenome(String),
+    LoadSession(PathBuf),
+    SaveSession(PathBuf),
+    BlatQuery(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct InspectorPopup {
+    pub title: String,
+    pub rows: Vec<(String, String)>,
 }
 
 /// Minimum / maximum sizes for user-resizable tracks.
@@ -32,38 +60,60 @@ pub const LINK_MIN_HEIGHT: u16 = 3;
 pub const LINK_MAX_HEIGHT: u16 = 16;
 pub const LINK_DEFAULT_HEIGHT: u16 = 6;
 
-/// Translate terminal column count into a target bin count for signal fetches.
-///
-/// The widget aggregates with **max** when re-binning to terminal columns, so
-/// 2× oversampling preserves spike detail without thrashing the bigWig zoom
-/// pyramid. Clamped so very narrow terminals still get useful resolution and
-/// very wide ones don't request absurd amounts of data.
 pub fn signal_bins_for_width(terminal_width: u16) -> u32 {
     ((terminal_width as u32).saturating_mul(2)).clamp(64, 4096)
 }
 
+#[derive(Debug)]
+struct EmptyFasta;
+
+#[async_trait]
+impl FastaSource for EmptyFasta {
+    async fn references(&self) -> igv_core::error::Result<Vec<RefMeta>> {
+        Ok(Vec::new())
+    }
+    async fn fetch(&self, _region: &Region) -> igv_core::error::Result<Vec<u8>> {
+        Ok(Vec::new())
+    }
+}
+
 /// Single owner of all UI-relevant mutable state.
 pub struct AppState {
-    /// Held to keep the `Arc<dyn FastaSource>` alive alongside the loader's
-    /// own clone; not read directly through state.
-    #[allow(dead_code)]
     pub fasta: Arc<dyn FastaSource>,
+    pub genome_id: Option<String>,
+    pub cytobands: Vec<Cytoband>,
+    pub chrom_aliases: ChromAliases,
+    pub pedigree: Option<Arc<Pedigree>>,
+    pub auth_token: Option<String>,
+
+    /// Legacy first-VCF handle retained alongside multi-VCF `vcf_tracks`.
     pub vcf: Option<Arc<dyn VcfSource>>,
+    pub vcf_tracks: Vec<VcfTrack>,
+    pub vcf_track_rows: Vec<Vec<VariantRecord>>,
+
     pub bams: Vec<BamTrack>,
     pub references: Vec<RefMeta>,
 
     pub region: Region,
+    pub panes: Vec<Region>,
+    pub active_pane: usize,
+    pub pane_snapshots: Vec<Option<RenderInputs>>,
+
     pub reference_seq: Vec<u8>,
+    pub sequence_opts: SequenceRenderOpts,
 
     pub variants: Vec<VariantRecord>,
-    /// Per-BAM rows, parallel to `bams` indices.
+    pub bam_raw_rows: Vec<Vec<AlignmentRow>>,
     pub bam_rows: Vec<Vec<AlignmentRow>>,
-    /// Per-BAM lane assignment for each row, parallel to `bam_rows`.
     pub bam_lanes: Vec<Vec<u32>>,
-    /// Total lane count per BAM track.
     pub bam_total_lanes: Vec<u16>,
-    /// Vertical scroll applied to all alignment tracks.
+    pub bam_bands: Vec<Vec<AlignmentBand>>,
+    pub bam_mate_links: Vec<Vec<MateLink>>,
+    pub bam_downsampled: Vec<usize>,
+    pub bam_junctions: Vec<Vec<SpliceJunction>>,
     pub bam_scroll: u16,
+    pub alignment_opts: AlignmentRenderOpts,
+    pub bam_tag: Option<String>,
 
     pub annotations: Vec<AnnotationTrack>,
     pub annotation_rows: Vec<Vec<igv_core::source::AnnotationTranscript>>,
@@ -71,6 +121,7 @@ pub struct AppState {
     pub signals: Vec<SignalTrack>,
     pub signal_bins: Vec<Vec<igv_core::source::SignalBin>>,
     pub signal_shared_scale: bool,
+    pub signal_summary: SignalSummary,
     pub signal_track_height: u16,
 
     pub links: Vec<LinkTrack>,
@@ -78,7 +129,12 @@ pub struct AppState {
     pub link_track_height: u16,
     pub link_min_score: Option<f64>,
 
-    /// User-controlled track heights.
+    pub segs: Vec<SegTrack>,
+    pub seg_data: Vec<SegTrackData>,
+    pub gwas: Vec<GwasTrack>,
+    pub gwas_points: Vec<Vec<GwasPoint>>,
+
+    pub show_sashimi: bool,
     pub alignment_height: u16,
     pub coverage_height: u16,
 
@@ -88,27 +144,100 @@ pub struct AppState {
 
     pub bookmarks: HashMap<char, Region>,
     pub status: Option<StatusMessage>,
+    pub inspector: Option<InspectorPopup>,
 
     pub command_open: bool,
     pub command_buffer: String,
     pub help_open: bool,
-    /// Last terminal width seen by `draw()`. Used to size signal-track fetches
-    /// so the bigWig zoom level roughly matches the column count we'll render
-    /// into. Updated on every frame; resize events trigger a re-fetch.
     pub terminal_width: u16,
 
+    pub graphics_protocol: TerminalGraphicsProtocol,
+    pub graphics_overlay: bool,
+
     pub pending_snapshot: Option<SnapshotJob>,
+    pub pending_circular: Option<PathBuf>,
+    pub pending_async: Option<AsyncCommand>,
 
     pub generation: u64,
     pub loading: bool,
-    /// Number of `LoadResult`s received for the current `generation`.
-    /// Driving signal for clearing `loading` — see `expected_loads`.
     pub loaded_count: usize,
     pub should_quit: bool,
 }
 
-// Note: cannot derive `Debug` because `BamSource: Send + Sync` does not require
-// `Debug`. Plan adaptation: drop the `Debug` derive on `BamTrack`.
+impl Default for AppState {
+    fn default() -> Self {
+        let region = Region::new("chr1", 1, 1000).expect("valid default region");
+        Self {
+            fasta: Arc::new(EmptyFasta),
+            genome_id: None,
+            cytobands: Vec::new(),
+            chrom_aliases: ChromAliases::default(),
+            pedigree: None,
+            auth_token: None,
+            vcf: None,
+            vcf_tracks: Vec::new(),
+            vcf_track_rows: Vec::new(),
+            bams: Vec::new(),
+            references: Vec::new(),
+            region: region.clone(),
+            panes: vec![region],
+            active_pane: 0,
+            pane_snapshots: vec![None],
+            reference_seq: Vec::new(),
+            sequence_opts: SequenceRenderOpts::default(),
+            variants: Vec::new(),
+            bam_raw_rows: Vec::new(),
+            bam_rows: Vec::new(),
+            bam_lanes: Vec::new(),
+            bam_total_lanes: Vec::new(),
+            bam_bands: Vec::new(),
+            bam_mate_links: Vec::new(),
+            bam_downsampled: Vec::new(),
+            bam_junctions: Vec::new(),
+            bam_scroll: 0,
+            alignment_opts: AlignmentRenderOpts::default(),
+            bam_tag: None,
+            annotations: Vec::new(),
+            annotation_rows: Vec::new(),
+            signals: Vec::new(),
+            signal_bins: Vec::new(),
+            signal_shared_scale: false,
+            signal_summary: SignalSummary::Max,
+            signal_track_height: SIGNAL_DEFAULT_HEIGHT,
+            links: Vec::new(),
+            link_records: Vec::new(),
+            link_track_height: LINK_DEFAULT_HEIGHT,
+            link_min_score: None,
+            segs: Vec::new(),
+            seg_data: Vec::new(),
+            gwas: Vec::new(),
+            gwas_points: Vec::new(),
+            show_sashimi: false,
+            alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
+            coverage_height: COVERAGE_DEFAULT_HEIGHT,
+            theme: Theme::dark(),
+            theme_preset: ThemePreset::Dark,
+            thresholds: Thresholds::default(),
+            bookmarks: HashMap::new(),
+            status: None,
+            inspector: None,
+            command_open: false,
+            command_buffer: String::new(),
+            help_open: false,
+            terminal_width: 0,
+            graphics_protocol: TerminalGraphicsProtocol::Auto,
+            graphics_overlay: false,
+            pending_snapshot: None,
+            pending_circular: None,
+            pending_async: None,
+            generation: 0,
+            loading: false,
+            loaded_count: 0,
+            should_quit: false,
+        }
+    }
+}
+
 #[derive(Clone)]
 #[allow(dead_code)]
 pub struct BamTrack {
@@ -119,27 +248,48 @@ pub struct BamTrack {
 }
 
 #[derive(Clone)]
+pub struct VcfTrack {
+    pub path: PathBuf,
+    pub display: String,
+    pub source: Arc<dyn VcfSource>,
+}
+
+#[derive(Clone)]
 #[allow(dead_code)]
 pub struct AnnotationTrack {
-    pub path: std::path::PathBuf,
+    pub path: PathBuf,
     pub display: String,
-    pub source: std::sync::Arc<dyn igv_core::source::AnnotationSource>,
+    pub source: Arc<dyn igv_core::source::AnnotationSource>,
 }
 
 #[derive(Clone)]
 #[allow(dead_code)]
 pub struct SignalTrack {
-    pub path: std::path::PathBuf,
+    pub path: PathBuf,
     pub display: String,
-    pub source: std::sync::Arc<dyn igv_core::source::SignalSource>,
+    pub source: Arc<dyn igv_core::source::SignalSource>,
 }
 
 #[derive(Clone)]
 #[allow(dead_code)]
 pub struct LinkTrack {
-    pub path: std::path::PathBuf,
+    pub path: PathBuf,
     pub display: String,
-    pub source: std::sync::Arc<dyn igv_core::source::LinkSource>,
+    pub source: Arc<dyn igv_core::source::LinkSource>,
+}
+
+#[derive(Clone)]
+pub struct SegTrack {
+    pub path: PathBuf,
+    pub display: String,
+    pub source: Arc<dyn SegSource>,
+}
+
+#[derive(Clone)]
+pub struct GwasTrack {
+    pub path: PathBuf,
+    pub display: String,
+    pub source: Arc<dyn GwasSource>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -156,16 +306,12 @@ pub struct StatusMessage {
     pub set_at: std::time::Instant,
 }
 
-/// Try to parse the palette buffer as a `snapshot`/`snap` command.
-/// Returns `Some((path, format))` when matched, `None` otherwise.
-pub(crate) fn parse_snapshot_command(
-    trimmed: &str,
-) -> Option<(std::path::PathBuf, SnapshotFormat)> {
+pub(crate) fn parse_snapshot_command(trimmed: &str) -> Option<(PathBuf, SnapshotFormat)> {
     let body = trimmed.strip_prefix(':').unwrap_or(trimmed);
     let rest = body
         .strip_prefix("snapshot ")
         .or_else(|| body.strip_prefix("snap "))?;
-    let path = std::path::PathBuf::from(rest.trim());
+    let path = PathBuf::from(rest.trim());
     if path.as_os_str().is_empty() {
         return None;
     }
@@ -174,17 +320,18 @@ pub(crate) fn parse_snapshot_command(
 }
 
 impl AppState {
-    /// Length of the current chromosome from the loaded references.
     fn current_chrom_len(&self) -> Option<u64> {
+        let avail: Vec<String> = self.references.iter().map(|r| r.name.clone()).collect();
+        let target = self
+            .chrom_aliases
+            .resolve(&self.region.chrom, &avail)
+            .unwrap_or(&self.region.chrom);
         self.references
             .iter()
-            .find(|r| r.name == self.region.chrom)
+            .find(|r| r.name == target)
             .map(|r| r.length)
     }
 
-    /// Compute new region for forward/backward navigation, clamped to the
-    /// chromosome bounds. `large=false` shifts by 1/10 of the window
-    /// (fine), `large=true` by a full window (page).
     pub fn next_navigation(&self, forward: bool, large: bool) -> Region {
         let width = self.region.width();
         let step = if large {
@@ -207,11 +354,6 @@ impl AppState {
         }
     }
 
-    /// Compute new region for zoom in/out around the current center, clamped
-    /// to chromosome bounds. There is no fixed maximum width — the upper limit
-    /// is the length of the current chromosome, so users can zoom all the way
-    /// out to whole-chromosome view (loader gates heavy fetches by render mode
-    /// at wide zoom — see `Loader::dispatch`).
     pub fn next_zoom(&self, zoom_in: bool, factor: f64) -> Region {
         let width = self.region.width();
         let new_width: u64 = if zoom_in {
@@ -231,16 +373,17 @@ impl AppState {
         }
     }
 
-    /// Render-mode classification for the current view, used by the loader to
-    /// skip heavy fetches at wide zoom and by widgets to choose presentation.
     pub fn render_mode(&self) -> RenderMode {
         self.thresholds.classify(self.region.width())
     }
 
-    /// How many `LoadResult`s the loader will emit for the current view.
-    /// Used by the main loop to clear `loading` when the expected count of
-    /// results has arrived. See [`expected_loads_for`] for the rule.
     pub fn expected_loads(&self) -> usize {
+        let suppress_overview = matches!(self.render_mode(), RenderMode::OverviewOnly);
+        let extra_vcfs = if !suppress_overview {
+            self.vcf_tracks.len()
+        } else {
+            0
+        };
         expected_loads_for(
             self.render_mode(),
             self.bams.len(),
@@ -248,17 +391,96 @@ impl AppState {
             self.annotations.len(),
             self.signals.len(),
             self.links.len(),
-        )
+        ) + extra_vcfs
+            + self.segs.len()
+            + self.gwas.len()
+    }
+
+    pub fn recompute_bam_layout(&mut self, bam_index: usize) {
+        let Some(raw) = self.bam_raw_rows.get(bam_index).cloned() else {
+            return;
+        };
+        let junctions = extract_splice_junctions(&raw, 1);
+        let max_depth = self.alignment_opts.max_depth.unwrap_or(0);
+        let (mut rows, downsampled) = downsample_reads(raw, max_depth, 500, 42);
+        let center = self.region.start + self.region.width() / 2;
+        sort_rows(
+            &mut rows,
+            self.alignment_opts.sort_mode,
+            center,
+            &self.reference_seq,
+            self.region.start,
+        );
+        let packed = group_and_pack(
+            &rows,
+            self.alignment_opts.group_mode,
+            self.alignment_opts.view_as_pairs,
+        );
+        if let Some(s) = self.bam_rows.get_mut(bam_index) {
+            *s = rows;
+        }
+        if let Some(s) = self.bam_lanes.get_mut(bam_index) {
+            *s = packed.lanes;
+        }
+        if let Some(s) = self.bam_total_lanes.get_mut(bam_index) {
+            *s = packed.total_lanes;
+        }
+        if let Some(s) = self.bam_bands.get_mut(bam_index) {
+            *s = packed.bands;
+        }
+        if let Some(s) = self.bam_mate_links.get_mut(bam_index) {
+            *s = packed.mate_links;
+        }
+        if let Some(s) = self.bam_downsampled.get_mut(bam_index) {
+            *s = downsampled;
+        }
+        if let Some(s) = self.bam_junctions.get_mut(bam_index) {
+            *s = junctions;
+        }
+    }
+
+    pub fn recompute_all_bams(&mut self) {
+        let n = self.bams.len();
+        for i in 0..n {
+            self.recompute_bam_layout(i);
+        }
+    }
+
+    pub fn recompute_motif_hits(&mut self) {
+        self.sequence_opts.motif_hits = match &self.sequence_opts.motif_pattern {
+            Some(pat) if !self.reference_seq.is_empty() => {
+                search_iupac_motif(pat, &self.reference_seq, self.region.start).unwrap_or_default()
+            }
+            _ => Vec::new(),
+        };
+    }
+
+    pub fn ensure_track_vecs(&mut self) {
+        let b = self.bams.len();
+        self.bam_raw_rows.resize_with(b, Vec::new);
+        self.bam_rows.resize_with(b, Vec::new);
+        self.bam_lanes.resize_with(b, Vec::new);
+        self.bam_total_lanes.resize(b, 0);
+        self.bam_bands.resize_with(b, Vec::new);
+        self.bam_mate_links.resize_with(b, Vec::new);
+        self.bam_downsampled.resize(b, 0);
+        self.bam_junctions.resize_with(b, Vec::new);
+        self.vcf_track_rows.resize_with(self.vcf_tracks.len(), Vec::new);
+        self.annotation_rows
+            .resize_with(self.annotations.len(), Vec::new);
+        self.signal_bins.resize_with(self.signals.len(), Vec::new);
+        self.link_records.resize_with(self.links.len(), Vec::new);
+        self.seg_data
+            .resize_with(self.segs.len(), SegTrackData::default);
+        self.gwas_points.resize_with(self.gwas.len(), Vec::new);
+        if self.panes.is_empty() {
+            self.panes.push(self.region.clone());
+            self.active_pane = 0;
+        }
+        self.pane_snapshots.resize_with(self.panes.len(), || None);
     }
 }
 
-/// Mirrors `Loader::dispatch`: reference and BAMs always send a result
-/// (real or empty stub), VCF only when not gated by OverviewOnly mode,
-/// annotations and signals always send.
-///
-/// Critical at wide zoom (>50 kb) where the reference and BAM fetches
-/// return empty stubs — without this count, `loading` would stay true
-/// forever and the snapshot guard would block indefinitely.
 pub fn expected_loads_for(
     mode: RenderMode,
     n_bams: usize,
@@ -273,8 +495,6 @@ pub fn expected_loads_for(
 }
 
 impl AppState {
-    /// Apply an `Action`, optionally producing a new `LoadRequest` for the
-    /// loader. Returns `None` when no fetch is needed (e.g. theme toggle).
     pub fn apply(&mut self, action: Action) -> Option<LoadRequest> {
         match action {
             Action::Quit => {
@@ -299,6 +519,88 @@ impl AppState {
                 self.set_region_pending(r)
             }
             Action::Goto(r) => self.set_region_pending(r),
+            Action::NextPane => {
+                if self.panes.len() > 1 {
+                    let prev_snap = crate::snapshot::writer::inputs_from_state(self);
+                    if let Some(slot) = self.pane_snapshots.get_mut(self.active_pane) {
+                        *slot = Some(prev_snap);
+                    }
+                    self.active_pane = (self.active_pane + 1) % self.panes.len();
+                    let next = self.panes[self.active_pane].clone();
+                    self.set_status(
+                        StatusKind::Info,
+                        format!("pane {}/{} → {next}", self.active_pane + 1, self.panes.len()),
+                    );
+                    self.set_region_pending(next)
+                } else {
+                    None
+                }
+            }
+            Action::ToggleSashimi => {
+                self.show_sashimi = !self.show_sashimi;
+                self.set_status(
+                    StatusKind::Info,
+                    format!("sashimi: {}", if self.show_sashimi { "on" } else { "off" }),
+                );
+                None
+            }
+            Action::TogglePairs => {
+                self.alignment_opts.view_as_pairs = !self.alignment_opts.view_as_pairs;
+                self.recompute_all_bams();
+                self.set_status(
+                    StatusKind::Info,
+                    format!(
+                        "view-as-pairs: {}",
+                        if self.alignment_opts.view_as_pairs { "on" } else { "off" }
+                    ),
+                );
+                None
+            }
+            Action::CycleColorMode => {
+                self.alignment_opts.color_mode = self.alignment_opts.color_mode.next();
+                if self.alignment_opts.color_mode == AlignmentColorMode::Tag
+                    && self.bam_tag.is_none()
+                {
+                    self.bam_tag = Some("HP".to_string());
+                }
+                self.set_status(
+                    StatusKind::Info,
+                    format!("color-by: {}", self.alignment_opts.color_mode.name()),
+                );
+                None
+            }
+            Action::ToggleTranslation => {
+                self.sequence_opts.show_translation = !self.sequence_opts.show_translation;
+                self.set_status(
+                    StatusKind::Info,
+                    format!(
+                        "3-frame translation: {}",
+                        if self.sequence_opts.show_translation {
+                            "on"
+                        } else {
+                            "off"
+                        }
+                    ),
+                );
+                None
+            }
+            Action::ToggleGraphics => {
+                self.graphics_overlay = !self.graphics_overlay;
+                self.set_status(
+                    StatusKind::Info,
+                    format!(
+                        "inline graphics ({}): {}",
+                        self.graphics_protocol.name(),
+                        if self.graphics_overlay { "on" } else { "off" }
+                    ),
+                );
+                None
+            }
+            Action::CloseInspector => {
+                self.inspector = None;
+                None
+            }
+            Action::MouseClick { .. } | Action::MouseDrag { .. } => None,
             Action::ScrollAlignments(delta) => {
                 let cap = self
                     .bam_total_lanes
@@ -354,47 +656,7 @@ impl AppState {
             Action::CommandSubmit(buf) => {
                 self.command_open = false;
                 self.command_buffer.clear();
-                let trimmed = buf.trim();
-                if let Some((path, format)) = parse_snapshot_command(trimmed) {
-                    if self.loading {
-                        self.set_status(StatusKind::Warning, "snapshot: still loading, try again");
-                    } else {
-                        self.pending_snapshot = Some(SnapshotJob {
-                            path: Some(path),
-                            format,
-                        });
-                    }
-                    return None;
-                }
-                // A bareword like "HER2" parses as a chromosome-only region,
-                // but it's almost certainly a gene name. So accept the parse
-                // only when the chromosome actually exists in the loaded
-                // references; otherwise fall through to gene-name lookup.
-                let parse = Region::parse(trimmed);
-                let parsed_known = parse
-                    .as_ref()
-                    .ok()
-                    .map(|r| self.references.iter().any(|m| m.name == r.chrom));
-                match (parse, parsed_known) {
-                    (Ok(r), Some(true)) => self.set_region_pending(r),
-                    (parse_result, _) => match self.find_gene_region(trimmed) {
-                        Some((region, label)) => {
-                            self.set_status(StatusKind::Info, format!("jump → {label}"));
-                            self.set_region_pending(region)
-                        }
-                        None => {
-                            let msg = match parse_result {
-                                Ok(r) => format!("unknown chrom or gene: {}", r.chrom),
-                                Err(_) if self.annotations.is_empty() => {
-                                    format!("invalid region: {trimmed}")
-                                }
-                                Err(_) => format!("not a region or gene: {trimmed}"),
-                            };
-                            self.set_status(StatusKind::Error, msg);
-                            None
-                        }
-                    },
-                }
+                crate::app::commands::execute_command(self, &buf)
             }
             Action::CommandCancel => {
                 self.command_open = false;
@@ -471,33 +733,37 @@ impl AppState {
                 }
                 None
             }
-            // Handled by ServeController in the main event loop (Task 12).
-            Action::OpenBrowser => None,
-            Action::None => None,
+            Action::OpenBrowser | Action::None => None,
         }
     }
 
-    /// Search loaded annotation tracks for a transcript whose gene_name,
-    /// gene_id, or transcript_id matches `query` case-insensitively. On a
-    /// hit, returns a region spanning the **union** of all matched
-    /// transcripts on the same chromosome (so multi-isoform genes show all
-    /// isoforms at once), plus a label suitable for the status line.
-    fn find_gene_region(&self, query: &str) -> Option<(Region, String)> {
+    pub fn find_gene_region(&self, query: &str) -> Option<(Region, String)> {
         let sources: Vec<_> = self.annotations.iter().map(|t| t.source.clone()).collect();
         let (region, label) = igv_core::source::annotation::find_by_name_union(&sources, query)?;
         let status = format!("{label} ({region})");
         Some((region, status))
     }
 
-    fn set_region_pending(&mut self, region: Region) -> Option<LoadRequest> {
-        self.region = region;
+    pub fn set_region_pending(&mut self, region: Region) -> Option<LoadRequest> {
+        let mut resolved = region;
+        let avail: Vec<String> = self.references.iter().map(|r| r.name.clone()).collect();
+        if let Some(canon) = self.chrom_aliases.resolve(&resolved.chrom, &avail) {
+            resolved.chrom = canon.to_string();
+        }
+        self.region = resolved.clone();
+        if self.panes.is_empty() {
+            self.panes.push(resolved);
+            self.active_pane = 0;
+        } else if let Some(slot) = self.panes.get_mut(self.active_pane) {
+            *slot = resolved;
+        }
         self.generation = self.generation.wrapping_add(1);
         self.loading = true;
         self.loaded_count = 0;
-        // Clear stale data so widgets don't render new reads against the old
-        // reference window (causing transient phantom mismatches) until the
-        // new fetches land.
         self.reference_seq.clear();
+        for rows in &mut self.bam_raw_rows {
+            rows.clear();
+        }
         for rows in &mut self.bam_rows {
             rows.clear();
         }
@@ -506,6 +772,18 @@ impl AppState {
         }
         for total in &mut self.bam_total_lanes {
             *total = 0;
+        }
+        for b in &mut self.bam_bands {
+            b.clear();
+        }
+        for l in &mut self.bam_mate_links {
+            l.clear();
+        }
+        for d in &mut self.bam_downsampled {
+            *d = 0;
+        }
+        for j in &mut self.bam_junctions {
+            j.clear();
         }
         self.bam_scroll = 0;
         for rows in &mut self.annotation_rows {
@@ -517,7 +795,17 @@ impl AppState {
         for v in &mut self.link_records {
             v.clear();
         }
+        for r in &mut self.vcf_track_rows {
+            r.clear();
+        }
+        for s in &mut self.seg_data {
+            *s = SegTrackData::default();
+        }
+        for g in &mut self.gwas_points {
+            g.clear();
+        }
         self.variants.clear();
+
         let render_mode = self.render_mode();
         Some(LoadRequest {
             generation: self.generation,
@@ -545,49 +833,38 @@ mod tests {
     #[test]
     fn signal_bins_for_width_clamps_low_and_high() {
         assert_eq!(signal_bins_for_width(0), 64);
-        assert_eq!(signal_bins_for_width(20), 64); // 20*2=40 → clamped up
-        assert_eq!(signal_bins_for_width(80), 160); // 80*2 sits in range
+        assert_eq!(signal_bins_for_width(20), 64);
+        assert_eq!(signal_bins_for_width(80), 160);
         assert_eq!(signal_bins_for_width(200), 400);
-        assert_eq!(signal_bins_for_width(4000), 4096); // 4000*2=8000 → clamped down
+        assert_eq!(signal_bins_for_width(4000), 4096);
     }
 
     #[test]
     fn classify_chromosome_scale_is_overview_only() {
-        // Sanity check: the constant change in `region.rs` (no MAX_REGION_WIDTH)
-        // means we can construct a chr-scale view; classification at that size
-        // must land in OverviewOnly so the loader knows to skip heavy fetches.
         let t = Thresholds::default();
         assert_eq!(t.classify(248_000_000), RenderMode::OverviewOnly);
     }
 
     #[test]
     fn expected_loads_per_base_counts_all_sources() {
-        // 1 ref + 2 bams + 1 vcf + 1 annot + 1 sig + 0 link = 6
         let n = expected_loads_for(RenderMode::PerBase, 2, true, 1, 1, 0);
         assert_eq!(n, 6);
     }
 
     #[test]
     fn expected_loads_overview_drops_vcf() {
-        // 1 ref + 1 bam + 0 vcf (suppressed) + 1 annot + 1 sig + 0 link = 4
         let n = expected_loads_for(RenderMode::OverviewOnly, 1, true, 1, 1, 0);
         assert_eq!(n, 4);
     }
 
     #[test]
     fn expected_loads_wide_zoom_still_counts_stubs() {
-        // At CoverageDense the loader still emits empty Reference/BAM stubs.
-        // 1 ref stub + 2 bam stubs + 1 vcf + 1 annot + 1 sig + 0 link = 6.
-        // Without this fix, loading would stay true forever because the
-        // condition required *non-empty* reference/bam buffers.
         let n = expected_loads_for(RenderMode::CoverageDense, 2, true, 1, 1, 0);
         assert_eq!(n, 6);
     }
 
     #[test]
     fn expected_loads_minimal_view_is_one() {
-        // No bams, no vcf, no annotations, no signals, no links: just the reference
-        // (real or stub).
         let n = expected_loads_for(RenderMode::DetailedReads, 0, false, 0, 0, 0);
         assert_eq!(n, 1);
     }
@@ -622,26 +899,10 @@ mod tests {
         assert!(parse_snapshot_command("chr1:1000-2000").is_none());
     }
 
-    #[cfg(test)]
     fn test_state_with_links(n_links: usize) -> AppState {
         use async_trait::async_trait;
         use igv_core::source::link::{FetchLinkOpts, LinkSource};
         use std::sync::Arc;
-
-        #[derive(Debug)]
-        struct StubFasta;
-        #[async_trait]
-        impl igv_core::source::FastaSource for StubFasta {
-            async fn references(&self) -> igv_core::error::Result<Vec<igv_core::source::RefMeta>> {
-                Ok(vec![igv_core::source::RefMeta {
-                    name: "chr1".into(),
-                    length: 1_000_000,
-                }])
-            }
-            async fn fetch(&self, _r: &Region) -> igv_core::error::Result<Vec<u8>> {
-                Ok(Vec::new())
-            }
-        }
 
         #[derive(Debug)]
         struct StubLink;
@@ -671,46 +932,14 @@ mod tests {
             });
         }
         AppState {
-            fasta: Arc::new(StubFasta),
-            vcf: None,
-            bams: vec![],
-            references: vec![igv_core::source::RefMeta {
+            links,
+            link_records: vec![Vec::new(); n_links],
+            references: vec![RefMeta {
                 name: "chr1".into(),
                 length: 1_000_000,
             }],
-            region: Region::new("chr1", 1, 1000).unwrap(),
-            reference_seq: vec![],
-            variants: vec![],
-            bam_rows: vec![],
-            bam_lanes: vec![],
-            bam_total_lanes: vec![],
-            bam_scroll: 0,
-            annotations: vec![],
-            annotation_rows: vec![],
-            signals: vec![],
-            signal_bins: vec![],
-            signal_shared_scale: false,
-            signal_track_height: SIGNAL_DEFAULT_HEIGHT,
-            links,
-            link_records: vec![Vec::new(); n_links],
-            link_track_height: LINK_DEFAULT_HEIGHT,
-            link_min_score: None,
-            alignment_height: ALIGNMENT_DEFAULT_HEIGHT,
-            coverage_height: COVERAGE_DEFAULT_HEIGHT,
-            theme: Theme::dark(),
-            theme_preset: ThemePreset::Dark,
-            thresholds: igv_core::render::Thresholds::default(),
-            bookmarks: HashMap::new(),
-            status: None,
-            command_open: false,
-            command_buffer: String::new(),
-            help_open: false,
             terminal_width: 80,
-            pending_snapshot: None,
-            generation: 0,
-            loaded_count: 0,
-            loading: false,
-            should_quit: false,
+            ..AppState::default()
         }
     }
 
@@ -729,7 +958,6 @@ mod tests {
 
     #[test]
     fn expected_loads_includes_links() {
-        // 1 ref + 0 bams + 0 vcf + 0 ann + 0 sig + 2 link = 3
         let n = expected_loads_for(RenderMode::DetailedReads, 0, false, 0, 0, 2);
         assert_eq!(n, 3);
     }

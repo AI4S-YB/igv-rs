@@ -1,309 +1,105 @@
 # igv-rs
 
-Interactive terminal genome viewer for FASTA / VCF / BAM / GFF / BED, written in Rust.
-Inspired by [cligv](https://github.com/jonasfreudig/cligv) by Jonas Freudigmann.
+Interactive terminal & headless genome viewer written in Rust, supporting local files and HTTP/S3/GS remote byte-range streaming across alignments, variants, annotations, quantitative signals, chromatin interactions, CNV segments, and GWAS Manhattan tracks.
 
-`igv-rs` renders the reference sequence, variants, read alignments, and gene /
-region annotations side-by-side in the terminal, with async non-blocking IO,
-adaptive zoom-level rendering, multi-track support, a vim-style command palette
-and bookmarks.
+Inspired by [cligv](https://github.com/jonasfreudig/cligv) and [IGV](https://igv.org).
 
-## Install
+## Install & Build
 
 ```bash
-cargo install igv-rs
-```
-
-`cargo install` fetches the latest release from
-[crates.io](https://crates.io/crates/igv-rs) and places the `igv-rs`
-binary on your `PATH`. The browser-view companion (igv.js) is bundled
-into the binary, so no extra assets are needed.
-
-Pre-built binaries for Linux / macOS / Windows are also attached to
-each [GitHub Release](https://github.com/AI4S-YB/igv-rs/releases).
-
-### Build from source
-
-```bash
+cargo install --path crates/igv-rs
+# or build from source:
 cargo build --release
 ```
 
-The binary is at `target/release/igv-rs`.
+The release binary is placed at `target/release/igv-rs`.
 
-## Usage
+## Supported Formats & Remote Streaming
 
-```bash
-igv-rs reference.fa
-igv-rs reference.fa -v variants.vcf.gz
-igv-rs reference.fa -b alignments.bam
-igv-rs reference.fa -b sample1.bam -b sample2.bam -r chr1:1000-2000
-igv-rs reference.fa -g genes.gff3
-igv-rs reference.fa -g genes.gff3 -g peaks.bed -b sample.bam -r chr1:1000-2000
-igv-rs reference.fa -s chip.bw -s input.bw -r chr1:1-10000000
-igv-rs reference.fa -b sample.bam -s rna.bw -g genes.gff3 -r chr1:1000-2000
-igv-rs reference.fa -l loops.bedpe
-igv-rs reference.fa -l hiccups.bedpe.gz -l abc.bedpe
-igv-rs reference.fa -l loops.bedpe --link-min-score 5.0
-igv-rs reference.fa -b sample.bam -g genes.gff3 -l loops.bedpe -r chr1:1000-2000
-```
+- **References & Genomes (`--genome` or positional)**:
+  - Indexed FASTA (`.fa` / `.fasta` + `.fai`, local or remote HTTP/S3/GS)
+  - UCSC `.2bit` random-access genomes
+  - Built-in genome presets (`hg38`, `hg19`, `mm39`, `mm10`, `danRer11`, `dm6`, `ce11`, `sacCer3`) or custom `.json` genome descriptors with cytoband ideograms and `1` ↔ `chr1` chromosome aliases
+  - UCSC Track Hubs (`--hub hub.txt`, supporting both `useOneFile on` and `genomes.txt` / `trackDb.txt`)
+- **Alignments (`-b` / `--bam`)**: `BAM` (`.bai`/`.csi`), `CRAM 3.0+` (`.crai`/sequential), `SAM`, and `PAF`
+- **Variants (`-v` / `--vcf`, repeatable)**: multi-sample `VCF` (`.vcf.gz` + `.tbi`/`.csi` or unindexed `.vcf`) and `BCF 2.2` (`.bcf`), with optional `PED` (`--ped`) trio ordering and Mendelian violation detection
+- **Annotations (`-g` / `--annotation`)**: `GFF3`, `GTF`, `BED3`–`BED12`, `narrowPeak`/`broadPeak` (with `.tbi`/`.csi` tabix streaming or gzipped fallback), and UCSC `bigBed` (`.bb` / `bigGenePred`)
+- **Quantitative Signals (`-s` / `--signal`)**: `bigWig` (`.bw`/`.bigwig`), `WIG` (`fixedStep`/`variableStep`), and `bedGraph` (with `--signal-summary max|mean|min|sum`)
+- **Chromatin / SV Links (`-l` / `--link`)**: `BEDPE` (`.bedpe`/`.bedpe.gz` with optional `.tbi`/`.csi`) and UCSC `bigInteract` (`.inter.bb`)
+- **CNV & Association Tracks**: Copy-number segmentation (`--seg`: `.seg`/`.cbs`/`.cn`) diverging heatmaps and GWAS Manhattan plots (`--gwas`: `.gwas`/`.assoc`)
 
-The command palette (`:` or `g`) accepts coordinate input
-(`chr1:1000-2000`, `chr1`) **and** gene names — type a `gene_name`,
-`gene_id`, or `transcript_id` from any loaded GFF/GTF/BED track and the
-view jumps to the union span of all matching transcripts (case-insensitive).
-For multi-isoform genes the window covers every isoform on the same
-chromosome at once.
+Remote URLs (`http://`, `https://`, `s3://`, `gs://`) stream via a 64 KiB LRU page-cached HTTP range client with optional bearer tokens (`--auth-token`).
 
-Annotation tracks are auto-detected by extension:
-`.gff` / `.gff3` / `.gtf` (with optional `.gz`), `.bed` / `.bed.gz`, and
-MACS2-style `.narrowPeak` / `.broadPeak` (with optional `.gz`) are all
-accepted via the repeatable `-g` / `--annotation` flag. Peak files are
-treated as BED6 — the extra signal/p-value/q-value/peak columns are
-ignored. Override the auto-detection with
-`--annotation-format gff|gtf|bed|narrowpeak|broadpeak` when the extension
-is ambiguous or missing.
-
-Signal tracks (bigWig, `.bw` / `.bigwig`) are accepted via the repeatable
-`-s` / `--signal` flag and rendered as bar-chart tracks between coverage
-and alignments. At wide zoom the bigwig file's precomputed zoom-level
-summaries are used (≥16 bp/col); at fine zoom raw per-base values are
-fetched. Override extension auto-detection with
-`--signal-format bigwig`.
-
-Link tracks (BEDPE pairwise interactions, `.bedpe` / `.bedpe.gz`) are
-accepted via the repeatable `-l` / `--link` flag. Each file becomes
-its own track showing chromatin loops, enhancer-promoter interactions,
-ChIA-PET, or any other paired-region data. Visualization is adaptive:
-sparse data renders as box-drawing arcs; dense data switches to a
-per-column heatmap. Off-window anchors render as half-arrows with a
-distance label; cross-chromosome (trans) links show a `⤴ chr2:5M`
-edge marker. Override extension auto-detection with
-`--link-format bedpe`. Filter low-confidence loops with
-`--link-min-score N`.
-
-### Wide-zoom behavior
-
-You can zoom out all the way to the full chromosome (`s` / `↓` repeatedly).
-At wide zoom the loader skips the heaviest fetches so chromosome-scale
-views don't OOM:
-
-| view width            | reference | reads | coverage | variants | annotations    | signals | links |
-|-----------------------|-----------|-------|----------|----------|----------------|---------|-------|
-| ≤ 50 kb (per-base)    | yes       | yes   | yes      | yes      | transcripts    | yes     | yes   |
-| 50 kb – 500 kb        | no        | no    | no       | yes      | transcripts    | yes     | yes   |
-| 500 kb – 5 Mb         | no        | no    | no       | no       | transcripts    | yes     | yes   |
-| > 5 Mb (overview)     | no        | no    | no       | no       | gene density   | yes     | yes   |
-
-The footer shows a yellow "overview" hint when fetches are gated. BigWig
-signal tracks remain visible at every zoom level — bigtools' precomputed
-zoom pyramid handles chromosome-scale queries cheaply.
-
-### Snapshot export (SVG / PNG)
-
-Save publication-style figures of the current view or batches of regions
-/ genes. Snapshots are graphical, not character art — matching IGV's
-PNG / SVG output style.
-
-Interactive (inside the TUI):
-
-- `S` — save the current view to `./snapshot_<chrom>_<start>_<end>.svg`
-- `:snapshot path/to/file.svg` (or `:snap`) — save to a chosen path;
-  `.png` extension switches to PNG output.
-
-Headless batch (no TUI is opened):
+## Usage Examples
 
 ```bash
-# One snapshot per BED region (column 4 = output filename stem)
-igv-rs ref.fa -b s.bam --snapshot-bed regions.bed --snapshot-out out/
+# Built-in hg38 preset + BAM/VCF/GFF tracks across two split panes
+igv-rs --genome hg38 -b sample.bam -v cohort.vcf.gz -g genes.gtf \
+  -r chr7:55000000-55200000 -r chr17:7668402-7687538
 
-# One snapshot per gene name (requires -g annotation)
-igv-rs ref.fa -b s.bam -g genes.gtf \
-    --snapshot-genes list.txt --snapshot-out out/
+# RNA-seq Sashimi splice junctions + base modification coloring + PED Mendelian check
+igv-rs ref.fa -b ont_5mc.bam -b rnaseq.bam -v trio.vcf.gz --ped trio.ped \
+  --color-by mod --sashimi --show-soft-clips
+
+# Copy-number CNV heatmap + GWAS Manhattan + Circular SV chord SVG export
+igv-rs --genome hg19 --seg cnv.seg --gwas stats.gwas -l sv.bedpe \
+  --circular-out whole_genome_circos.svg
+
+# Load saved session (.toml or IGV .json) + enable live TCP command listener
+igv-rs --session session.toml --port 60151
+
+# Run an IGV batch script headlessly (renders SVG/PNG/Circular snapshots and exits)
+igv-rs --batch run.igv
 ```
 
-Flags shared by both modes:
+## Keybindings & Mouse Controls
 
-- `--snapshot-format svg|png` (default `svg`)
-- `--snapshot-width <px>` (default `1200`)
-- `--snapshot-flank <fraction>` (default `0.1`; pads each side)
-- `--snapshot-theme igv|tui` (default `igv` light theme)
+### Navigation & Split Panes
+- `a` / `←` / `d` / `→` — page backward / forward (full window)
+- `h` / `l` — fine pan backward / forward (1/10 window)
+- `w` / `↑` / `s` / `↓` — zoom in / out around center
+- `Tab` — cycle active multi-locus split pane (`1..=4`)
+- `m<c>` / `'<c>` — set / jump to bookmark `<c>`
+- `Mouse` — click/drag on ruler or ideogram to jump/drag-zoom; scroll wheel to scroll lanes; click any read, variant, transcript, or GWAS marker to open the modal inspector (`Esc`/`Enter`/`q` closes)
 
-Output filenames in batch mode are
-`<label>_<chrom>_<start>_<end>.<ext>` (with `<label>` from the BED 4th
-column or the gene name when set).
-
-### Keybindings
-
-- `a` / `←` — page backward (one full window)
-- `d` / `→` — page forward (one full window)
-- `h` — move backward by 1/10 of the window (fine pan)
-- `l` — move forward by 1/10 of the window (fine pan)
-- `w` / `↑` — zoom in
-- `s` / `↓` — zoom out
+### Alignments, Sequence & Visualization Toggles
 - `j` / `k` — scroll alignment lanes down / up
-- `+` / `-` — grow / shrink alignment-track height
-- `]` / `[` — grow / shrink coverage-track height
-- `\` — toggle signal shared / per-track Y-scale
-- `}` / `{` — grow / shrink signal-track height
-- `<` / `>` — shrink / grow link-track height
-- `:` or `g` — open command palette (type `chr:start-end`, a chromosome
-  name, or a `gene_name` / `gene_id` / `transcript_id` from a loaded
-  annotation; `Enter` to jump)
-- `m<c>` — set bookmark to letter `c`
-- `'<c>` — jump to bookmark `c`
-- `t` — cycle theme (`dark` → `light` → `paper` → `solarized-dark` →
-  `solarized-light` → `dracula` → `gruvbox-dark` → ...). The new theme name
-  briefly shows in the footer. `paper` paints every cell with an explicit
-  white background — useful on terminals whose default background isn't
-  pure white.
-- `S` — save SVG snapshot of current view to
-  `./snapshot_<chrom>_<s>_<e>.svg` (see "Snapshot export" above)
-- `B` — open browser view (igv.js); see "Browser view" above
-- `?` — toggle keybinding help overlay (any key closes it)
-- `q` / `Ctrl-C` — quit
+- `P` — toggle View-as-Pairs (mates grouped on the same lane with connector lines)
+- `C` — cycle alignment coloring (`strand` → `insert-size` → `pair-orientation` → `mate-chrom` → `tag` → `mapq` → `base-mod` [`MM`/`ML` 5mC/6mA] → `bisulfite`)
+- `J` — toggle RNA-seq Sashimi splice-junction arc tracks
+- `T` — toggle 3-frame amino-acid sequence translation (`M` start, `*` stop)
+- `G` — render inline pixel snapshot (`Kitty` / `iTerm2` / `Sixel`)
+- `+` / `-`, `]` / `[`, `}` / `{`, `<` / `>` — resize alignment, coverage, signal, and link track heights
+- `\` — toggle shared vs per-track signal Y-scale
+- `t` — cycle color themes (`dark`, `light`, `paper`, `solarized-*`, `dracula`, `gruvbox-*`)
+- `S` — export graphical SVG snapshot of the current view
+- `B` — open bidirectional `igv.js` browser companion (navigating in either TUI or browser syncs the other)
+- `?` — toggle help overlay; `q` / `Ctrl-C` — quit
 
-### Browser view (igv.js)
+### Runtime `:` Command Palette
+- `:chr7:55000000-55200000` or `:<GENE>` — jump to coordinates, aliases, or gene/transcript IDs
+- `:sort <none|start|base|strand|mapq|insert|mate|tag|hp>` — re-sort alignments live
+- `:group <none|strand|rg|hp|pair|mate|tag|chimeric>` — group reads with band headers
+- `:color <strand|insert|pair|mate|tag|mapq|mod|bisulfite> [TAG]` — set coloring & BAM tag
+- `:pairs [on|off]`, `:softclip [on|off]`, `:downsample <N|off>` — toggle pairing, soft-clips, reservoir depth
+- `:summary <max|mean|min|sum>` — set signal window aggregation
+- `:strand [both|fwd]`, `:translate [fwd|rev|off]`, `:motif <IUPAC|off>` — complement strand, 3-frame AA, IUPAC regex motif search
+- `:sashimi [on|off]`, `:circular <path.svg|path.png>`, `:snapshot <path.svg|path.png>` — toggle Sashimi & export graphics
+- `:split <locus>`, `:unsplit` — add/close multi-locus split panes (up to 4)
+- `:load <path_or_url>`, `:unload <name>`, `:genome <id_or_path>` — dynamically load/unload tracks & genomes
+- `:save-session <path.toml>`, `:load-session <path.toml|path.json>` — persist or import IGV sessions
+- `:blat <DNA_SEQ>` — query UCSC `hgBlat` and jump to the top hit
+- `:graphics <auto|none|kitty|iterm2|sixel|toggle>` — configure inline pixel output
 
-Inside the TUI press `B` to launch a local HTTP server and open
-[igv.js](https://github.com/igvteam/igv.js) in your default browser. The
-browser starts at the TUI's current region and follows your navigation
-in real time:
+## Architecture
 
-```bash
-igv-rs ref.fa -b sample.bam -g genes.gtf -l loops.bedpe
-# inside the TUI:
-#   B          → open browser view
-#   d/s/:gene  → browser tab follows
-#   q          → exits the TUI and shuts the server down
-```
-
-The server binds to `127.0.0.1` on an ephemeral port (override with
-`--serve-port`) and exposes only the tracks you passed on the CLI.
-Disable the keystroke entirely with `--no-browser`. No data leaves the
-loopback interface; there is no authentication and no remote-access
-support in v0.5 — use this for one-shot inspection on the same machine.
-
-`igv.js` itself is bundled into the binary, so the browser view works
-offline.
-
-## Configuration
-
-Optional `~/.config/igv-rs/config.toml` is read at startup. Today only the
-`[theme]` section is honored:
-
-```toml
-[theme]
-# "dark" | "light" | "paper" | "solarized-dark" | "solarized-light"
-# | "dracula" | "gruvbox-dark"
-preset = "dark"
-
-[theme.custom]
-# Override individual style keys
-"A" = "bold green"
-"MISMATCH" = "bold white on red"
-"SIGNAL" = "cyan"
-"LINK" = "magenta"
-
-[serve]
-auto_open = true     # CLI --no-browser overrides
-port = 0             # CLI --serve-port overrides; 0 = ephemeral
-```
-
-The full schema (with `[render]` and `[bookmarks]` tables) is described in
-`docs/superpowers/specs/2026-04-26-igv-rs-rust-rewrite-design.md`. See "Known
-limitations" below for which sections are wired up.
-
-## Layout
-
-- `crates/igv-core` — pure library: regions, async data sources, alignment
-  expansion, coverage, render thresholds.
-- `crates/igv-render` — graphical (SVG / PNG) snapshot renderer.
-- `crates/igv-serve` — local HTTP server that bundles igv.js and mirrors
-  the TUI's view in a browser (loopback only).
-- `crates/igv-rs` — the `igv-rs` binary itself: clap CLI, ratatui custom
-  widgets, tokio main loop. Consumes the three sibling crates.
-- `crates/igv-core/src/source/signal.rs` — `SignalSource` trait + bigtools-backed `BigWigSignalSource`.
-- `crates/igv-core/src/source/link.rs` — `LinkSource` trait + `BedpeLinkSource`
-  in-memory IntervalMap backend.
-- `crates/igv-rs/src/ui/widgets/link.rs` — adaptive arc / heatmap widget.
-- `crates/igv-render/src/svg/link.rs` — SVG painter (Bézier arcs +
-  viridis-like color ramp).
-- `cligv/` — the project that inspired this work; kept locally as a reference
-  and not part of this repository (git-ignored).
-
-## Known limitations
-
-The 0.1 release ships the architectural backbone described in the spec; some
-configuration knobs and refinements are tracked for follow-up:
-
-- **Held-key debounce** is not implemented. Holding `d` or `s` issues one
-  fetch per keystroke; cancellation reduces the load but does not eliminate
-  it. Workaround: tap rather than hold.
-- **`[render]` config keys** (`zoom_factor`, `nav_overlap`, threshold
-  overrides) are not read yet. Hardcoded defaults match the spec.
-- **`[bookmarks]` config table** is not loaded. In-session bookmarks via
-  `m<c>` / `'<c>` work fully.
-- **Coverage at wide zoom is hidden, not heat-mapped.** Beyond the
-  `detailed` threshold (50 kb by default) BAM is no longer fetched, so the
-  coverage track shows just a `coverage (zoomed out)` title. Use a
-  precomputed bigWig if you need a chromosome-scale depth view.
-- **BAM tag display** uses Rust's `Debug` formatting (e.g. `Int8(42)` instead
-  of `42`) when colored by tag.
-- **Snapshot tests** of full TUI frames are limited to a smoke test; widget
-  rendering is exercised manually.
-- **No signal-track caching** — every region change re-fetches bigwig.
-  In practice bigtools' R-tree lookup is fast enough; revisit if it's
-  ever observed to lag.
-- **Signal-track vertical quantization.** v0.4 paints partial blocks
-  (`▁▂▃▄▅▆▇█`) so each terminal row resolves 8 levels — at the default 6
-  rows that's 48 vertical levels. For very high-dynamic-range bigwigs
-  (or low-amplitude regions next to a tall peak) bars can still look
-  stepped. Workaround: grow the track with `}` for more rows × 8 levels
-  each. (v0.3 and earlier rendered only `█`, i.e. 1 level per row.)
-- **Single signal colormap** — all bigwig tracks share the `SIGNAL`
-  theme key. Per-track colormap is not yet supported.
-- **Signal summary statistic** is fixed at `Max`. `--signal-summary` is
-  not yet a flag.
-- **bigBed (`.bb`)** is not supported — separate spec.
-- **No tabix / pairix support for link tracks.** BEDPE files >1M
-  records load slowly (whole-file in-memory parse). Workaround:
-  pre-filter the file. Tracked as a follow-up spec.
-- **No bigInteract / UCSC interact format.** Separate spec; will reuse
-  the same `LinkSource` trait and `LinkRecord` shape.
-- **Single `LINK` theme key.** All link tracks share one base color;
-  per-track palette is deferred.
-- **Score column fixed to BEDPE col 8.** `--link-score-col` not yet
-  available for files using a custom scoring column.
-- **Per-window score normalization.** Adjacent panning frames may
-  show slightly shifted colors for the same link as the visible
-  score range moves. Acceptable for a no-config UX.
-- **Browser view is loopback-only.** Remote access (LAN / WAN), auth
-  tokens, and reverse browser → TUI sync are tracked as follow-up specs.
+- `crates/igv-core` — pure async data layer (`io`, `genome`, `sequence`, `alignment/{mod,mods}`, `coverage`, `pedigree`, `sashimi`, `hub`, and sources for FASTA/`.2bit`, BAM/CRAM/SAM/PAF, VCF/BCF, GFF/GTF/BED/bigBed, bigWig/WIG/bedGraph, BEDPE/bigInteract, SEG, GWAS).
+- `crates/igv-render` (`#![forbid(unsafe_code)]`) — SVG & PNG snapshot engine, Circos-style whole-genome circular chord renderer (`circview`), and pure-Rust Kitty / iTerm2 / Sixel terminal pixel encoders (`term_gfx`).
+- `crates/igv-serve` (`#![forbid(unsafe_code)]`) — bundled `igv.js` HTTP server with SSE push (`view`), reverse browser → TUI locus sync (`POST /api/locus`), and range/feature routes.
+- `crates/igv-rs` — CLI, multi-pane `ratatui` TUI with mouse capture & modal inspector, runtime `:` command engine, session manager, `--batch` script runner, and `--port` TCP automation listener.
 
 ## Citation
 
 If you use this software, please cite:
 
 Xu ZG, Qin G. 2026. LLM-assisted development of Rust for high-performance bioinformatics software: practices, workflows, and boundaries. *Genomics Communications* 3: e018 doi: [10.48130/gcomm-0026-0018](https://doi.org/10.48130/gcomm-0026-0018)
-
-```bibtex
-@article{xu2026llm,
-  author  = {Xu, Zhou-Geng and Qin, Guihui},
-  title   = {LLM-assisted development of {Rust} for high-performance bioinformatics software: practices, workflows, and boundaries},
-  journal = {Genomics Communications},
-  volume  = {3},
-  pages   = {e018},
-  year    = {2026},
-  doi     = {10.48130/gcomm-0026-0018}
-}
-```
-
-## Reference
-
-- Initial design spec: `docs/superpowers/specs/2026-04-26-igv-rs-rust-rewrite-design.md`
-- Initial implementation plan: `docs/superpowers/plans/2026-04-26-igv-rs-rust-rewrite.md`
-- Annotation track design: `docs/superpowers/specs/2026-04-26-annotations-design.md`
-- Annotation track plan: `docs/superpowers/plans/2026-04-26-annotations.md`
-- bigWig signal-track design: `docs/superpowers/specs/2026-04-27-bigwig-signal-design.md`
-- BEDPE link-track design: `docs/superpowers/specs/2026-04-29-bedpe-link-design.md`
-- BEDPE link-track plan: `docs/superpowers/plans/2026-04-29-bedpe-link.md`

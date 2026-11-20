@@ -1,6 +1,6 @@
 use igv_core::Region;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SnapshotFormat {
     Svg,
     Png,
@@ -34,14 +34,32 @@ pub enum Action {
     Zoom { zoom_in: bool },
     /// Jump to an explicit region.
     Goto(Region),
+    /// Cycle active multi-locus split pane (`Tab`).
+    NextPane,
     /// Toggle dark/light theme.
     ToggleTheme,
+    /// Toggle Sashimi splice-junction track visibility (`J`).
+    ToggleSashimi,
+    /// Toggle View-as-Pairs mode (`P`).
+    TogglePairs,
+    /// Cycle alignment coloring mode (`C`).
+    CycleColorMode,
+    /// Toggle 3-frame amino-acid translation (`T`).
+    ToggleTranslation,
+    /// Toggle inline terminal pixel graphics preview (`G`).
+    ToggleGraphics,
     /// Open the command palette.
     OpenCommand,
     /// Submit the command palette buffer.
     CommandSubmit(String),
     /// Cancel command palette.
     CommandCancel,
+    /// Dismiss modal feature inspector (`Esc`/`Enter`/`q`).
+    CloseInspector,
+    /// Handle left mouse click at terminal cell `(x, y)`.
+    MouseClick { x: u16, y: u16 },
+    /// Handle horizontal mouse drag on ruler (`start_x..=end_x` at row `y`).
+    MouseDrag { start_x: u16, end_x: u16, y: u16 },
     /// Set a bookmark to the current region under key `c`.
     SetBookmark(char),
     /// Jump to the bookmark stored at key `c`.
