@@ -35,6 +35,7 @@ pub async fn run_batch_script(
     let mut fasta: Option<Arc<dyn FastaSource>> = None;
     let mut references: Vec<RefMeta> = Vec::new();
     let mut cytobands: Vec<Cytoband> = Vec::new();
+    let mut chrom_aliases = igv_core::genome::ChromAliases::default();
     let mut genome_id: Option<String> = None;
     let mut pedigree: Option<Arc<Pedigree>> = None;
 
@@ -85,6 +86,7 @@ pub async fn run_batch_script(
                 let loaded = open_genome_spec(arg1, auth_token).await?;
                 genome_id = Some(loaded.genome_id);
                 cytobands = loaded.cytobands;
+                chrom_aliases = loaded.aliases;
                 references = loaded.references;
                 fasta = Some(loaded.fasta);
                 if region.is_none() {
@@ -100,6 +102,7 @@ pub async fn run_batch_script(
                         if fasta.is_none() {
                             if let Some(tb) = &hub.two_bit_url {
                                 let loaded = open_genome_spec(tb, auth_token).await?;
+                                chrom_aliases = loaded.aliases;
                                 references = loaded.references;
                                 fasta = Some(loaded.fasta);
                             }
@@ -165,12 +168,27 @@ pub async fn run_batch_script(
                 if arg1.is_empty() {
                     continue;
                 }
-                if let Ok(r) = Region::parse(arg1) {
+                let avail: Vec<String> = references.iter().map(|m| m.name.clone()).collect();
+                let parsed = Region::parse(arg1).ok();
+                let resolved = parsed.as_ref().and_then(|r| {
+                    chrom_aliases.resolve(&r.chrom, &avail).map(|canon| {
+                        let mut out = r.clone();
+                        out.chrom = canon.to_string();
+                        out
+                    })
+                });
+                if let Some(r) = resolved {
                     region = Some(r);
                 } else {
                     let srcs: Vec<_> = annotations.iter().map(|(_, s)| Arc::clone(s)).collect();
                     if let Some((r, _)) = find_by_name_union(&srcs, arg1) {
                         region = Some(r);
+                    } else if avail.is_empty() {
+                        if let Some(r) = parsed {
+                            region = Some(r);
+                        } else {
+                            anyhow::bail!("batch line {}: cannot resolve locus '{}'", line_no + 1, arg1);
+                        }
                     } else {
                         anyhow::bail!("batch line {}: cannot resolve locus '{}'", line_no + 1, arg1);
                     }
