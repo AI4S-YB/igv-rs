@@ -1,102 +1,191 @@
 # igv-rs
 
-Interactive terminal & headless genome viewer written in Rust, supporting local files and HTTP/S3/GS remote byte-range streaming across alignments, variants, annotations, quantitative signals, chromatin interactions, CNV segments, and GWAS Manhattan tracks.
+Interactive terminal & headless genome viewer written in Rust, supporting local files and HTTP/S3/GS remote byte-range streaming across alignments, variants, pedigrees, annotations, quantitative signals, chromatin interactions, CNV segments, and GWAS Manhattan plots.
 
-Inspired by [cligv](https://github.com/jonasfreudig/cligv) and [IGV](https://igv.org).
+Inspired by [IGV](https://igv.org) and [cligv](https://github.com/jonasfreudig/cligv).
 
-## Install & Build
+---
+
+## Visual Feature Tour (Videos & Narratives)
+
+Every walkthrough below was captured from a live `igv-rs` PTY session using [`examples/demo/`](examples/demo/), with **on-screen keystroke callouts (`KEY PRESSED` + `KEY TRAIL`)**, **synchronized voice narration**, and detailed **narrative guides** in [`docs/tutorials.md`](docs/tutorials.md).
+
+### 1. Navigation, Bookmarks & Multi-Locus Split Panes
+> Pan smoothly (`a`/`d`/`h`/`l`), zoom symmetrically (`w`/`s`), resolve gene names (`:TP53`), pin Vim-style bookmarks (`m<a>` / `'<a>`), inspect up to 4 loci side-by-side (`:split`, `Tab`), and view in-app help (`?`).
+
+![Navigation and Split Panes preview](docs/videos/01-navigation-and-panes.gif)
+
+**[Watch Narrated 1080p Video (`.mp4`)](docs/videos/01-navigation-and-panes.mp4)** · **[Read Step-by-Step Narrative](docs/narratives/01-navigation-and-panes.md)**
+
+---
+
+### 2. Alignment Coloring, 5mC Methylation, Pairing & Sorting
+> Toggle View-as-Pairs (`P`), cycle 8 biological color modes (`C`: `strand`, `insert`, `pair`, `mate`, `tag`, `mapq`, `MM`/`ML` `mod`, `bisulfite`), sort pileups at a heterozygous SNV (`:sort base`), group haplotypes (`:group hp`), and inspect soft-clips (`:softclip on`).
+
+![Alignment Analytics preview](docs/videos/02-alignment-analytics.gif)
+
+**[Watch Narrated 1080p Video (`.mp4`)](docs/videos/02-alignment-analytics.mp4)** · **[Read Step-by-Step Narrative](docs/narratives/02-alignment-analytics.md)**
+
+---
+
+### 3. Reference Strand, 3-Frame Translation & IUPAC Motif Search
+> Zoom to nucleotide resolution (`w`), expand 3-frame amino-acid translation tracks (`T`), enable dual complementary strands (`:strand both`), switch to reverse translation (`:translate rev`), and highlight degenerate IUPAC motifs (`:motif TATAWAW`, `:motif GAATTC`).
+
+![Sequence and Motifs preview](docs/videos/03-sequence-and-motifs.gif)
+
+**[Watch Narrated 1080p Video (`.mp4`)](docs/videos/03-sequence-and-motifs.mp4)** · **[Read Step-by-Step Narrative](docs/narratives/03-sequence-and-motifs.md)**
+
+---
+
+### 4. Multi-Sample VCF/BCF Genotypes, PED Trios, Modal Inspector & Themes
+> Visualize cohort genotypes and `--ped` family trios (`Father → Mother → Proband`) with automatic Mendelian violation (`!`) flagging, click reads/variants/genes/SNPs with the mouse for a modal detail popup, and cycle across 8 terminal themes (`t`).
+
+![Variants, Pedigree and Themes preview](docs/videos/04-variants-and-pedigree.gif)
+
+**[Watch Narrated 1080p Video (`.mp4`)](docs/videos/04-variants-and-pedigree.mp4)** · **[Read Step-by-Step Narrative](docs/narratives/04-variants-and-pedigree.md)**
+
+---
+
+### 5. RNA-seq Sashimi Splice Junctions, Quantitative Signals & 3D Links
+> Overlay spliced `N`-operator RNA-seq Sashimi arcs (`J`) above coverage histograms, resize quantitative `bigWig`/`WIG`/`bedGraph` and `BEDPE`/`bigInteract` tracks (`}` / `>`), switch shared vs. per-track Y-scales (`\`), and set aggregation (`:summary mean`).
+
+![Sashimi, Signals and Links preview](docs/videos/05-sashimi-signals-and-links.gif)
+
+**[Watch Narrated 1080p Video (`.mp4`)](docs/videos/05-sashimi-signals-and-links.mp4)** · **[Read Step-by-Step Narrative](docs/narratives/05-sashimi-signals-and-links.md)**
+
+---
+
+### 6. CNV Heatmaps, GWAS Manhattan & Vector / Circular Exports
+> Explore cohort copy-number segmentation heatmaps (`--seg`), high-density Braille GWAS Manhattan plots (`--gwas`), export SVG/PNG snapshots (`S` or `:snapshot`), and generate whole-genome Circos-style SV + CNV chord plots (`:circular` / `--circular-out`).
+
+![CNV, GWAS and Circular Export preview](docs/videos/06-cnv-gwas-and-snapshots.gif)
+
+**[Watch Narrated 1080p Video (`.mp4`)](docs/videos/06-cnv-gwas-and-snapshots.mp4)** · **[Read Step-by-Step Narrative](docs/narratives/06-cnv-gwas-and-snapshots.md)**
+
+---
+
+### 7. Live Track Hot-Loading, Sessions, Browser Sync & TCP Automation
+> Dynamically `:load` / `:unload` tracks and `:genome` presets without restarting, persist `.toml` or import IGV `.json` sessions, sync bidirectionally with the embedded `igv.js` web companion (`B`), and drive `igv-rs` externally over `--port` TCP sockets or `--batch` scripts.
+
+![Live Sessions, Browser Sync and Automation preview](docs/videos/07-sessions-batch-and-automation.gif)
+
+**[Watch Narrated 1080p Video (`.mp4`)](docs/videos/07-sessions-batch-and-automation.mp4)** · **[Read Step-by-Step Narrative](docs/narratives/07-sessions-batch-and-automation.md)**
+
+---
+
+## Install & Quickstart
 
 ```bash
-cargo install --path crates/igv-rs
-# or build from source:
+# Build release binary from source
 cargo build --release
+# Or install into ~/.cargo/bin
+cargo install --path crates/igv-rs
 ```
 
-The release binary is placed at `target/release/igv-rs`.
+Try the included reproducible dataset in [`examples/demo/`](examples/demo/):
+
+```bash
+# Multi-track interactive session over BRCA1/TP53
+./target/release/igv-rs examples/demo/demo.fa \
+  -b examples/demo/reads.sam \
+  -v examples/demo/trio.vcf \
+  --ped examples/demo/trio.ped \
+  -g examples/demo/genes.gtf \
+  -s examples/demo/chip_h3k27ac.wig \
+  -l examples/demo/loops.bedpe \
+  --seg examples/demo/cohort_cnv.seg \
+  --gwas examples/demo/cardiometabolic.gwas \
+  -r chr1:60-360
+
+# Run a headless batch workflow and generate figures
+./target/release/igv-rs --batch examples/demo/batch_example.igv
+```
+
+---
 
 ## Supported Formats & Remote Streaming
 
-- **References & Genomes (`--genome` or positional)**:
-  - Indexed FASTA (`.fa` / `.fasta` + `.fai`, local or remote HTTP/S3/GS)
-  - UCSC `.2bit` random-access genomes
-  - Built-in genome presets (`hg38`, `hg19`, `mm39`, `mm10`, `danRer11`, `dm6`, `ce11`, `sacCer3`) or custom `.json` genome descriptors with cytoband ideograms and `1` ↔ `chr1` chromosome aliases
-  - UCSC Track Hubs (`--hub hub.txt`, supporting both `useOneFile on` and `genomes.txt` / `trackDb.txt`)
-- **Alignments (`-b` / `--bam`)**: `BAM` (`.bai`/`.csi`), `CRAM 3.0+` (`.crai`/sequential), `SAM`, and `PAF`
-- **Variants (`-v` / `--vcf`, repeatable)**: multi-sample `VCF` (`.vcf.gz` + `.tbi`/`.csi` or unindexed `.vcf`) and `BCF 2.2` (`.bcf`), with optional `PED` (`--ped`) trio ordering and Mendelian violation detection
-- **Annotations (`-g` / `--annotation`)**: `GFF3`, `GTF`, `BED3`–`BED12`, `narrowPeak`/`broadPeak` (with `.tbi`/`.csi` tabix streaming or gzipped fallback), and UCSC `bigBed` (`.bb` / `bigGenePred`)
-- **Quantitative Signals (`-s` / `--signal`)**: `bigWig` (`.bw`/`.bigwig`), `WIG` (`fixedStep`/`variableStep`), and `bedGraph` (with `--signal-summary max|mean|min|sum`)
-- **Chromatin / SV Links (`-l` / `--link`)**: `BEDPE` (`.bedpe`/`.bedpe.gz` with optional `.tbi`/`.csi`) and UCSC `bigInteract` (`.inter.bb`)
-- **CNV & Association Tracks**: Copy-number segmentation (`--seg`: `.seg`/`.cbs`/`.cn`) diverging heatmaps and GWAS Manhattan plots (`--gwas`: `.gwas`/`.assoc`)
+| Track Category | CLI Flag | Supported Formats & Indexing |
+|---|---|---|
+| **References & Genomes** | `[FASTA]` / `--genome` | Indexed FASTA (`.fa`/`.fasta` + `.fai`), UCSC `.2bit`, built-in presets (`hg38`, `hg19`, `mm39`, `mm10`, `danRer11`, `dm6`, `ce11`, `sacCer3`), `.json` descriptors, cytoband ideograms, `1`↔`chr1` aliases |
+| **UCSC Track Hubs** | `--hub` | Remote or local `hub.txt` (`useOneFile on` as well as multi-file `genomes.txt` + `trackDb.txt`) |
+| **Alignments** | `-b` / `--bam` | `BAM` (`.bai`/`.csi`), `CRAM 3.0+` (`.crai`/sequential), `SAM`, `PAF` |
+| **Variants & Pedigrees** | `-v` / `--vcf`, `--ped` | Multi-sample `VCF` (`.vcf.gz` + `.tbi`/`.csi` or plain `.vcf`), `BCF 2.2`, 6-column `.ped` trios |
+| **Annotations** | `-g` / `--annotation` | `GFF3`, `GTF`, `BED3`–`BED12`, `narrowPeak`, `broadPeak` (`.tbi`/`.csi` or gz), UCSC `bigBed` (`.bb`) |
+| **Quantitative Signals** | `-s` / `--signal` | `bigWig` (`.bw`/`.bigwig`), `WIG` (`fixedStep`/`variableStep`), `bedGraph` (`.tbi`/gz; `--signal-summary max\|mean\|min\|sum`) |
+| **Interaction Links** | `-l` / `--link` | `BEDPE` (`.bedpe`/`.bedpe.gz` + `.tbi`/`.csi`), UCSC `bigInteract` (`.inter.bb`) |
+| **Copy Number & GWAS** | `--seg`, `--gwas` | `SEG`/`CBS`/`CN` log2 segmentation tables, `GWAS`/`ASSOC` summary stats |
 
-Remote URLs (`http://`, `https://`, `s3://`, `gs://`) stream via a 64 KiB LRU page-cached HTTP range client with optional bearer tokens (`--auth-token`).
+All file/reference flags accept local paths as well as `http://`, `https://`, `s3://`, and `gs://` URLs streamed through a **64 KiB LRU page-cached HTTP byte-range reader** (pass `--auth-token <TOKEN>` for protected endpoints).
 
-## Usage Examples
-
-```bash
-# Built-in hg38 preset + BAM/VCF/GFF tracks across two split panes
-igv-rs --genome hg38 -b sample.bam -v cohort.vcf.gz -g genes.gtf \
-  -r chr7:55000000-55200000 -r chr17:7668402-7687538
-
-# RNA-seq Sashimi splice junctions + base modification coloring + PED Mendelian check
-igv-rs ref.fa -b ont_5mc.bam -b rnaseq.bam -v trio.vcf.gz --ped trio.ped \
-  --color-by mod --sashimi --show-soft-clips
-
-# Copy-number CNV heatmap + GWAS Manhattan + Circular SV chord SVG export
-igv-rs --genome hg19 --seg cnv.seg --gwas stats.gwas -l sv.bedpe \
-  --circular-out whole_genome_circos.svg
-
-# Load saved session (.toml or IGV .json) + enable live TCP command listener
-igv-rs --session session.toml --port 60151
-
-# Run an IGV batch script headlessly (renders SVG/PNG/Circular snapshots and exits)
-igv-rs --batch run.igv
-```
+---
 
 ## Keybindings & Mouse Controls
 
-### Navigation & Split Panes
-- `a` / `←` / `d` / `→` — page backward / forward (full window)
-- `h` / `l` — fine pan backward / forward (1/10 window)
-- `w` / `↑` / `s` / `↓` — zoom in / out around center
-- `Tab` — cycle active multi-locus split pane (`1..=4`)
-- `m<c>` / `'<c>` — set / jump to bookmark `<c>`
-- `Mouse` — click/drag on ruler or ideogram to jump/drag-zoom; scroll wheel to scroll lanes; click any read, variant, transcript, or GWAS marker to open the modal inspector (`Esc`/`Enter`/`q` closes)
+### Navigation, Panes & Inspection
+| Key / Input | Action |
+|---|---|
+| `a` / `←` and `d` / `→` | Page backward / forward (one full window) |
+| `h` and `l` | Fine pan left / right (1/10 window) |
+| `w` / `↑` and `s` / `↓` | Zoom in / out symmetrically around center |
+| `Tab` | Cycle focus across active multi-locus split panes (`1..=4`) |
+| `m<c>` / `'<c>` | Save / jump to Vim-style bookmark `<c>` |
+| **Mouse Click / Drag** | Click/drag coordinate ruler or ideogram to jump/drag-zoom; wheel scrolls read lanes; click any read, variant, transcript, or GWAS marker to open the **Modal Inspector** (`Esc`/`Enter`/`q` closes) |
 
-### Alignments, Sequence & Visualization Toggles
-- `j` / `k` — scroll alignment lanes down / up
-- `P` — toggle View-as-Pairs (mates grouped on the same lane with connector lines)
-- `C` — cycle alignment coloring (`strand` → `insert-size` → `pair-orientation` → `mate-chrom` → `tag` → `mapq` → `base-mod` [`MM`/`ML` 5mC/6mA] → `bisulfite`)
-- `J` — toggle RNA-seq Sashimi splice-junction arc tracks
-- `T` — toggle 3-frame amino-acid sequence translation (`M` start, `*` stop)
-- `G` — render inline pixel snapshot (`Kitty` / `iTerm2` / `Sixel`)
-- `+` / `-`, `]` / `[`, `}` / `{`, `<` / `>` — resize alignment, coverage, signal, and link track heights
-- `\` — toggle shared vs per-track signal Y-scale
-- `t` — cycle color themes (`dark`, `light`, `paper`, `solarized-*`, `dracula`, `gruvbox-*`)
-- `S` — export graphical SVG snapshot of the current view
-- `B` — open bidirectional `igv.js` browser companion (navigating in either TUI or browser syncs the other)
-- `?` — toggle help overlay; `q` / `Ctrl-C` — quit
+### Track Controls, Analytics & Export
+| Key | Action |
+|---|---|
+| `j` / `k` | Scroll alignment lanes down / up |
+| `P` | Toggle **View-as-Pairs** (join mate reads with template connectors) |
+| `C` | Cycle alignment coloring (`strand` → `insert` → `pair` → `mate` → `tag` → `mapq` → `mod` [`MM`/`ML` 5mC/6mA] → `bisulfite`) |
+| `J` | Toggle RNA-seq **Sashimi** splice-junction arc plots |
+| `T` | Toggle **3-frame amino-acid sequence translation** (`M` green, `*` red) |
+| `G` | Render inline terminal pixel graphics overlay (`Kitty` / `iTerm2` / `Sixel`) |
+| `+`/`-`, `]`/`[`, `}`/`{`, `>`/`<` | Resize alignments, coverage, signals, and link tracks |
+| `\` | Toggle shared vs. per-track signal Y-scale |
+| `t` | Cycle 8 built-in themes (`dark`, `light`, `paper`, `solarized-dark`, `solarized-light`, `dracula`, `gruvbox-dark`, custom) |
+| `S` | Save SVG snapshot of current view |
+| `B` | Open embedded bidirectional `igv.js` browser companion (`--no-browser` disables auto-tab launch) |
+| `?` / `q` / `Ctrl-C` | Toggle help overlay / quit |
 
-### Runtime `:` Command Palette
-- `:chr7:55000000-55200000` or `:<GENE>` — jump to coordinates, aliases, or gene/transcript IDs
-- `:sort <none|start|base|strand|mapq|insert|mate|tag|hp>` — re-sort alignments live
-- `:group <none|strand|rg|hp|pair|mate|tag|chimeric>` — group reads with band headers
-- `:color <strand|insert|pair|mate|tag|mapq|mod|bisulfite> [TAG]` — set coloring & BAM tag
-- `:pairs [on|off]`, `:softclip [on|off]`, `:downsample <N|off>` — toggle pairing, soft-clips, reservoir depth
-- `:summary <max|mean|min|sum>` — set signal window aggregation
-- `:strand [both|fwd]`, `:translate [fwd|rev|off]`, `:motif <IUPAC|off>` — complement strand, 3-frame AA, IUPAC regex motif search
-- `:sashimi [on|off]`, `:circular <path.svg|path.png>`, `:snapshot <path.svg|path.png>` — toggle Sashimi & export graphics
-- `:split <locus>`, `:unsplit` — add/close multi-locus split panes (up to 4)
-- `:load <path_or_url>`, `:unload <name>`, `:genome <id_or_path>` — dynamically load/unload tracks & genomes
-- `:save-session <path.toml>`, `:load-session <path.toml|path.json>` — persist or import IGV sessions
-- `:blat <DNA_SEQ>` — query UCSC `hgBlat` and jump to the top hit
-- `:graphics <auto|none|kitty|iterm2|sixel|toggle>` — configure inline pixel output
+---
 
-## Architecture
+## Runtime `:` Command Palette
 
-- `crates/igv-core` — pure async data layer (`io`, `genome`, `sequence`, `alignment/{mod,mods}`, `coverage`, `pedigree`, `sashimi`, `hub`, and sources for FASTA/`.2bit`, BAM/CRAM/SAM/PAF, VCF/BCF, GFF/GTF/BED/bigBed, bigWig/WIG/bedGraph, BEDPE/bigInteract, SEG, GWAS).
-- `crates/igv-render` (`#![forbid(unsafe_code)]`) — SVG & PNG snapshot engine, Circos-style whole-genome circular chord renderer (`circview`), and pure-Rust Kitty / iTerm2 / Sixel terminal pixel encoders (`term_gfx`).
-- `crates/igv-serve` (`#![forbid(unsafe_code)]`) — bundled `igv.js` HTTP server with SSE push (`view`), reverse browser → TUI locus sync (`POST /api/locus`), and range/feature routes.
-- `crates/igv-rs` — CLI, multi-pane `ratatui` TUI with mouse capture & modal inspector, runtime `:` command engine, session manager, `--batch` script runner, and `--port` TCP automation listener.
+Open with `:` or `g`:
+
+| Command | Description |
+|---|---|
+| `:<chrom>:<start>-<end>` / `:<GENE>` | Jump to genomic region, chromosome alias, `gene_name`, `gene_id`, or `transcript_id` |
+| `:sort <none\|start\|base\|strand\|mapq\|insert\|mate\|tag\|hp>` | Re-sort alignments live around the viewport center or mate attributes |
+| `:group <none\|strand\|rg\|hp\|pair\|mate\|tag\|chimeric>` | Partition alignments into labeled bands |
+| `:color <strand\|insert\|pair\|mate\|tag\|mapq\|mod\|bisulfite> [TAG]` | Switch coloring mode and optional SAM tag (`HP`, `ha`, etc.) |
+| `:pairs [on\|off]` / `:softclip [on\|off]` / `:downsample <N\|off>` | Toggle mate pairing, soft-clip bases, or per-bin reservoir cap |
+| `:summary <max\|mean\|min\|sum>` | Change quantitative signal window aggregation |
+| `:strand [both\|fwd]` / `:translate [fwd\|rev\|off]` | Show complementary DNA strand and switch 3-frame translation direction |
+| `:motif <IUPAC\|off>` | Search both DNA strands with IUPAC/regex motifs (`TATAWAW`, `CG`, `GAATTC`) |
+| `:sashimi [on\|off]` | Toggle RNA-seq splice-junction arcs |
+| `:snapshot [path.svg\|path.png]` | Export publication SVG or PNG snapshot |
+| `:circular [path.svg\|path.png]` | Render whole-genome Circos-style CNV + SV chord diagram |
+| `:split [locus]` / `:unsplit` | Open or close multi-locus split panes (`1..=4`) |
+| `:load <path_or_url>` / `:unload <name>` / `:genome <id_or_path>` | Dynamically mount/remove tracks or switch reference genome live |
+| `:save-session <file.toml>` / `:load-session <file.toml\|file.json>` | Save `igv-rs` session or import TOML / desktop IGV JSON sessions |
+| `:blat <DNA_SEQ>` | Query UCSC `hgBlat` API (`>= 15 bp`) and jump directly to top genomic hit |
+| `:graphics <auto\|none\|kitty\|iterm2\|sixel\|toggle>` | Select inline terminal pixel graphics protocol |
+
+---
+
+## Headless Batch, Socket Control & Architecture
+
+- **Headless IGV Batch Scripts (`--batch script.igv`)**: Supports `new`, `genome`, `load`, `snapshotDirectory`, `goto`, `colorBy`, `sort`, `group`, `viewaspairs`, `softclip`, `sashimi`, `summary`, `snapshot` (`.svg`/`.png`), `circular`, and `exit`, plus region-list modes `--snapshot-bed` and `--snapshot-genes`.
+- **Live Socket API (`--port 60151`)**: TCP command server accepting `goto`, `load`, `snapshot`, `sort`, `group`, `colorBy`, and `echo`.
+- **Workspace Crates**:
+  - `crates/igv-core` — Async I/O (`io`, 64 KiB LRU HTTP/S3/GS range streaming), genome presets & `.2bit` (`genome`), UCSC Hubs (`hub`), sequence/translation/motif tools (`sequence`), alignment analytics (`alignment/{mod,mods}`), coverage (`coverage`), pedigrees (`pedigree`), Sashimi junctions (`sashimi`), and track parsers.
+  - `crates/igv-render` (`#![forbid(unsafe_code)]`) — Vector SVG + raster PNG engine (`svg/`, `png`), Circos circular chord renderer (`circview`), and pure-Rust `Kitty`/`iTerm2`/`Sixel` terminal pixel encoders (`term_gfx`).
+  - `crates/igv-serve` (`#![forbid(unsafe_code)]`) — Embedded offline-capable `igv.js` bridge with SSE push updates and bidirectional `POST /api/locus` reverse sync.
+  - `crates/igv-rs` — Multi-pane `ratatui` TUI with mouse hit-testing & inspector modal, runtime `:` palette, TOML/JSON sessions, headless `--batch` engine, and `--port` TCP listener.
+
+---
 
 ## Citation
 

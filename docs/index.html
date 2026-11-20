@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>igv-rs — Interactive Terminal Genome Viewer</title>
-  <meta name="description" content="Interactive terminal genome viewer for FASTA, VCF, BAM, GFF, BED, bigWig, and BEDPE, written in Rust.">
+  <title>igv-rs — Interactive Terminal &amp; Headless Genome Viewer</title>
+  <meta name="description" content="Interactive terminal and headless genome viewer in Rust for BAM/CRAM/SAM/PAF, VCF/BCF/PED, GFF/GTF/BED/bigBed, bigWig/WIG/bedGraph, BEDPE/bigInteract, SEG CNV, and GWAS.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,298 +17,299 @@
     igv-rs
   </a>
   <div class="nav-links">
+    <a href="#tutorials">Videos</a>
     <a href="#features">Features</a>
-    <a href="#install">Install</a>
+    <a href="#formats">Formats</a>
     <a href="#usage">Usage</a>
     <a href="#keybindings">Keybindings</a>
-    <a href="#config">Config</a>
-    <a href="#snapshot">Snapshot</a>
-    <a href="#browser">Browser</a>
+    <a href="#commands">Commands</a>
+    <a href="#automation">Automation</a>
     <a href="#citation">Citation</a>
   </div>
   <div class="spacer"></div>
   <a class="lang-toggle" href="index.zh.html">中文</a>
-  <a class="gh-btn" href="https://github.com/AI4S-YB/igv-rs" target="_blank" rel="noopener">GitHub</a>
+  <a class="gh-btn" href="https://github.com/zhanxw/igv-rs" target="_blank" rel="noopener">GitHub</a>
 </nav>
 
 <section class="hero">
-  <div class="badge">v0.7.0 · Rust</div>
+  <div class="badge">v0.7.0 · Pure Rust Genomics</div>
   <h1>igv-rs</h1>
-  <p class="tagline">Interactive terminal genome viewer for FASTA · VCF · BAM · GFF · BED · bigWig · BEDPE</p>
+  <p class="tagline">Interactive terminal &amp; headless genome viewer with remote HTTP/S3/GS streaming, multi-locus split panes, Sashimi plots, 5mC methylation, CNV heatmaps, GWAS Manhattan plots, and bidirectional igv.js sync.</p>
   <div class="install-box">
     <span class="prompt">$</span>
-    <span>cargo install igv-rs</span>
+    <span>cargo build --release</span>
   </div>
   <div class="hero-btns">
-    <a class="btn-primary" href="#install">Get Started</a>
-    <a class="btn-secondary" href="https://github.com/AI4S-YB/igv-rs" target="_blank" rel="noopener">GitHub ↗</a>
+    <a class="btn-primary" href="#tutorials">Watch Feature Videos</a>
+    <a class="btn-secondary" href="https://github.com/zhanxw/igv-rs" target="_blank" rel="noopener">GitHub ↗</a>
   </div>
 </section>
 
 <main class="content">
 
-<!-- Features -->
-<div class="section" id="features">
-  <div class="section-label">Overview</div>
-  <h2>Features</h2>
-  <div class="features">
-    <div class="feature-card">
-      <div class="icon">🧬</div>
-      <h4>Multi-track</h4>
-      <p>BAM · VCF · GFF · BED · bigWig · BEDPE — all in one synchronized view.</p>
+<!-- Video Walkthroughs & Narratives -->
+<div class="section" id="tutorials">
+  <div class="section-label">Guided Walkthroughs</div>
+  <h2>Interactive Video Tutorials &amp; Narratives</h2>
+  <p>Each 1080p tutorial records a live <code>igv-rs</code> PTY session over <code>examples/demo/</code> with real-time on-screen keystroke callouts (<code>KEY PRESSED</code> + <code>KEY TRAIL</code>) and spoken narration. <a href="tutorials.md">Browse all tutorial scripts →</a></p>
+
+  <div class="video-grid">
+    <div class="video-card featured">
+      <h4>01 · Navigation, Gene Search, Bookmarks &amp; Multi-Locus Split Panes</h4>
+      <video controls preload="metadata" poster="videos/01-navigation-and-panes-poster.png">
+        <source src="videos/01-navigation-and-panes.mp4" type="video/mp4">
+      </video>
+      <p>Full-window paging, 1/10 fine panning, symmetrical zooming, gene-symbol lookup, Vim-style bookmarks, and 2–4 split panes cycled via Tab.</p>
+      <div class="kbd-row">
+        <span class="kbd-pill">d</span><span class="kbd-pill">a</span><span class="kbd-pill">l</span><span class="kbd-pill">h</span>
+        <span class="kbd-pill">w</span><span class="kbd-pill">s</span><span class="kbd-pill">:TP53</span>
+        <span class="kbd-pill">m a</span><span class="kbd-pill">' a</span><span class="kbd-pill">:split</span><span class="kbd-pill">Tab ⇥</span><span class="kbd-pill">?</span>
+      </div>
+      <div class="video-links">
+        <a href="videos/01-navigation-and-panes.mp4">Download MP4</a>
+        <a href="narratives/01-navigation-and-panes.md">Read Narrative →</a>
+      </div>
     </div>
-    <div class="feature-card">
-      <div class="icon">⚡</div>
-      <h4>Async non-blocking IO</h4>
-      <p>Adaptive zoom-level rendering keeps the TUI responsive at any scale.</p>
+
+    <div class="video-card">
+      <h4>02 · Alignment Coloring, 5mC Mods, Pairing &amp; Sorting</h4>
+      <video controls preload="metadata" poster="videos/02-alignment-analytics-poster.png">
+        <source src="videos/02-alignment-analytics.mp4" type="video/mp4">
+      </video>
+      <p>Toggle View-as-Pairs, cycle 8 coloring modes including MM/ML 5mC modifications, sort at a heterozygous SNV, group haplotypes, and reveal soft-clips.</p>
+      <div class="kbd-row">
+        <span class="kbd-pill">+</span><span class="kbd-pill">j</span><span class="kbd-pill">k</span>
+        <span class="kbd-pill">Shift+P</span><span class="kbd-pill">Shift+C</span>
+        <span class="kbd-pill">:sort base</span><span class="kbd-pill">:group hp</span><span class="kbd-pill">:softclip on</span>
+      </div>
+      <div class="video-links">
+        <a href="videos/02-alignment-analytics.mp4">Download MP4</a>
+        <a href="narratives/02-alignment-analytics.md">Read Narrative →</a>
+      </div>
     </div>
-    <div class="feature-card">
-      <div class="icon">🌐</div>
-      <h4>Live browser companion</h4>
-      <p>Press <code>B</code> to open igv.js in your browser, synced to the TUI view.</p>
+
+    <div class="video-card">
+      <h4>03 · Reference Strand, 3-Frame Translation &amp; IUPAC Motifs</h4>
+      <video controls preload="metadata" poster="videos/03-sequence-and-motifs-poster.png">
+        <source src="videos/03-sequence-and-motifs.mp4" type="video/mp4">
+      </video>
+      <p>Inspect nucleotide bases, expand 3-frame amino-acid ORFs, display complementary strands, flip reverse translation, and highlight IUPAC motifs.</p>
+      <div class="kbd-row">
+        <span class="kbd-pill">w</span><span class="kbd-pill">Shift+T</span>
+        <span class="kbd-pill">:strand both</span><span class="kbd-pill">:translate rev</span><span class="kbd-pill">:motif TATAWAW</span>
+      </div>
+      <div class="video-links">
+        <a href="videos/03-sequence-and-motifs.mp4">Download MP4</a>
+        <a href="narratives/03-sequence-and-motifs.md">Read Narrative →</a>
+      </div>
     </div>
-    <div class="feature-card">
-      <div class="icon">📸</div>
-      <h4>Snapshot export</h4>
-      <p>Publication-quality SVG / PNG — interactive or headless batch mode.</p>
+
+    <div class="video-card">
+      <h4>04 · Multi-Sample VCF/BCF, PED Trios, Inspector &amp; Themes</h4>
+      <video controls preload="metadata" poster="videos/04-variants-and-pedigree-poster.png">
+        <source src="videos/04-variants-and-pedigree.mp4" type="video/mp4">
+      </video>
+      <p>Order family trios from PED files with red `!` Mendelian violation alerts, click any feature to open the modal Inspector popup, and cycle 8 themes.</p>
+      <div class="kbd-row">
+        <span class="kbd-pill">l</span><span class="kbd-pill">h</span>
+        <span class="kbd-pill">🖱 Click</span><span class="kbd-pill">Esc</span><span class="kbd-pill">t</span>
+      </div>
+      <div class="video-links">
+        <a href="videos/04-variants-and-pedigree.mp4">Download MP4</a>
+        <a href="narratives/04-variants-and-pedigree.md">Read Narrative →</a>
+      </div>
     </div>
-    <div class="feature-card">
-      <div class="icon">🎨</div>
-      <h4>8 built-in themes</h4>
-      <p>dark · light · paper · solarized · dracula · gruvbox — cycle with <code>t</code>.</p>
+
+    <div class="video-card">
+      <h4>05 · RNA-seq Sashimi Splice Arcs, Signals &amp; 3D Links</h4>
+      <video controls preload="metadata" poster="videos/05-sashimi-signals-and-links-poster.png">
+        <source src="videos/05-sashimi-signals-and-links.mp4" type="video/mp4">
+      </video>
+      <p>Render junction-count Sashimi arcs directly from spliced reads, resize continuous signal/BEDPE panes, toggle shared Y-scale, and set summary stats.</p>
+      <div class="kbd-row">
+        <span class="kbd-pill">Shift+J</span><span class="kbd-pill">}</span><span class="kbd-pill">&gt;</span>
+        <span class="kbd-pill">\</span><span class="kbd-pill">:summary mean</span>
+      </div>
+      <div class="video-links">
+        <a href="videos/05-sashimi-signals-and-links.mp4">Download MP4</a>
+        <a href="narratives/05-sashimi-signals-and-links.md">Read Narrative →</a>
+      </div>
     </div>
-    <div class="feature-card">
-      <div class="icon">🔖</div>
-      <h4>Command palette</h4>
-      <p>Jump to any coordinate or gene name. Vim-style bookmarks with <code>m&lt;c&gt;</code> / <code>'&lt;c&gt;</code>.</p>
+
+    <div class="video-card">
+      <h4>06 · CNV Heatmaps, GWAS Manhattan &amp; Vector / Circular Export</h4>
+      <video controls preload="metadata" poster="videos/06-cnv-gwas-and-snapshots-poster.png">
+        <source src="videos/06-cnv-gwas-and-snapshots.mp4" type="video/mp4">
+      </video>
+      <p>Visualize half-block SEG copy-number cohorts and Braille GWAS Manhattan peaks, save SVG/PNG figures, and export Circos circular SV/CNV chord diagrams.</p>
+      <div class="kbd-row">
+        <span class="kbd-pill">w</span><span class="kbd-pill">d</span><span class="kbd-pill">Shift+S</span>
+        <span class="kbd-pill">:snapshot</span><span class="kbd-pill">:circular</span>
+      </div>
+      <div class="video-links">
+        <a href="videos/06-cnv-gwas-and-snapshots.mp4">Download MP4</a>
+        <a href="narratives/06-cnv-gwas-and-snapshots.md">Read Narrative →</a>
+      </div>
+    </div>
+
+    <div class="video-card featured">
+      <h4>07 · Live Track Hot-Loading, Sessions, Browser Sync &amp; TCP Socket Automation</h4>
+      <video controls preload="metadata" poster="videos/07-sessions-batch-and-automation-poster.png">
+        <source src="videos/07-sessions-batch-and-automation.mp4" type="video/mp4">
+      </video>
+      <p>Load/unload tracks at runtime, persist TOML or import IGV JSON sessions, pair bidirectionally with igv.js via SSE + POST /api/locus, and script over TCP --port.</p>
+      <div class="kbd-row">
+        <span class="kbd-pill">:load</span><span class="kbd-pill">:save-session</span>
+        <span class="kbd-pill">Shift+B</span><span class="kbd-pill">TCP ⇄</span><span class="kbd-pill">:unload</span><span class="kbd-pill">q</span>
+      </div>
+      <div class="video-links">
+        <a href="videos/07-sessions-batch-and-automation.mp4">Download MP4</a>
+        <a href="narratives/07-sessions-batch-and-automation.md">Read Narrative →</a>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- Install -->
-<div class="section" id="install">
-  <div class="section-label">Getting Started</div>
-  <h2>Install</h2>
-  <p>Install the latest release from <a href="https://crates.io/crates/igv-rs" target="_blank" rel="noopener">crates.io</a>:</p>
-  <div class="code-block">
-    <span class="cmd"><span class="prompt">$</span> cargo install igv-rs</span>
+<!-- Features -->
+<div class="section" id="features">
+  <div class="section-label">Overview</div>
+  <h2>Core Capabilities</h2>
+  <div class="features">
+    <div class="feature-card">
+      <div class="icon">🧬</div>
+      <h4>Broad Format Coverage</h4>
+      <p>FASTA, .2bit, UCSC Hubs, BAM, CRAM 3.0+, SAM, PAF, VCF, BCF 2.2, PED, GFF3/GTF/BED/bigBed, bigWig/WIG/bedGraph, BEDPE/bigInteract, SEG &amp; GWAS.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">☁️</div>
+      <h4>HTTP / S3 / GS Streaming</h4>
+      <p>64 KiB LRU page-cached HTTP byte-range backend with bearer token support (<code>--auth-token</code>).</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🔬</div>
+      <h4>Alignment Analytics</h4>
+      <p>8 color modes (incl. <code>MM</code>/<code>ML</code> 5mC &amp; bisulfite), 9 sort modes, 8 grouping modes, View-as-Pairs, soft-clips &amp; reservoir depth caps.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🌐</div>
+      <h4>Bidirectional igv.js Sync</h4>
+      <p>Press <code>B</code> for live two-way TUI ↔ browser locus mirroring over SSE and <code>POST /api/locus</code>.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">📈</div>
+      <h4>Sashimi, CNV, GWAS &amp; Circos</h4>
+      <p>Live splice-junction arcs, half-block CNV matrices, Braille Manhattan peaks, and circular whole-genome SV diagrams.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">⚙️</div>
+      <h4>Batch, Sessions &amp; Sockets</h4>
+      <p>TOML &amp; IGV JSON sessions, headless <code>--batch</code> script runner, live <code>--port</code> TCP commands, and 1–4 split panes.</p>
+    </div>
   </div>
-  <p>The igv.js browser companion is bundled into the binary — no extra assets required.</p>
-  <p>Pre-built binaries for Linux / macOS / Windows are attached to each
-    <a href="https://github.com/AI4S-YB/igv-rs/releases" target="_blank" rel="noopener">GitHub Release</a>.
-  </p>
-  <p>Build from source:</p>
-  <div class="code-block">
-    <span class="cmd"><span class="prompt">$</span> git clone https://github.com/AI4S-YB/igv-rs</span>
-    <span class="cmd"><span class="prompt">$</span> cargo build --release</span>
-    <span class="cmd"><span class="comment"># binary at target/release/igv-rs</span></span>
-  </div>
+</div>
+
+<!-- Formats -->
+<div class="section" id="formats">
+  <div class="section-label">Data Layer</div>
+  <h2>Supported Genomics Formats</h2>
+  <table class="data-table">
+    <thead><tr><th>Type</th><th>CLI Flag</th><th>Formats &amp; Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Reference / Genome</td><td><code>[FASTA]</code> / <code>--genome</code></td><td>Indexed FASTA, UCSC <code>.2bit</code>, presets (<code>hg38</code>, <code>hg19</code>, <code>mm39</code>, <code>mm10</code>, <code>danRer11</code>, <code>dm6</code>, <code>ce11</code>, <code>sacCer3</code>), cytobands &amp; <code>1</code>↔<code>chr1</code> aliases</td></tr>
+      <tr><td>UCSC Track Hubs</td><td><code>--hub</code></td><td><code>hub.txt</code> (<code>useOneFile on</code> or <code>genomes.txt</code> + <code>trackDb.txt</code>)</td></tr>
+      <tr><td>Alignments</td><td><code>-b</code> / <code>--bam</code></td><td><code>BAM</code> (.bai/.csi), <code>CRAM 3.0+</code> (.crai), <code>SAM</code>, <code>PAF</code></td></tr>
+      <tr><td>Variants &amp; Trios</td><td><code>-v</code> / <code>--vcf</code>, <code>--ped</code></td><td><code>VCF</code> / <code>.vcf.gz</code> (.tbi/.csi), <code>BCF 2.2</code>, <code>PED</code> trio ordering &amp; Mendelian violation checks</td></tr>
+      <tr><td>Annotations</td><td><code>-g</code> / <code>--annotation</code></td><td><code>GFF3</code>, <code>GTF</code>, <code>BED3–12</code>, <code>narrowPeak</code>, <code>broadPeak</code>, UCSC <code>bigBed</code> (<code>.bb</code>)</td></tr>
+      <tr><td>Signals</td><td><code>-s</code> / <code>--signal</code></td><td><code>bigWig</code>, <code>WIG</code> (fixedStep/variableStep), <code>bedGraph</code> (<code>--signal-summary max|mean|min|sum</code>)</td></tr>
+      <tr><td>Links / Interactions</td><td><code>-l</code> / <code>--link</code></td><td><code>BEDPE</code> (.bedpe/.bedpe.gz + .tbi/.csi), UCSC <code>bigInteract</code> (<code>.inter.bb</code>)</td></tr>
+      <tr><td>CNV &amp; Association</td><td><code>--seg</code>, <code>--gwas</code></td><td><code>SEG</code>/<code>CBS</code>/<code>CN</code> multi-sample heatmaps, <code>GWAS</code>/<code>ASSOC</code> Braille Manhattan plots</td></tr>
+    </tbody>
+  </table>
 </div>
 
 <!-- Usage -->
 <div class="section" id="usage">
   <div class="section-label">CLI</div>
-  <h2>Usage</h2>
+  <h2>Usage Examples</h2>
   <div class="code-block">
-    <span class="cmd"><span class="comment"># Reference only</span></span>
-    <span class="cmd">igv-rs reference.fa</span>
+    <span class="cmd"><span class="comment"># Reproducible demo multi-omics workspace</span></span>
+    <span class="cmd">igv-rs examples/demo/demo.fa <span class="flag">-b</span> examples/demo/reads.sam <span class="flag">-v</span> examples/demo/trio.vcf <span class="flag">--ped</span> examples/demo/trio.ped <span class="flag">-g</span> examples/demo/genes.gtf <span class="flag">-s</span> examples/demo/chip_h3k27ac.wig <span class="flag">-l</span> examples/demo/loops.bedpe <span class="flag">-r</span> chr1:60-360</span>
     <span class="cmd"></span>
-    <span class="cmd"><span class="comment"># With variants</span></span>
-    <span class="cmd">igv-rs reference.fa <span class="flag">-v</span> variants.vcf.gz</span>
+    <span class="cmd"><span class="comment"># Built-in hg38 genome preset + remote CRAM/VCF + multi-locus split panes</span></span>
+    <span class="cmd">igv-rs <span class="flag">--genome</span> hg38 <span class="flag">-b</span> https://example.org/sample.cram <span class="flag">-v</span> cohort.vcf.gz <span class="flag">-r</span> chr7:55000000-55200000 <span class="flag">-r</span> chr17:7668402-7687538</span>
     <span class="cmd"></span>
-    <span class="cmd"><span class="comment"># With alignments</span></span>
-    <span class="cmd">igv-rs reference.fa <span class="flag">-b</span> alignments.bam <span class="flag">-r</span> chr1:1000-2000</span>
+    <span class="cmd"><span class="comment"># CNV heatmap + GWAS Manhattan + headless Circos chord SVG export</span></span>
+    <span class="cmd">igv-rs <span class="flag">--genome</span> hg19 <span class="flag">--seg</span> cohort.seg <span class="flag">--gwas</span> traits.gwas <span class="flag">-l</span> sv.bedpe <span class="flag">--circular-out</span> circos.svg</span>
     <span class="cmd"></span>
-    <span class="cmd"><span class="comment"># Multiple BAM tracks</span></span>
-    <span class="cmd">igv-rs reference.fa <span class="flag">-b</span> sample1.bam <span class="flag">-b</span> sample2.bam</span>
-    <span class="cmd"></span>
-    <span class="cmd"><span class="comment"># Annotations (GFF/GTF/BED/narrowPeak auto-detected by extension)</span></span>
-    <span class="cmd">igv-rs reference.fa <span class="flag">-g</span> genes.gff3 <span class="flag">-b</span> sample.bam</span>
-    <span class="cmd"></span>
-    <span class="cmd"><span class="comment"># Signal tracks (bigWig)</span></span>
-    <span class="cmd">igv-rs reference.fa <span class="flag">-s</span> chip.bw <span class="flag">-s</span> input.bw <span class="flag">-r</span> chr1:1-10000000</span>
-    <span class="cmd"></span>
-    <span class="cmd"><span class="comment"># Chromatin loops (BEDPE)</span></span>
-    <span class="cmd">igv-rs reference.fa <span class="flag">-l</span> loops.bedpe <span class="flag">--link-min-score</span> 5.0</span>
-    <span class="cmd"></span>
-    <span class="cmd"><span class="comment"># Everything at once</span></span>
-    <span class="cmd">igv-rs reference.fa <span class="flag">-b</span> sample.bam <span class="flag">-g</span> genes.gff3 <span class="flag">-s</span> rna.bw <span class="flag">-l</span> loops.bedpe <span class="flag">-r</span> chr1:1000-2000</span>
+    <span class="cmd"><span class="comment"># Headless IGV batch script runner</span></span>
+    <span class="cmd">igv-rs <span class="flag">--batch</span> examples/demo/batch_example.igv</span>
   </div>
-  <p>The command palette (<code>:</code> or <code>g</code>) accepts coordinates (<code>chr1:1000-2000</code>) and
-     gene names — type any <code>gene_name</code>, <code>gene_id</code>, or <code>transcript_id</code> from a loaded
-     GFF/GTF/BED track and the view jumps to the union span of all matching transcripts.</p>
-</div>
-
-<!-- Wide-zoom -->
-<div class="section" id="zoom">
-  <div class="section-label">Rendering</div>
-  <h2>Wide-zoom Behavior</h2>
-  <p>At wider zoom levels igv-rs skips expensive fetches to stay responsive:</p>
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>View Width</th>
-        <th>Reference</th>
-        <th>Reads</th>
-        <th>Variants</th>
-        <th>Annotations</th>
-        <th>Signals</th>
-        <th>Links</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>≤ 50 kb (per-base)</td>
-        <td class="yes">yes</td>
-        <td class="yes">yes</td>
-        <td class="yes">yes</td>
-        <td>transcripts</td>
-        <td class="yes">yes</td>
-        <td class="yes">yes</td>
-      </tr>
-      <tr>
-        <td>50 kb – 500 kb</td>
-        <td class="no">—</td>
-        <td class="no">—</td>
-        <td class="yes">yes</td>
-        <td>transcripts</td>
-        <td class="yes">yes</td>
-        <td class="yes">yes</td>
-      </tr>
-      <tr>
-        <td>500 kb – 5 Mb</td>
-        <td class="no">—</td>
-        <td class="no">—</td>
-        <td class="no">—</td>
-        <td>transcripts</td>
-        <td class="yes">yes</td>
-        <td class="yes">yes</td>
-      </tr>
-      <tr>
-        <td>&gt; 5 Mb (overview)</td>
-        <td class="no">—</td>
-        <td class="no">—</td>
-        <td class="no">—</td>
-        <td>gene density</td>
-        <td class="yes">yes</td>
-        <td class="yes">yes</td>
-      </tr>
-    </tbody>
-  </table>
-  <p>The footer shows a yellow "overview" hint when fetches are gated. bigWig signal tracks remain visible at every zoom level.</p>
-</div>
-
-<!-- Snapshot -->
-<div class="section" id="snapshot">
-  <div class="section-label">Export</div>
-  <h2>Snapshot Export</h2>
-  <p>Save publication-quality SVG or PNG figures — interactive or headless batch.</p>
-  <p><strong>Interactive (inside the TUI):</strong></p>
-  <div class="code-block">
-    <span class="cmd"><span class="comment"># Press S to save current view</span></span>
-    <span class="cmd">S  →  snapshot_chr1_1000_2000.svg</span>
-    <span class="cmd"></span>
-    <span class="cmd"><span class="comment"># Or use the command palette for a custom path / format</span></span>
-    <span class="cmd">:snapshot path/to/figure.png</span>
-  </div>
-  <p><strong>Headless batch (no TUI opened):</strong></p>
-  <div class="code-block">
-    <span class="cmd"><span class="comment"># One snapshot per BED region (col 4 = filename stem)</span></span>
-    <span class="cmd">igv-rs ref.fa <span class="flag">-b</span> s.bam <span class="flag">--snapshot-bed</span> regions.bed <span class="flag">--snapshot-out</span> out/</span>
-    <span class="cmd"></span>
-    <span class="cmd"><span class="comment"># One snapshot per gene name (requires -g)</span></span>
-    <span class="cmd">igv-rs ref.fa <span class="flag">-b</span> s.bam <span class="flag">-g</span> genes.gtf <span class="flag">--snapshot-genes</span> list.txt <span class="flag">--snapshot-out</span> out/</span>
-  </div>
-  <p>Common flags: <code>--snapshot-format svg|png</code> · <code>--snapshot-width &lt;px&gt;</code> · <code>--snapshot-flank &lt;fraction&gt;</code> · <code>--snapshot-theme igv|tui</code></p>
-</div>
-
-<!-- Browser View -->
-<div class="section" id="browser">
-  <div class="section-label">Live Preview</div>
-  <h2>Browser View (igv.js)</h2>
-  <p>Press <code>B</code> inside the TUI to launch a local HTTP server and open igv.js in your default browser.
-     The browser tab starts at the TUI's current region and follows your navigation in real time.</p>
-  <div class="code-block">
-    <span class="cmd">igv-rs ref.fa <span class="flag">-b</span> sample.bam <span class="flag">-g</span> genes.gtf <span class="flag">-l</span> loops.bedpe</span>
-    <span class="cmd"><span class="comment"># inside the TUI:</span></span>
-    <span class="cmd"><span class="comment">#   B          → opens browser tab (igv.js)</span></span>
-    <span class="cmd"><span class="comment">#   d / s / :gene → browser follows</span></span>
-    <span class="cmd"><span class="comment">#   q          → exits TUI, shuts down server</span></span>
-  </div>
-  <p>The server binds to <code>127.0.0.1</code> on an ephemeral port (override with <code>--serve-port</code>).
-     igv.js is bundled into the binary — browser view works offline. Disable with <code>--no-browser</code>.</p>
 </div>
 
 <!-- Keybindings -->
 <div class="section" id="keybindings">
   <div class="section-label">Reference</div>
-  <h2>Keybindings</h2>
+  <h2>Keybindings &amp; Mouse Controls</h2>
   <table class="data-table">
-    <thead><tr><th>Key</th><th>Action</th></tr></thead>
+    <thead><tr><th>Key / Mouse</th><th>Action</th></tr></thead>
     <tbody>
-      <tr><td><code>a</code> / <code>←</code></td><td>Page backward (one full window)</td></tr>
-      <tr><td><code>d</code> / <code>→</code></td><td>Page forward (one full window)</td></tr>
-      <tr><td><code>h</code></td><td>Move backward 1/10 window (fine pan)</td></tr>
-      <tr><td><code>l</code></td><td>Move forward 1/10 window (fine pan)</td></tr>
-      <tr><td><code>w</code> / <code>↑</code></td><td>Zoom in</td></tr>
-      <tr><td><code>s</code> / <code>↓</code></td><td>Zoom out</td></tr>
+      <tr><td><code>a</code> / <code>←</code> · <code>d</code> / <code>→</code></td><td>Page backward / forward (one full window)</td></tr>
+      <tr><td><code>h</code> / <code>l</code></td><td>Fine pan backward / forward (1/10 window)</td></tr>
+      <tr><td><code>w</code> / <code>↑</code> · <code>s</code> / <code>↓</code></td><td>Zoom in / out around center</td></tr>
+      <tr><td><code>Tab</code></td><td>Cycle active multi-locus split pane (<code>1..=4</code>)</td></tr>
       <tr><td><code>j</code> / <code>k</code></td><td>Scroll alignment lanes down / up</td></tr>
-      <tr><td><code>+</code> / <code>-</code></td><td>Grow / shrink alignment-track height</td></tr>
-      <tr><td><code>]</code> / <code>[</code></td><td>Grow / shrink coverage-track height</td></tr>
-      <tr><td><code>\</code></td><td>Toggle signal shared / per-track Y-scale</td></tr>
-      <tr><td><code>}</code> / <code>{</code></td><td>Grow / shrink signal-track height</td></tr>
-      <tr><td><code>&lt;</code> / <code>&gt;</code></td><td>Shrink / grow link-track height</td></tr>
-      <tr><td><code>:</code> or <code>g</code></td><td>Open command palette (coordinate or gene name)</td></tr>
-      <tr><td><code>m&lt;c&gt;</code></td><td>Set bookmark to letter <em>c</em></td></tr>
-      <tr><td><code>'&lt;c&gt;</code></td><td>Jump to bookmark <em>c</em></td></tr>
-      <tr><td><code>t</code></td><td>Cycle theme</td></tr>
-      <tr><td><code>S</code></td><td>Save SVG snapshot of current view</td></tr>
-      <tr><td><code>B</code></td><td>Open browser view (igv.js)</td></tr>
-      <tr><td><code>?</code></td><td>Toggle keybinding help overlay</td></tr>
-      <tr><td><code>q</code> / Ctrl-C</td><td>Quit</td></tr>
+      <tr><td><code>P</code> / <code>C</code></td><td>Toggle View-as-Pairs / cycle alignment coloring mode</td></tr>
+      <tr><td><code>J</code> / <code>T</code> / <code>G</code></td><td>Toggle Sashimi arcs / 3-frame AA translation / inline pixel graphics (Kitty/iTerm2/Sixel)</td></tr>
+      <tr><td><code>+</code>/<code>-</code> · <code>]</code>/<code>[</code> · <code>}</code>/<code>{</code> · <code>&gt;</code>/<code>&lt;</code></td><td>Resize alignments, coverage, signals, and link tracks</td></tr>
+      <tr><td><code>\</code></td><td>Toggle shared vs. per-track signal Y-scale</td></tr>
+      <tr><td><code>:</code> or <code>g</code></td><td>Open runtime command palette</td></tr>
+      <tr><td><code>m&lt;c&gt;</code> / <code>'&lt;c&gt;</code></td><td>Set / jump to bookmark <em>c</em></td></tr>
+      <tr><td><code>Mouse Click / Drag</code></td><td>Ruler/ideogram jump &amp; drag-zoom; click reads/variants/genes/SNPs for Modal Inspector</td></tr>
+      <tr><td><code>t</code> / <code>S</code> / <code>B</code></td><td>Cycle 8 themes / save SVG snapshot / open bidirectional <code>igv.js</code> browser view</td></tr>
+      <tr><td><code>?</code> / <code>q</code> / Ctrl-C</td><td>Toggle help overlay / quit</td></tr>
     </tbody>
   </table>
 </div>
 
-<!-- Config -->
-<div class="section" id="config">
-  <div class="section-label">Configuration</div>
-  <h2>Configuration</h2>
-  <p>Optional <code>~/.config/igv-rs/config.toml</code> is read at startup:</p>
-  <div class="code-block">
-    <span class="cmd">[theme]</span>
-    <span class="cmd"><span class="comment"># "dark" | "light" | "paper" | "solarized-dark" | "solarized-light"</span></span>
-    <span class="cmd"><span class="comment"># | "dracula" | "gruvbox-dark"</span></span>
-    <span class="cmd">preset = "dark"</span>
-    <span class="cmd"></span>
-    <span class="cmd">[theme.custom]</span>
-    <span class="cmd"><span class="comment"># Override individual style keys</span></span>
-    <span class="cmd">"A"        = "bold green"</span>
-    <span class="cmd">"MISMATCH" = "bold white on red"</span>
-    <span class="cmd">"SIGNAL"   = "cyan"</span>
-    <span class="cmd">"LINK"     = "magenta"</span>
-    <span class="cmd"></span>
-    <span class="cmd">[serve]</span>
-    <span class="cmd">auto_open = true   <span class="comment"># --no-browser overrides</span></span>
-    <span class="cmd">port      = 0      <span class="comment"># 0 = ephemeral; --serve-port overrides</span></span>
-  </div>
+<!-- Runtime Commands -->
+<div class="section" id="commands">
+  <div class="section-label">Palette</div>
+  <h2>Runtime <code>:</code> Commands</h2>
+  <table class="data-table">
+    <thead><tr><th>Command</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>:chr1:100-500</code> / <code>:TP53</code></td><td>Jump to locus or gene/transcript union span</td></tr>
+      <tr><td><code>:sort &lt;mode&gt;</code></td><td>Sort alignments (<code>none|start|base|strand|mapq|insert|mate|tag|hp</code>)</td></tr>
+      <tr><td><code>:group &lt;mode&gt;</code></td><td>Group alignments (<code>none|strand|rg|hp|pair|mate|tag|chimeric</code>)</td></tr>
+      <tr><td><code>:color &lt;mode&gt; [TAG]</code></td><td>Color alignments (<code>strand|insert|pair|mate|tag|mapq|mod|bisulfite</code>)</td></tr>
+      <tr><td><code>:pairs</code> / <code>:softclip</code> / <code>:downsample</code></td><td>Toggle View-as-Pairs, soft-clip display, and depth cap</td></tr>
+      <tr><td><code>:strand</code> / <code>:translate</code> / <code>:motif</code></td><td>Toggle complement strand, 3-frame translation direction, and IUPAC regex motif search</td></tr>
+      <tr><td><code>:sashimi</code> / <code>:summary</code> / <code>:circular</code></td><td>Toggle Sashimi arcs, set signal summary, and export circular SV/CNV plots</td></tr>
+      <tr><td><code>:split</code> / <code>:unsplit</code></td><td>Add or close multi-locus split panes (up to 4)</td></tr>
+      <tr><td><code>:load</code> / <code>:unload</code> / <code>:genome</code></td><td>Hot-load or remove tracks and switch reference genome without restarting</td></tr>
+      <tr><td><code>:save-session</code> / <code>:load-session</code></td><td>Save <code>.toml</code> session or load TOML / IGV <code>.json</code> session</td></tr>
+      <tr><td><code>:blat &lt;SEQ&gt;</code> / <code>:graphics &lt;proto&gt;</code></td><td>Query UCSC hgBlat JSON API or set Kitty/iTerm2/Sixel pixel overlay</td></tr>
+    </tbody>
+  </table>
 </div>
 
-<!-- Known Limitations -->
-<div class="section" id="limitations">
-  <div class="section-label">Caveats</div>
-  <h2>Known Limitations</h2>
+<!-- Automation & Limitations -->
+<div class="section" id="automation">
+  <div class="section-label">Scripting &amp; Caveats</div>
+  <h2>Automation, Sessions &amp; Current Caveats</h2>
+  <div class="code-block">
+    <span class="cmd"><span class="comment"># Sessions (.toml or IGV .json) + live TCP port</span></span>
+    <span class="cmd">igv-rs <span class="flag">--session</span> work.toml <span class="flag">--port</span> 60151</span>
+    <span class="cmd">printf 'goto TP53\nsnapshot tp53.png\n' | nc 127.0.0.1 60151</span>
+    <span class="cmd"></span>
+    <span class="cmd"><span class="comment"># Headless BED / Gene snapshot batches</span></span>
+    <span class="cmd">igv-rs ref.fa <span class="flag">-b</span> s.bam <span class="flag">-g</span> genes.gtf <span class="flag">--snapshot-genes</span> list.txt <span class="flag">--snapshot-out</span> out/ <span class="flag">--snapshot-format</span> png</span>
+  </div>
   <ul class="limits-list">
-    <li><strong>Held-key debounce</strong> not implemented — tap rather than hold navigation keys.</li>
-    <li><strong><code>[render]</code> config keys</strong> (zoom_factor, nav_overlap, threshold overrides) not yet read.</li>
-    <li><strong><code>[bookmarks]</code> config table</strong> not loaded — in-session bookmarks work fully.</li>
-    <li><strong>Coverage at wide zoom</strong> is hidden, not heat-mapped — use a precomputed bigWig for chromosome-scale depth.</li>
-    <li><strong>BAM tag display</strong> uses Rust's Debug formatting (e.g. <code>Int8(42)</code> instead of <code>42</code>) when coloring by tag.</li>
-    <li><strong>No signal-track caching</strong> — every region change re-fetches bigWig.</li>
-    <li><strong>Single signal colormap</strong> — all bigWig tracks share the <code>SIGNAL</code> theme key.</li>
-    <li><strong>bigBed (<code>.bb</code>)</strong> not yet supported.</li>
-    <li><strong>No tabix / pairix for link tracks</strong> — BEDPE files &gt;1M records load slowly.</li>
-    <li><strong>Browser view is loopback-only</strong> — no remote access, no auth tokens.</li>
+    <li><strong>Split panes vs. stitched gene list</strong>: <code>igv-rs</code> shows 1–4 independent side-by-side panes rather than desktop IGV's single-canvas stitched exon list.</li>
+    <li><strong>Browser companion scope</strong>: <code>igv-serve</code> binds loopback HTTP only and translates browser pan/search events back to the TUI over <code>POST /api/locus</code>.</li>
+    <li><strong>CRAM versions</strong>: Powered by <code>noodles-cram</code>, requiring CRAM 3.0+.</li>
+    <li><strong>Held-key debounce</strong>: Tap navigation keys rather than holding for smoother per-frame fetching on slow remote hosts.</li>
   </ul>
 </div>
 
@@ -323,8 +324,9 @@
 <footer class="gh-footer">
   <p>
     igv-rs &nbsp;·&nbsp;
-    <a href="https://github.com/AI4S-YB/igv-rs" target="_blank" rel="noopener">GitHub</a> &nbsp;·&nbsp;
-    <a href="https://crates.io/crates/igv-rs" target="_blank" rel="noopener">crates.io</a> &nbsp;·&nbsp;
+    <a href="https://github.com/zhanxw/igv-rs" target="_blank" rel="noopener">GitHub Fork</a> &nbsp;·&nbsp;
+    <a href="https://github.com/AI4S-YB/igv-rs" target="_blank" rel="noopener">Upstream (AI4S-YB)</a> &nbsp;·&nbsp;
+    <a href="tutorials.md">Tutorials</a> &nbsp;·&nbsp;
     MIT License
   </p>
 </footer>

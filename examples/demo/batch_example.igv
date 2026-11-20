@@ -1,0 +1,12 @@
+# Headless batch script for igv-rs
+new
+genome examples/demo/demo.fa
+load examples/demo/genes.gtf examples/demo/reads.sam examples/demo/trio.vcf
+snapshotDirectory /tmp/igv_demo_out
+goto chr1:100-340
+colorBy mod
+sashimi on
+snapshot brca1_region.svg
+goto TP53
+snapshot tp53_region.png
+exit

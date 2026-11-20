@@ -282,6 +282,75 @@ code {
 .limits-list li strong { color: #1f2328; }
 .limits-list li:last-child { border-bottom: none; }
 
+/* ── Feature Video Cards ─────────────────────────────────── */
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  margin: 1rem 0;
+}
+
+.video-card {
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.video-card.featured {
+  grid-column: 1 / -1;
+}
+
+.video-card video {
+  width: 100%;
+  border-radius: 8px;
+  background: #0b0f17;
+  border: 1px solid #30363d;
+  aspect-ratio: 16 / 9;
+}
+
+.video-card h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1f2328;
+}
+
+.video-card p {
+  font-size: 0.82rem;
+  color: #636c76;
+  margin: 0;
+}
+
+.kbd-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.kbd-pill {
+  display: inline-block;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #1f2328;
+  background: #ffffff;
+  border: 1px solid #8c959f;
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+.video-links {
+  display: flex;
+  gap: 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 /* ── Footer ─────────────────────────────────────────────── */
 .gh-footer {
   background: #f6f8fa;
@@ -296,6 +365,10 @@ code {
 .gh-footer a:hover { color: #0969da; }
 
 /* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 780px) {
+  .video-grid { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 700px) {
   .gh-nav .nav-links { display: none; }
   .features { grid-template-columns: 1fr 1fr; }
