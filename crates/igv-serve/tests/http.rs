@@ -21,6 +21,8 @@ pub async fn empty_config() -> (ServerConfig, tempfile::TempDir) {
         annotations: vec![],
         signals: vec![],
         links: vec![],
+        segs: vec![],
+        gwas: vec![],
         initial: ViewEvent {
             chrom: "chr1".into(),
             start: 0,
@@ -294,5 +296,34 @@ async fn sse_emits_pushed_view_event() {
     // Drop the SSE stream so graceful shutdown can complete; otherwise
     // axum waits for the in-flight (infinite) connection to close.
     drop(stream);
+    h.shutdown().await;
+}
+
+#[tokio::test]
+async fn post_api_locus_delivers_command_to_subscriber() {
+    use igv_serve::BrowserCommand;
+    let (cfg, _dir) = empty_config().await;
+    let h = spawn(cfg).await.unwrap();
+    let mut rx = h.subscribe_commands();
+
+    let resp = reqwest::Client::new()
+        .post(format!("http://{}/api/locus", h.addr))
+        .json(&serde_json::json!({ "locus": "chr1:1-4" }))
+        .send()
+        .await
+        .unwrap();
+    assert!(resp.status().is_success());
+
+    let cmd = rx.recv().await.unwrap();
+    assert_eq!(cmd, BrowserCommand::Goto("chr1:1-4".into()));
+
+    let bad = reqwest::Client::new()
+        .post(format!("http://{}/api/locus", h.addr))
+        .json(&serde_json::json!({ "locus": "not a region!" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(bad.status(), reqwest::StatusCode::BAD_REQUEST);
+
     h.shutdown().await;
 }

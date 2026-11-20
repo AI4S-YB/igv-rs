@@ -28,11 +28,15 @@ async fn collect_minimal_inputs() {
     let sources = Sources {
         fasta: Arc::new(MockFasta) as Arc<dyn FastaSource>,
         vcf: None,
+        vcfs: vec![],
         bams: vec![],
         annotations: vec![],
         signals: vec![],
         links: vec![],
+        segs: vec![],
+        gwas: vec![],
         references: vec![RefMeta { name: "chr1".into(), length: 1000 }],
+        cytobands: vec![],
     };
     let region = Region::new("chr1", 1, 8).unwrap();
     let opts = CollectOpts {
@@ -51,11 +55,15 @@ async fn collect_skips_reference_at_wide_zoom() {
     let sources = Sources {
         fasta: Arc::new(MockFasta) as Arc<dyn FastaSource>,
         vcf: None,
+        vcfs: vec![],
         bams: vec![],
         annotations: vec![],
         signals: vec![],
         links: vec![],
+        segs: vec![],
+        gwas: vec![],
         references: vec![RefMeta { name: "chr1".into(), length: 1000 }],
+        cytobands: vec![],
     };
     let region = Region::new("chr1", 1, 1000).unwrap();
     let opts = CollectOpts {

@@ -69,7 +69,10 @@ impl FastaSource for NoodlesFastaSource {
     }
 
     async fn fetch(&self, region: &Region) -> Result<Vec<u8>> {
-        let chrom = region.chrom.clone();
+        let avail: Vec<String> = self.refs.iter().map(|r| r.name.clone()).collect();
+        let chrom = crate::genome::resolve_chrom_name(&region.chrom, &avail)
+            .unwrap_or(&region.chrom)
+            .to_string();
         let start = region.start;
         let end = region.end;
         let inner = Arc::clone(&self.inner);

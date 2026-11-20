@@ -4,10 +4,16 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 
 use igv_core::source::{
-    AnnotationSource, BamSource, FastaSource, LinkSource, SignalSource, VcfSource,
+    AnnotationSource, BamSource, FastaSource, GwasSource, LinkSource, SegSource, SignalSource,
+    VcfSource,
 };
 
 use crate::view::ViewEvent;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BrowserCommand {
+    Goto(String),
+}
 
 #[derive(Debug)]
 pub struct TrackEntry<S: ?Sized> {
@@ -35,9 +41,12 @@ pub struct ServerState {
     pub annotations: Vec<TrackEntry<dyn AnnotationSource>>,
     pub signals: Vec<TrackEntry<dyn SignalSource>>,
     pub links: Vec<TrackEntry<dyn LinkSource>>,
+    pub segs: Vec<TrackEntry<dyn SegSource>>,
+    pub gwas: Vec<TrackEntry<dyn GwasSource>>,
     pub initial: ViewEvent,
     pub link_min_score: Option<f64>,
     pub events: broadcast::Sender<ViewEvent>,
+    pub commands: broadcast::Sender<BrowserCommand>,
 }
 
 impl std::fmt::Debug for ServerState {
@@ -49,6 +58,8 @@ impl std::fmt::Debug for ServerState {
             .field("annotations", &self.annotations.len())
             .field("signals", &self.signals.len())
             .field("links", &self.links.len())
+            .field("segs", &self.segs.len())
+            .field("gwas", &self.gwas.len())
             .field("initial", &self.initial)
             .field("link_min_score", &self.link_min_score)
             .finish()

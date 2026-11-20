@@ -72,6 +72,8 @@ async fn serve_bam_or_bai(
     };
     let path = match suffix {
         Some("bai") => sibling(&t.path, "bai"),
+        Some("crai") => sibling(&t.path, "crai"),
+        Some("csi") => sibling(&t.path, "csi"),
         None => t.path.clone(),
         _ => return (StatusCode::NOT_FOUND, "not found").into_response(),
     };
@@ -91,6 +93,7 @@ async fn serve_vcf_or_tbi(
     };
     let path = match suffix {
         Some("tbi") => sibling(&t.path, "tbi"),
+        Some("csi") => sibling(&t.path, "csi"),
         None => t.path.clone(),
         _ => return (StatusCode::NOT_FOUND, "not found").into_response(),
     };

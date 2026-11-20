@@ -1,0 +1,16 @@
+ID	chrom	loc.start	loc.end	num.mark	seg.mean
+Tumor_01	chr1	1	120	20	-0.15
+Tumor_01	chr1	121	340	42	1.45
+Tumor_01	chr1	341	620	36	0.10
+Tumor_01	chr1	621	980	48	-1.35
+Tumor_01	chr1	981	1200	22	0.05
+Tumor_01	chr2	1	420	50	0.95
+Tumor_02	chr1	1	180	25	0.18
+Tumor_02	chr1	181	460	44	1.15
+Tumor_02	chr1	461	900	52	-0.95
+Tumor_02	chr1	901	1200	30	-0.12
+Tumor_03	chr1	1	260	30	-1.10
+Tumor_03	chr1	261	520	38	0.85
+Tumor_03	chr1	521	1200	60	-0.25
+Normal_01	chr1	1	1200	120	0.02
+Normal_01	chr2	1	800	80	-0.01

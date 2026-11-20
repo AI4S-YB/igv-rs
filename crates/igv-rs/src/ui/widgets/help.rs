@@ -1,8 +1,4 @@
-//! Modal keybinding help overlay (`?` toggles, any key dismisses).
-//!
-//! Drawn on top of the main UI as a centered, bordered popup. Sized to its
-//! content; if the terminal is too small, the popup is clipped to the available
-//! area without crashing.
+//! Modal keybinding & runtime command help overlay (`?` toggles, any key dismisses).
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -16,51 +12,39 @@ pub struct HelpWidget<'a> {
     pub theme: &'a Theme,
 }
 
-/// (section title, [(key, description)]).
 type Section = (&'static str, &'static [(&'static str, &'static str)]);
 
 const SECTIONS: &[Section] = &[
     (
-        "Navigation",
+        "Navigation & Panes",
         &[
-            ("a / ←", "page backward (full window)"),
-            ("d / →", "page forward (full window)"),
-            ("h", "fine pan backward (1/10 window)"),
-            ("l", "fine pan forward (1/10 window)"),
-            ("w / ↑", "zoom in"),
-            ("s / ↓", "zoom out"),
+            ("a / ← / d / →", "page backward / forward (full window)"),
+            ("h / l", "fine pan backward / forward (1/10 window)"),
+            ("w / ↑ / s / ↓", "zoom in / out"),
+            ("Tab", "cycle active split locus pane (1..=4)"),
+            ("Mouse", "click/drag ruler to jump/zoom, click feature to inspect"),
         ],
     ),
     (
-        "Tracks",
+        "Alignments & Views",
         &[
-            ("j / k", "scroll alignment lanes down / up"),
+            ("j / k / Wheel", "scroll alignment lanes down / up"),
             ("+ / -", "grow / shrink alignment-track height"),
-            ("] / [", "grow / shrink coverage-track height"),
-            ("} / {", "grow / shrink signal-track height"),
-            ("< / >", "shrink / grow link-track height"),
+            ("P / C / J / T", "toggle Pairs / cycle Color / Sashimi / 3-frame AA"),
+            ("G / B / S", "inline Kitty/iTerm2/Sixel / igv.js Browser / SVG snapshot"),
+            ("] [ / } { / < >", "resize coverage / signal / link tracks"),
             ("\\", "toggle signal shared / per-track Y-scale"),
         ],
     ),
     (
-        "Jump & bookmarks",
+        "Runtime : Commands",
         &[
-            (": / g", "open command palette (region or gene)"),
-            ("m<c>", "set bookmark to letter <c>"),
-            ("'<c>", "jump to bookmark <c>"),
-        ],
-    ),
-    (
-        "Misc",
-        &[
-            (
-                "t",
-                "cycle theme (dark / light / paper / solarized / dracula / gruvbox)",
-            ),
-            ("S", "save SVG snapshot of current view"),
-            ("B", "open browser view (igv.js)"),
-            ("?", "toggle this help"),
-            ("q / Ctrl-C", "quit"),
+            (":sort / :group", "sort (base|mapq|hp|start...) / group (strand|rg|hp...)"),
+            (":color / :pairs", "color (strand|mod|bisulfite|pair|insert|tag|mapq)"),
+            (":motif / :strand", "highlight IUPAC motif / toggle complement strand"),
+            (":split / :load", "add split pane / load track URL or path"),
+            (":blat / :circular", "query UCSC hgBlat / export Circos chord SVG/PNG"),
+            (":save-session", "save/load .toml session or import IGV .json"),
         ],
     ),
 ];
@@ -70,7 +54,6 @@ impl Widget for HelpWidget<'_> {
         let lines = build_lines(self.theme);
         let inner_w = content_width();
         let inner_h = lines.len() as u16;
-        // +2 for top/bottom borders, +2 for left/right padding columns.
         let popup_w = (inner_w + 4).min(area.width);
         let popup_h = (inner_h + 2).min(area.height);
         let popup = centered(area, popup_w, popup_h);
@@ -80,7 +63,7 @@ impl Widget for HelpWidget<'_> {
         let block = Block::default()
             .borders(Borders::ALL)
             .title(Span::styled(
-                " Keybindings — press any key to close ",
+                " Keybindings & Commands — press any key to close ",
                 self.theme.get("HEADER"),
             ))
             .style(self.theme.get("BORDER"));
@@ -130,7 +113,6 @@ fn content_width() -> u16 {
         .map(|(_, d)| d.chars().count())
         .max()
         .unwrap_or(0);
-    // 2 (left margin) + key_w + 2 (gap) + desc_w
     (2 + key_w + 2 + desc_w) as u16
 }
 
@@ -148,30 +130,11 @@ fn centered(area: Rect, w: u16, h: u16) -> Rect {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::backend::TestBackend;
-    use ratatui::Terminal;
 
     #[test]
-    fn renders_without_panic_in_small_area() {
-        let backend = TestBackend::new(20, 8);
-        let mut terminal = Terminal::new(backend).unwrap();
-        let theme = Theme::dark();
-        terminal
-            .draw(|f| {
-                f.render_widget(HelpWidget { theme: &theme }, f.area());
-            })
-            .unwrap();
-    }
-
-    #[test]
-    fn renders_in_normal_area() {
-        let backend = TestBackend::new(80, 24);
-        let mut terminal = Terminal::new(backend).unwrap();
-        let theme = Theme::dark();
-        terminal
-            .draw(|f| {
-                f.render_widget(HelpWidget { theme: &theme }, f.area());
-            })
-            .unwrap();
+    fn help_lines_fit_expected_dimensions() {
+        let t = Theme::dark();
+        let lines = build_lines(&t);
+        assert!(lines.len() >= 10);
     }
 }

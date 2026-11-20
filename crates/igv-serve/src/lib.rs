@@ -1,6 +1,4 @@
-//! Local HTTP server that mirrors the TUI's view in igv.js.
-//!
-//! See `docs/superpowers/specs/2026-05-11-browser-serve-design.md`.
+//! Local HTTP server that mirrors the TUI's view in igv.js (bidirectionally).
 
 #![forbid(unsafe_code)]
 #![warn(rust_2018_idioms, missing_debug_implementations)]
@@ -13,7 +11,8 @@ use tokio::sync::{broadcast, oneshot};
 use tokio::task::JoinHandle;
 
 use igv_core::source::{
-    AnnotationSource, BamSource, FastaSource, LinkSource, SignalSource, VcfSource,
+    AnnotationSource, BamSource, FastaSource, GwasSource, LinkSource, SegSource, SignalSource,
+    VcfSource,
 };
 
 pub mod error;
@@ -23,7 +22,7 @@ pub mod state;
 pub mod view;
 
 pub use error::ServeError;
-pub use state::{ServerState, TrackEntry};
+pub use state::{BrowserCommand, ServerState, TrackEntry};
 pub use view::{ViewEvent, ViewSnapshot};
 
 pub struct ServerConfig {
@@ -36,6 +35,8 @@ pub struct ServerConfig {
     pub annotations: Vec<TrackEntry<dyn AnnotationSource>>,
     pub signals: Vec<TrackEntry<dyn SignalSource>>,
     pub links: Vec<TrackEntry<dyn LinkSource>>,
+    pub segs: Vec<TrackEntry<dyn SegSource>>,
+    pub gwas: Vec<TrackEntry<dyn GwasSource>>,
     pub initial: ViewEvent,
     pub link_min_score: Option<f64>,
 }
@@ -51,6 +52,8 @@ impl std::fmt::Debug for ServerConfig {
             .field("annotations", &self.annotations.len())
             .field("signals", &self.signals.len())
             .field("links", &self.links.len())
+            .field("segs", &self.segs.len())
+            .field("gwas", &self.gwas.len())
             .field("initial", &self.initial)
             .field("link_min_score", &self.link_min_score)
             .finish()
@@ -61,6 +64,7 @@ impl std::fmt::Debug for ServerConfig {
 pub struct ServerHandle {
     pub addr: SocketAddr,
     pub events: broadcast::Sender<ViewEvent>,
+    pub commands: broadcast::Sender<BrowserCommand>,
     join: JoinHandle<()>,
     shutdown: Option<oneshot::Sender<()>>,
 }
@@ -69,6 +73,11 @@ impl ServerHandle {
     pub fn push_view(&self, ev: ViewEvent) {
         let _ = self.events.send(ev);
     }
+
+    pub fn subscribe_commands(&self) -> broadcast::Receiver<BrowserCommand> {
+        self.commands.subscribe()
+    }
+
     pub async fn shutdown(mut self) {
         if let Some(tx) = self.shutdown.take() {
             let _ = tx.send(());
@@ -79,6 +88,7 @@ impl ServerHandle {
 
 pub async fn spawn(cfg: ServerConfig) -> Result<ServerHandle, ServeError> {
     let (events, _rx) = broadcast::channel::<ViewEvent>(32);
+    let (commands, _crx) = broadcast::channel::<BrowserCommand>(32);
     let state = ServerState {
         fasta: cfg.fasta,
         fasta_path: cfg.fasta_path,
@@ -87,9 +97,12 @@ pub async fn spawn(cfg: ServerConfig) -> Result<ServerHandle, ServeError> {
         annotations: cfg.annotations,
         signals: cfg.signals,
         links: cfg.links,
+        segs: cfg.segs,
+        gwas: cfg.gwas,
         initial: cfg.initial,
         link_min_score: cfg.link_min_score,
         events: events.clone(),
+        commands: commands.clone(),
     };
 
     let router = routes::build(state);
@@ -113,6 +126,7 @@ pub async fn spawn(cfg: ServerConfig) -> Result<ServerHandle, ServeError> {
     Ok(ServerHandle {
         addr,
         events,
+        commands,
         join,
         shutdown: Some(shutdown_tx),
     })

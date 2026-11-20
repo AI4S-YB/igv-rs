@@ -9,7 +9,7 @@ use crate::app::state::{AppState, StatusKind};
 use crate::ui::theme::Theme;
 
 const KEYS: &str =
-    "a/d:page  h/l:fine  w/s:zoom  g/::goto  m<c>:mark  '<c>:jump  t:theme  ?:help  q:quit";
+    "a/d:page h/l:pan w/s:zoom Tab:pane J:sashimi P:pairs C:color T:AA G:gfx g/::cmd ?:help q:quit";
 
 pub struct FooterWidget<'a> {
     pub state: &'a AppState,
@@ -35,15 +35,11 @@ impl Widget for FooterWidget<'_> {
             spans.push(Span::raw(self.state.command_buffer.clone()));
             spans.push(Span::styled("█", self.theme.get("HEADER")));
         } else {
-            // At wide zoom we drop reference / BAM / VCF fetches; tell the
-            // user why their reads / sequence panel went blank.
             let mode = self.state.thresholds.classify(self.state.region.width());
             let hint = match mode {
                 RenderMode::CoverageDense => Some(" overview: reads/seq hidden "),
                 RenderMode::HeatBar => Some(" overview: reads/seq/variants hidden "),
-                RenderMode::OverviewOnly => {
-                    Some(" overview: signals + gene density only ")
-                }
+                RenderMode::OverviewOnly => Some(" overview: signals + gene density only "),
                 _ => None,
             };
             if let Some(text) = hint {
@@ -54,7 +50,11 @@ impl Widget for FooterWidget<'_> {
         }
 
         Paragraph::new(Line::from(spans))
-            .block(Block::default().borders(Borders::TOP).style(self.theme.get("BORDER")))
+            .block(
+                Block::default()
+                    .borders(Borders::TOP)
+                    .style(self.theme.get("BORDER")),
+            )
             .render(area, buf);
     }
 }

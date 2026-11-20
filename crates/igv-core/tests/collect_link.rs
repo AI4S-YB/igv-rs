@@ -27,11 +27,15 @@ async fn collect_includes_link_track() {
     let sources = Sources {
         fasta,
         vcf: None,
+        vcfs: vec![],
         bams: vec![],
         annotations: vec![],
         signals: vec![],
         links: vec![("sample.bedpe".into(), link)],
+        segs: vec![],
+        gwas: vec![],
         references: refs,
+        cytobands: vec![],
     };
     // chr1:1_500_000-1_650_000 → loop2 BothIn + spanning_loop PartialCis.
     // Use OverviewOnly to skip reference seq fetch (fasta fixture is only 100 bp).

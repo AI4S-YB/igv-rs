@@ -10,13 +10,15 @@ use serde_json::Value;
 
 use igv_core::region::Region;
 
-use crate::feature_json::{annotation_to_json, link_to_json};
+use crate::feature_json::{annotation_to_json, gwas_to_json, link_to_json, seg_to_json};
 use crate::state::ServerState;
 
 pub fn router() -> Router<ServerState> {
     Router::new()
         .route("/api/features/annotation/:idx", get(annotation))
         .route("/api/features/link/:idx", get(link))
+        .route("/api/features/seg/:idx", get(seg))
+        .route("/api/features/gwas/:idx", get(gwas))
 }
 
 #[derive(Debug, Deserialize)]
@@ -87,5 +89,55 @@ async fn link(
             )
                 .into_response()
         }
+    }
+}
+
+async fn seg(
+    State(s): State<ServerState>,
+    Path(idx): Path<usize>,
+    Query(w): Query<Window>,
+) -> Response {
+    let Some(t) = s.segs.get(idx) else {
+        return (StatusCode::NOT_FOUND, "no such seg").into_response();
+    };
+    let start = w.start.max(1);
+    let Ok(region) = Region::new(w.chrom.clone(), start, w.end) else {
+        return (StatusCode::BAD_REQUEST, "bad region").into_response();
+    };
+    match t.source.fetch(&region).await {
+        Ok(data) => {
+            let arr: Vec<Value> = data.segments.iter().map(seg_to_json).collect();
+            Json(arr).into_response()
+        }
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": format!("{err}") })),
+        )
+            .into_response(),
+    }
+}
+
+async fn gwas(
+    State(s): State<ServerState>,
+    Path(idx): Path<usize>,
+    Query(w): Query<Window>,
+) -> Response {
+    let Some(t) = s.gwas.get(idx) else {
+        return (StatusCode::NOT_FOUND, "no such gwas").into_response();
+    };
+    let start = w.start.max(1);
+    let Ok(region) = Region::new(w.chrom.clone(), start, w.end) else {
+        return (StatusCode::BAD_REQUEST, "bad region").into_response();
+    };
+    match t.source.fetch(&region).await {
+        Ok(pts) => {
+            let arr: Vec<Value> = pts.iter().map(|p| gwas_to_json(&w.chrom, p)).collect();
+            Json(arr).into_response()
+        }
+        Err(err) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": format!("{err}") })),
+        )
+            .into_response(),
     }
 }

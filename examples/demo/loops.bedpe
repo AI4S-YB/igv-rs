@@ -1,0 +1,4 @@
+chr1	80	120	chr1	280	320	loop_enhancer_1	14.5	+	-
+chr1	150	190	chr1	430	470	loop_promoter	9.2	+	-
+chr1	260	300	chr1	650	690	long_range_arc	11.8	+	-
+chr1	100	140	chr2	180	220	trans_fusion_sv	12.0	+	+

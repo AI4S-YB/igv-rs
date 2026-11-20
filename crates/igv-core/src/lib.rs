@@ -7,15 +7,21 @@ pub mod alignment;
 pub mod collect;
 pub mod coverage;
 pub mod error;
+pub mod genome;
+pub mod hub;
+pub mod io;
+pub mod pedigree;
 pub mod region;
 pub mod render;
 pub mod render_inputs;
+pub mod sashimi;
+pub mod sequence;
 pub mod source;
 
 pub use collect::{collect_render_inputs, CollectOpts, Sources};
 pub use error::{IgvError, Result};
 pub use region::Region;
 pub use render_inputs::{
-    AnnotationTrackSnapshot, BamTrackSnapshot, LinkTrackSnapshot, RenderInputs,
-    SignalTrackSnapshot,
+    AnnotationTrackSnapshot, BamTrackSnapshot, GwasTrackSnapshot, LinkTrackSnapshot, RenderInputs,
+    SegTrackSnapshot, SequenceRenderOpts, SignalTrackSnapshot, VcfTrackSnapshot,
 };

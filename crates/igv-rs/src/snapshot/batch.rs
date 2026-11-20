@@ -1,5 +1,4 @@
-//! Headless batch entry: render every region in a list to its own
-//! file. No TUI, no raw mode.
+//! Headless batch entry: render every region in a list to its own file.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -7,8 +6,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use igv_core::collect_render_inputs;
 use igv_core::source::{
-    AnnotationSource, BamSource, FastaSource, FetchOpts, FetchSignalOpts, LinkSource, RefMeta,
-    SignalSource, VcfSource,
+    AnnotationSource, BamSource, FastaSource, LinkSource, RefMeta, SignalSource, VcfSource,
 };
 use igv_core::{CollectOpts, Sources};
 use igv_render::{render_png, render_svg, GraphicalTheme, SvgOptions};
@@ -39,18 +37,31 @@ pub async fn run(
     regions: Vec<LabeledRegion>,
     batch: BatchOpts,
 ) -> Result<()> {
-    std::fs::create_dir_all(&batch.out_dir)
-        .with_context(|| format!("create {}", batch.out_dir.display()))?;
-
     let sources = Sources {
         fasta,
         vcf,
+        vcfs: Vec::new(),
         bams,
         annotations,
         signals,
         links,
-        references: references.clone(),
+        segs: Vec::new(),
+        gwas: Vec::new(),
+        references,
+        cytobands: Vec::new(),
     };
+    run_sources(sources, CollectOpts::default(), regions, batch, false).await
+}
+
+pub async fn run_sources(
+    sources: Sources,
+    collect_base: CollectOpts,
+    regions: Vec<LabeledRegion>,
+    batch: BatchOpts,
+    show_sashimi: bool,
+) -> Result<()> {
+    std::fs::create_dir_all(&batch.out_dir)
+        .with_context(|| format!("create {}", batch.out_dir.display()))?;
 
     let mut rendered = 0usize;
     let mut skipped = 0usize;
@@ -58,17 +69,16 @@ pub async fn run(
     let thresholds = igv_core::render::Thresholds::default();
 
     for (i, lr) in regions.iter().enumerate() {
-        let chrom_len = references
+        let chrom_len = sources
+            .references
             .iter()
             .find(|m| m.name == lr.region.chrom)
             .map(|m| m.length);
         let padded = clamp_to_chrom(&apply_flank(&lr.region, batch.flank), chrom_len);
         let mode = thresholds.classify(padded.width());
         let collect_opts = CollectOpts {
-            fetch_opts: FetchOpts::default(),
-            signal_opts: FetchSignalOpts::default(),
-            link_opts: igv_core::source::link::FetchLinkOpts::default(),
             render_mode: mode,
+            ..collect_base.clone()
         };
         let inputs = match collect_render_inputs(&sources, &padded, &collect_opts).await {
             Ok(v) => v,
@@ -83,12 +93,15 @@ pub async fn run(
             width_px: batch.width_px,
             theme: batch.theme.clone(),
             signal_shared_max: None,
+            show_ideogram: !sources.cytobands.is_empty(),
+            show_sashimi,
             ..SvgOptions::default()
         };
         let path = batch_name(&batch.out_dir, lr.label.as_deref(), &padded, batch.format);
         let result = match batch.format {
-            SnapshotFormat::Svg => std::fs::write(&path, render_svg(&inputs, &opts))
-                .map_err(anyhow::Error::from),
+            SnapshotFormat::Svg => {
+                std::fs::write(&path, render_svg(&inputs, &opts)).map_err(anyhow::Error::from)
+            }
             SnapshotFormat::Png => match render_png(&inputs, &opts) {
                 Ok(b) => std::fs::write(&path, b).map_err(anyhow::Error::from),
                 Err(e) => Err(anyhow::anyhow!("png render: {}", e)),
