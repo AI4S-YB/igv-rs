@@ -29,12 +29,6 @@ fn link(s_a: u64, e_a: u64, s_b: u64, e_b: u64, score: Option<f64>) -> VisibleLi
 fn link_arc_emits_bezier_path_and_anchor_rects() {
     let inputs = RenderInputs {
         region: Region::new("chr1", 1_000_000, 1_010_000).unwrap(),
-        references: vec![],
-        reference_seq: vec![],
-        variants: vec![],
-        bams: vec![],
-        annotations: vec![],
-        signals: vec![],
         links: vec![LinkTrackSnapshot {
             display: "loops.bedpe".into(),
             visible: vec![
@@ -44,6 +38,7 @@ fn link_arc_emits_bezier_path_and_anchor_rects() {
             total_record_count: 2,
         }],
         render_mode: RenderMode::DetailedReads,
+        ..Default::default()
     };
     let svg = render_svg(&inputs, &SvgOptions::default());
     let bezier_count = svg.matches(r#"<path d="M "#).count();
@@ -61,18 +56,13 @@ fn link_heatmap_emits_per_column_strip() {
     }
     let inputs = RenderInputs {
         region: Region::new("chr1", 1_000_000, 1_011_000).unwrap(),
-        references: vec![],
-        reference_seq: vec![],
-        variants: vec![],
-        bams: vec![],
-        annotations: vec![],
-        signals: vec![],
         links: vec![LinkTrackSnapshot {
             display: "dense.bedpe".into(),
             visible,
             total_record_count: 200,
         }],
         render_mode: RenderMode::DetailedReads,
+        ..Default::default()
     };
     let svg = render_svg(&inputs, &SvgOptions::default());
     let rect_count = svg.matches("<rect ").count();

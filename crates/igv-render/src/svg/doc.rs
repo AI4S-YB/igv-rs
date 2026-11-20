@@ -49,6 +49,32 @@ impl SvgDoc {
         .unwrap();
     }
 
+    pub fn circle(&mut self, cx: f64, cy: f64, r: f64, fill: Rgb) {
+        writeln!(
+            self.body,
+            r#"<circle cx="{:.2}" cy="{:.2}" r="{:.2}" fill="{}"/>"#,
+            cx,
+            cy,
+            r,
+            fill.hex()
+        )
+        .unwrap();
+    }
+
+    pub fn rect_outline(&mut self, x: f64, y: f64, w: f64, h: f64, stroke: Rgb, stroke_w: f64) {
+        writeln!(
+            self.body,
+            r#"<rect x="{:.2}" y="{:.2}" width="{:.2}" height="{:.2}" fill="none" stroke="{}" stroke-width="{:.2}"/>"#,
+            x,
+            y,
+            w,
+            h,
+            stroke.hex(),
+            stroke_w
+        )
+        .unwrap();
+    }
+
     pub fn line(&mut self, x1: f64, y1: f64, x2: f64, y2: f64, stroke: Rgb, stroke_w: f64) {
         writeln!(
             self.body,

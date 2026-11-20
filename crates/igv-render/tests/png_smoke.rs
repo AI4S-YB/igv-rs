@@ -7,14 +7,8 @@ use igv_render::{render_png, SvgOptions};
 fn png_smoke_empty_view() {
     let inputs = RenderInputs {
         region: Region::new("chr1", 1, 1000).unwrap(),
-        references: vec![],
-        reference_seq: vec![],
-        variants: vec![],
-        bams: vec![],
-        annotations: vec![],
-        signals: vec![],
-        links: vec![],
         render_mode: RenderMode::DetailedReads,
+        ..Default::default()
     };
     let bytes = render_png(&inputs, &SvgOptions::default()).expect("render_png");
     assert!(bytes.len() > 100, "png output too small");

@@ -1,10 +1,8 @@
-//! Pixel-based layout for one snapshot. Mirrors igv-rs's track order
-//! (ruler → annotations → variants → coverage → signal → alignments)
-//! but in px units rather than terminal cells.
+//! Pixel-based layout for one snapshot.
 
 use igv_core::render_inputs::RenderInputs;
 
-use crate::options::TrackHeights;
+use crate::options::{SvgOptions, TrackHeights};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Rect {
@@ -20,12 +18,18 @@ pub struct Layout {
     pub total_height: u32,
     pub plot: PlotMetrics,
     pub header: Rect,
+    pub ideogram: Option<Rect>,
     pub ruler: Rect,
+    pub sequence: Option<Rect>,
     pub annotations: Vec<Rect>,
     pub links: Vec<Rect>,
     pub variants: Option<Rect>,
+    pub vcf_tracks: Vec<Rect>,
     pub coverage: Option<Rect>,
+    pub sashimi: Vec<Rect>,
     pub signals: Vec<Rect>,
+    pub segs: Vec<Rect>,
+    pub gwas: Vec<Rect>,
     pub alignments: Vec<Rect>,
 }
 
@@ -37,16 +41,12 @@ pub struct PlotMetrics {
     pub plot_x1: u32,
     pub plot_width: u32,
     pub region_start: u64,
-    /// `region.end - region.start` (one less than width). Makes
-    /// `bp_to_px` map `region.start → plot_x0` and `region.end → plot_x1`.
-    /// Zero when the region is a single base — guarded in `bp_to_px`.
+    /// `region.end - region.start` (one less than width).
     pub region_width_bp: u64,
 }
 
 impl PlotMetrics {
-    /// Map a 1-based bp position to an x px coordinate within the plot
-    /// area. Positions before `region_start` clamp to `plot_x0`; positions
-    /// past the right edge clamp to `plot_x1`.
+    /// Map a 1-based bp position to an x px coordinate within the plot area.
     pub fn bp_to_px(&self, bp: u64) -> f64 {
         if self.region_width_bp == 0 {
             return self.plot_x0 as f64;
@@ -58,6 +58,17 @@ impl PlotMetrics {
 }
 
 pub fn compute(inputs: &RenderInputs, width_px: u32, h: &TrackHeights) -> Layout {
+    let opts = SvgOptions {
+        width_px,
+        track_heights: *h,
+        ..Default::default()
+    };
+    compute_with_options(inputs, &opts)
+}
+
+pub fn compute_with_options(inputs: &RenderInputs, opts: &SvgOptions) -> Layout {
+    let width_px = opts.width_px;
+    let h = &opts.track_heights;
     let margin_left = h.margin_left;
     let margin_right = h.margin_right;
     let plot_x0 = margin_left;
@@ -76,8 +87,31 @@ pub fn compute(inputs: &RenderInputs, width_px: u32, h: &TrackHeights) -> Layout
     let mut y: u32 = 0;
     let header = Rect { x: 0, y, w: width_px, h: h.header };
     y += h.header + h.gutter;
+
+    let ideogram = if opts.show_ideogram && !inputs.cytobands.is_empty() {
+        let r = Rect { x: 0, y, w: width_px, h: h.ideogram };
+        y += h.ideogram + h.gutter;
+        Some(r)
+    } else {
+        None
+    };
+
     let ruler = Rect { x: 0, y, w: width_px, h: h.ruler };
     y += h.ruler + h.gutter;
+
+    let sequence = if opts.show_sequence
+        && !inputs.reference_seq.is_empty()
+        && inputs.region.width() <= 240
+    {
+        let extra = if inputs.sequence_opts.show_complement { 12 } else { 0 }
+            + if inputs.sequence_opts.show_translation { 36 } else { 0 };
+        let sh = h.sequence + extra;
+        let r = Rect { x: 0, y, w: width_px, h: sh };
+        y += sh + h.gutter;
+        Some(r)
+    } else {
+        None
+    };
 
     let mut annotations = Vec::with_capacity(inputs.annotations.len());
     for _ in &inputs.annotations {
@@ -91,7 +125,15 @@ pub fn compute(inputs: &RenderInputs, width_px: u32, h: &TrackHeights) -> Layout
         y += h.link_each + h.gutter;
     }
 
-    let variants = if !inputs.variants.is_empty() {
+    let mut vcf_tracks = Vec::with_capacity(inputs.vcf_tracks.len());
+    for vt in &inputs.vcf_tracks {
+        let sample_rows = (vt.sample_names.len() as u32).min(12);
+        let vh = h.variants + sample_rows * 10;
+        vcf_tracks.push(Rect { x: 0, y, w: width_px, h: vh });
+        y += vh + h.gutter;
+    }
+
+    let variants = if vcf_tracks.is_empty() && !inputs.variants.is_empty() {
         let r = Rect { x: 0, y, w: width_px, h: h.variants };
         y += h.variants + h.gutter;
         Some(r)
@@ -107,10 +149,33 @@ pub fn compute(inputs: &RenderInputs, width_px: u32, h: &TrackHeights) -> Layout
         None
     };
 
+    let mut sashimi = Vec::new();
+    if opts.show_sashimi {
+        for bam in &inputs.bams {
+            if !bam.junctions.is_empty() {
+                sashimi.push(Rect { x: 0, y, w: width_px, h: h.sashimi_each });
+                y += h.sashimi_each + h.gutter;
+            }
+        }
+    }
+
     let mut signals = Vec::with_capacity(inputs.signals.len());
     for _ in &inputs.signals {
         signals.push(Rect { x: 0, y, w: width_px, h: h.signal_each });
         y += h.signal_each + h.gutter;
+    }
+
+    let mut segs = Vec::with_capacity(inputs.segs.len());
+    for st in &inputs.segs {
+        let sh = h.seg_each.max(24 + (st.samples.len() as u32).min(24) * 8);
+        segs.push(Rect { x: 0, y, w: width_px, h: sh });
+        y += sh + h.gutter;
+    }
+
+    let mut gwas = Vec::with_capacity(inputs.gwas.len());
+    for _ in &inputs.gwas {
+        gwas.push(Rect { x: 0, y, w: width_px, h: h.gwas_each });
+        y += h.gwas_each + h.gutter;
     }
 
     let mut alignments = Vec::with_capacity(inputs.bams.len());
@@ -126,12 +191,18 @@ pub fn compute(inputs: &RenderInputs, width_px: u32, h: &TrackHeights) -> Layout
         total_height,
         plot,
         header,
+        ideogram,
         ruler,
+        sequence,
         annotations,
         links,
         variants,
+        vcf_tracks,
         coverage,
+        sashimi,
         signals,
+        segs,
+        gwas,
         alignments,
     }
 }
@@ -146,14 +217,8 @@ mod tests {
     fn empty_inputs() -> RenderInputs {
         RenderInputs {
             region: Region::new("chr1", 1, 100).unwrap(),
-            references: vec![],
-            reference_seq: vec![],
-            variants: vec![],
-            bams: vec![],
-            annotations: vec![],
-            signals: vec![],
-            links: vec![],
             render_mode: RenderMode::DetailedReads,
+            ..Default::default()
         }
     }
 
@@ -171,7 +236,6 @@ mod tests {
     #[test]
     fn bp_to_px_maps_endpoints() {
         let l = compute(&empty_inputs(), 1200, &TrackHeights::default());
-        // region 1..=100, divisor = end - start = 99, plot covers x=80..1188 (1108 px)
         assert!((l.plot.bp_to_px(1) - 80.0).abs() < 1e-6);
         assert!((l.plot.bp_to_px(100) - 1188.0).abs() < 1e-6);
     }
@@ -194,10 +258,6 @@ mod tests {
 
         let inputs = RenderInputs {
             region: igv_core::region::Region::new("chr1", 1, 1000).unwrap(),
-            references: vec![],
-            reference_seq: vec![],
-            variants: vec![],
-            bams: vec![],
             annotations: vec![AnnotationTrackSnapshot {
                 display: "g.gff".into(),
                 transcripts: vec![AnnotationTranscript {
@@ -213,7 +273,6 @@ mod tests {
                     kind: TranscriptKind::Mrna,
                 }],
             }],
-            signals: vec![],
             links: vec![LinkTrackSnapshot {
                 display: "l.bedpe".into(),
                 visible: vec![VisibleLink {
@@ -234,6 +293,7 @@ mod tests {
                 total_record_count: 1,
             }],
             render_mode: igv_core::render::RenderMode::DetailedReads,
+            ..Default::default()
         };
         let l = compute(&inputs, 1200, &TrackHeights::default());
         assert_eq!(l.links.len(), 1);

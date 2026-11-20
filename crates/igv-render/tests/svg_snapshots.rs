@@ -10,14 +10,8 @@ use igv_render::{render_svg, SvgOptions};
 fn empty_inputs(start: u64, end: u64) -> RenderInputs {
     RenderInputs {
         region: Region::new("chr1", start, end).unwrap(),
-        references: vec![],
-        reference_seq: vec![],
-        variants: vec![],
-        bams: vec![],
-        annotations: vec![],
-        signals: vec![],
-        links: vec![],
         render_mode: RenderMode::DetailedReads,
+        ..Default::default()
     }
 }
 
@@ -38,14 +32,10 @@ use igv_core::source::{
 fn fake_read(start: u64, end: u64) -> AlignmentRow {
     AlignmentRow {
         query_name: "r".into(),
-        flag: 0,
         ref_start: start,
         ref_end: end,
         mapq: 60,
-        is_reverse: false,
-        query_sequence: vec![],
-        cigar: vec![],
-        tag: None,
+        ..Default::default()
     }
 }
 
@@ -64,6 +54,7 @@ fn variants_only_three_records() {
             alternate_alleles: vec!["T".into()],
             quality: Some(60.0),
             passes_filter: true,
+            ..Default::default()
         },
         VariantRecord {
             chrom: "chr1".into(),
@@ -72,6 +63,7 @@ fn variants_only_three_records() {
             alternate_alleles: vec!["GA".into()],
             quality: Some(50.0),
             passes_filter: true,
+            ..Default::default()
         },
         VariantRecord {
             chrom: "chr1".into(),
@@ -80,6 +72,7 @@ fn variants_only_three_records() {
             alternate_alleles: vec!["A".into()],
             quality: Some(40.0),
             passes_filter: true,
+            ..Default::default()
         },
     ];
     let svg = render_svg(&inputs, &SvgOptions::default());
@@ -94,6 +87,7 @@ fn coverage_only_one_bam_two_reads() {
         rows: vec![fake_read(10, 60), fake_read(30, 80)],
         lanes: vec![0, 1],
         total_lanes: 2,
+        ..Default::default()
     });
     let svg = render_svg(&inputs, &SvgOptions::default());
     insta::assert_snapshot!("coverage_only_one_bam_two_reads", svg);
@@ -132,6 +126,7 @@ fn alignments_only_two_reads() {
         rows: vec![row1, row2],
         lanes: vec![0, 0],
         total_lanes: 1,
+        ..Default::default()
     });
     let svg = render_svg(&inputs, &SvgOptions::default());
     insta::assert_snapshot!("alignments_only_two_reads", svg);
